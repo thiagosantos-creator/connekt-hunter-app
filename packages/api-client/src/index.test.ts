@@ -1,8 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { packageName } from './index.js';
+import { backofficeNavigation, candidateJourneySteps } from './index';
 
-test('api-client exposes its package name', () => {
-  assert.equal(packageName, '@connekt-hunter/api-client');
+test('api-client exposes backoffice navigation placeholders', () => {
+  assert.equal(backofficeNavigation.length, 9);
+});
+
+test('api-client exposes candidate journey steps', () => {
+  assert.equal(candidateJourneySteps[0], 'token-entry');
 });

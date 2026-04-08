@@ -1,8 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { packageName } from './index.js';
+import { backendModuleKeys, platformProfiles } from './index';
 
-test('contracts exposes its package name', () => {
-  assert.equal(packageName, '@connekt-hunter/contracts');
+test('contracts expose the expected platform profiles', () => {
+  assert.equal(platformProfiles.length, 4);
+});
+
+test('contracts expose all requested backend modules', () => {
+  assert.equal(backendModuleKeys.length, 18);
 });

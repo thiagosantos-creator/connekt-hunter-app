@@ -1,8 +1,12 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { packageName } from './index.js';
+import { envExampleFiles, servicePorts } from './index';
 
-test('config exposes its package name', () => {
-  assert.equal(packageName, '@connekt-hunter/config');
+test('config exposes the api port', () => {
+  assert.equal(servicePorts.api, 3001);
+});
+
+test('config lists environment templates', () => {
+  assert.equal(envExampleFiles.length, 3);
 });

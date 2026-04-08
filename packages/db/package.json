@@ -2,10 +2,22 @@
   "name": "@connekt-hunter/db",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "6.6.0"
+  },
+  "devDependencies": {
+    "prisma": "6.6.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test dist/**/*.test.js --test-reporter=spec"
+    "typecheck": "tsc --noEmit -p tsconfig.json && DATABASE_URL='postgresql://connekt:connekt@localhost:5432/connekt_hunter?schema=public' prisma validate",
+    "test": "tsx --test src/**/*.test.ts",
+    "db:generate": "prisma generate"
   }
 }

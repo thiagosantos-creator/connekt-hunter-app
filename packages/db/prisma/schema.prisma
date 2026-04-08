@@ -1,0 +1,484 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RecordStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum PublicationChannel {
+  PUBLIC_LINK
+  CLIENT_PORTAL
+  PARTNER_BOARD
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+enum DispatchChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  IN_APP
+}
+
+model User {
+  id          String               @id @default(cuid())
+  email       String               @unique
+  fullName    String
+  status      RecordStatus         @default(ACTIVE)
+  profileType String?
+  metadata    Json?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  deletedAt   DateTime?
+  memberships Membership[]
+  profiles    CandidateProfile[]
+  evaluations Evaluation[]         @relation("EvaluationOwner")
+  clientDecisions ClientDecision[] @relation("ClientDecisionOwner")
+  auditEvents AuditEvent[]         @relation("AuditActor")
+}
+
+model Organization {
+  id                     String                  @id @default(cuid())
+  slug                   String                  @unique
+  name                   String
+  status                 RecordStatus            @default(ACTIVE)
+  metadata               Json?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  deletedAt              DateTime?
+  memberships            Membership[]
+  vacancies              Vacancy[]
+  shortlists             Shortlist[]
+  messageTemplates       MessageTemplate[]
+  auditEvents            AuditEvent[]
+  integrationConnections IntegrationConnection[]
+  outboxEvents           OutboxEvent[]
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  roleId         String
+  status         MembershipStatus @default(INVITED)
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  user           User             @relation(fields: [userId], references: [id])
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  role           Role             @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, organizationId, roleId])
+}
+
+model Role {
+  id             String       @id @default(cuid())
+  key            String       @unique
+  name           String
+  scope          String
+  permissionKeys Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  memberships    Membership[]
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+}
+
+model Vacancy {
+  id             String               @id @default(cuid())
+  organizationId String
+  title          String
+  summary        String
+  description    String?
+  status         RecordStatus         @default(DRAFT)
+  metadata       Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  publications   VacancyPublication[]
+  applications   Application[]
+  shortlists     Shortlist[]
+}
+
+model VacancyPublication {
+  id          String             @id @default(cuid())
+  vacancyId   String
+  channel     PublicationChannel
+  publicSlug  String?            @unique
+  status      RecordStatus       @default(DRAFT)
+  payload     Json?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  deletedAt   DateTime?
+  vacancy     Vacancy            @relation(fields: [vacancyId], references: [id])
+}
+
+model Candidate {
+  id                  String                       @id @default(cuid())
+  email               String?                      @unique
+  phone               String?
+  status              RecordStatus                 @default(ACTIVE)
+  metadata            Json?
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  deletedAt           DateTime?
+  profiles            CandidateProfile[]
+  applications        Application[]
+  onboardingSessions  CandidateOnboardingSession[]
+  consents            CandidateConsent[]
+  resumes             CandidateResume[]
+  videoAssets         VideoAsset[]
+  smartInterviews     SmartInterviewSession[]
+  messageDispatches   MessageDispatch[]
+}
+
+model CandidateProfile {
+  id          String     @id @default(cuid())
+  candidateId String
+  userId      String?
+  fullName    String
+  headline    String?
+  summary     String?
+  profileData Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  candidate   Candidate  @relation(fields: [candidateId], references: [id])
+  user        User?      @relation(fields: [userId], references: [id])
+}
+
+model Application {
+  id                String                  @id @default(cuid())
+  vacancyId         String
+  candidateId       String
+  status            ApplicationStatus       @default(DRAFT)
+  stage             String
+  source            String?
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  deletedAt         DateTime?
+  vacancy           Vacancy                 @relation(fields: [vacancyId], references: [id])
+  candidate         Candidate               @relation(fields: [candidateId], references: [id])
+  videoAssets       VideoAsset[]
+  smartInterviews   SmartInterviewSession[]
+  shortlistItems    ShortlistItem[]
+  evaluations       Evaluation[]
+  clientDecisions   ClientDecision[]
+  messageDispatches MessageDispatch[]
+}
+
+model CandidateOnboardingSession {
+  id          String     @id @default(cuid())
+  candidateId String
+  vacancyId   String?
+  token       String     @unique
+  status      RecordStatus @default(ACTIVE)
+  currentStep String
+  payload     Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  candidate   Candidate  @relation(fields: [candidateId], references: [id])
+}
+
+model CandidateConsent {
+  id           String    @id @default(cuid())
+  candidateId  String
+  consentType  String
+  grantedAt    DateTime
+  revokedAt    DateTime?
+  payload      Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  candidate    Candidate @relation(fields: [candidateId], references: [id])
+}
+
+model CandidateResume {
+  id           String              @id @default(cuid())
+  candidateId  String
+  storageKey   String
+  fileName     String
+  mimeType     String
+  status       RecordStatus        @default(DRAFT)
+  metadata     Json?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  deletedAt    DateTime?
+  candidate    Candidate           @relation(fields: [candidateId], references: [id])
+  parseResults ResumeParseResult[]
+}
+
+model ResumeParseResult {
+  id             String           @id @default(cuid())
+  resumeId       String
+  provider       String
+  status         RecordStatus     @default(DRAFT)
+  structuredData Json?
+  rawPayload     Json?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  resume         CandidateResume  @relation(fields: [resumeId], references: [id])
+}
+
+model VideoAsset {
+  id            String       @id @default(cuid())
+  candidateId   String?
+  applicationId String?
+  storageKey    String
+  assetType     String
+  status        RecordStatus @default(DRAFT)
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+  candidate     Candidate?   @relation(fields: [candidateId], references: [id])
+  application   Application? @relation(fields: [applicationId], references: [id])
+}
+
+model SmartInterviewSession {
+  id              String                   @id @default(cuid())
+  applicationId   String
+  candidateId     String
+  status          RecordStatus             @default(DRAFT)
+  configuration   Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  deletedAt       DateTime?
+  application     Application              @relation(fields: [applicationId], references: [id])
+  candidate       Candidate                @relation(fields: [candidateId], references: [id])
+  questions       SmartInterviewQuestion[]
+  answers         SmartInterviewAnswer[]
+  transcripts     Transcript[]
+}
+
+model SmartInterviewQuestion {
+  id          String                @id @default(cuid())
+  sessionId   String
+  prompt      String
+  kind        String
+  sequence    Int
+  metadata    Json?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  deletedAt   DateTime?
+  session     SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  answers     SmartInterviewAnswer[]
+}
+
+model SmartInterviewAnswer {
+  id                String                @id @default(cuid())
+  sessionId         String
+  questionId        String
+  answerType        String
+  storageKey        String?
+  transcriptSnippet String?
+  payload           Json?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  deletedAt         DateTime?
+  session           SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  question          SmartInterviewQuestion @relation(fields: [questionId], references: [id])
+}
+
+model Transcript {
+  id          String                @id @default(cuid())
+  sessionId   String
+  source      String
+  locale      String?
+  text        String?
+  payload     Json?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  deletedAt   DateTime?
+  session     SmartInterviewSession @relation(fields: [sessionId], references: [id])
+}
+
+model Shortlist {
+  id             String         @id @default(cuid())
+  organizationId String
+  vacancyId      String
+  name           String
+  status         RecordStatus   @default(DRAFT)
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  vacancy        Vacancy        @relation(fields: [vacancyId], references: [id])
+  items          ShortlistItem[]
+}
+
+model ShortlistItem {
+  id            String        @id @default(cuid())
+  shortlistId    String
+  applicationId String
+  rank          Int?
+  status        RecordStatus  @default(DRAFT)
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+  shortlist     Shortlist     @relation(fields: [shortlistId], references: [id])
+  application   Application   @relation(fields: [applicationId], references: [id])
+  evaluations   Evaluation[]
+}
+
+model Evaluation {
+  id              String        @id @default(cuid())
+  applicationId   String
+  shortlistItemId String?
+  evaluatorUserId String?
+  status          RecordStatus  @default(DRAFT)
+  score           Float?
+  notes           Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  application     Application   @relation(fields: [applicationId], references: [id])
+  shortlistItem   ShortlistItem? @relation(fields: [shortlistItemId], references: [id])
+  evaluator       User?         @relation("EvaluationOwner", fields: [evaluatorUserId], references: [id])
+}
+
+model ClientDecision {
+  id              String       @id @default(cuid())
+  applicationId   String
+  decidedByUserId String?
+  decision        String
+  notes           Json?
+  decidedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  application     Application  @relation(fields: [applicationId], references: [id])
+  decidedBy       User?        @relation("ClientDecisionOwner", fields: [decidedByUserId], references: [id])
+}
+
+model MessageTemplate {
+  id             String        @id @default(cuid())
+  organizationId String?
+  channel        DispatchChannel
+  key            String
+  locale         String
+  subject        String?
+  body           String
+  variables      Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  dispatches     MessageDispatch[]
+
+  @@unique([organizationId, key, locale])
+}
+
+model MessageDispatch {
+  id                String           @id @default(cuid())
+  templateId        String?
+  candidateId       String?
+  applicationId     String?
+  channel           DispatchChannel
+  status            RecordStatus     @default(DRAFT)
+  providerMessageId String?
+  payload           Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+  template          MessageTemplate? @relation(fields: [templateId], references: [id])
+  candidate         Candidate?       @relation(fields: [candidateId], references: [id])
+  application       Application?     @relation(fields: [applicationId], references: [id])
+  events            MessageEvent[]
+}
+
+model MessageEvent {
+  id          String          @id @default(cuid())
+  dispatchId  String
+  eventType   String
+  payload     Json?
+  occurredAt  DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+  dispatch    MessageDispatch @relation(fields: [dispatchId], references: [id])
+}
+
+model AuditEvent {
+  id             String        @id @default(cuid())
+  organizationId String?
+  actorUserId    String?
+  entityType     String
+  entityId       String
+  action         String
+  payload        Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  actor          User?         @relation("AuditActor", fields: [actorUserId], references: [id])
+}
+
+model IntegrationConnection {
+  id             String        @id @default(cuid())
+  organizationId String?
+  provider       String
+  status         RecordStatus  @default(DRAFT)
+  credentials    Json?
+  settings       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}
+
+model OutboxEvent {
+  id             String        @id @default(cuid())
+  organizationId String?
+  aggregateType  String
+  aggregateId    String
+  eventType      String
+  payload        Json?
+  publishedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+}

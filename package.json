@@ -2,20 +2,30 @@
   "name": "connekt-hunter-app",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "npm@10.9.4",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.6.5",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
   "scripts": {
+    "lint": "pnpm exec prettier --check .",
+    "format": "pnpm exec prettier --write .",
+    "typecheck": "turbo run typecheck",
     "build": "turbo run build",
-    "lint": "turbo run lint",
     "test": "turbo run test",
-    "format": "prettier --check ."
+    "validate": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
+    "dev:api": "pnpm --filter @connekt-hunter/api start:dev",
+    "dev:worker": "pnpm --filter @connekt-hunter/worker start:dev",
+    "dev:backoffice": "pnpm --filter @connekt-hunter/backoffice-web dev",
+    "dev:candidate": "pnpm --filter @connekt-hunter/candidate-web dev",
+    "db:generate": "pnpm --filter @connekt-hunter/db db:generate"
   },
   "devDependencies": {
     "@types/node": "^24.4.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
     "prettier": "^3.8.1",
+    "tsx": "^4.19.4",
     "turbo": "^2.9.5",
     "typescript": "^5.9.3"
   }

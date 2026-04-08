@@ -1,8 +1,8 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { packageName } from './index.js';
+import { designTokens } from './index';
 
-test('design-tokens exposes its package name', () => {
-  assert.equal(packageName, '@connekt-hunter/design-tokens');
+test('design tokens expose an accent color', () => {
+  assert.equal(designTokens.colors.accent, '#38bdf8');
 });

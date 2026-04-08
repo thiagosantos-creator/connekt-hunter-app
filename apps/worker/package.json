@@ -2,10 +2,16 @@
   "name": "@connekt-hunter/worker",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test dist/**/*.test.js --test-reporter=spec"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/**/*.test.ts",
+    "start:dev": "tsx watch src/main.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.16",
+    "@nestjs/core": "^11.1.16",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
   }
 }

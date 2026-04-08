@@ -2,10 +2,17 @@
   "name": "@connekt-hunter/candidate-web",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test dist/**/*.test.js --test-reporter=spec"
+    "dev": "next dev",
+    "build": "next build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "next": "^15.3.9",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "@connekt-hunter/ui": "workspace:*",
+    "@connekt-hunter/api-client": "workspace:*"
   }
 }

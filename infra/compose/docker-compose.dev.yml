@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: connekt_hunter
+      POSTGRES_USER: connekt
+      POSTGRES_PASSWORD: connekt
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-03T21-03-04Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio-data:/data
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    env_file:
+      - ../env/.env.example
+      - ../env/.env.api.example
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - mailhog
+    ports:
+      - '3001:3001'
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/worker.Dockerfile
+    env_file:
+      - ../env/.env.example
+      - ../env/.env.api.example
+    depends_on:
+      - postgres
+      - redis
+      - minio
+      - mailhog
+    ports:
+      - '3010:3010'
+
+  backoffice-web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/backoffice-web.Dockerfile
+    env_file:
+      - ../env/.env.example
+      - ../env/.env.web.example
+    depends_on:
+      - api
+    ports:
+      - '3000:3000'
+
+  candidate-web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/candidate-web.Dockerfile
+    env_file:
+      - ../env/.env.example
+      - ../env/.env.web.example
+    depends_on:
+      - api
+    ports:
+      - '3002:3002'
+
+volumes:
+  postgres-data:
+  minio-data:

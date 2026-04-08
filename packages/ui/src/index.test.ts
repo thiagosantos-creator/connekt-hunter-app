@@ -1,8 +1,9 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
+import test from 'node:test';
 
-import { packageName } from './index.js';
+import { SectionCard, WorkspaceShell } from './index';
 
-test('ui exposes its package name', () => {
-  assert.equal(packageName, '@connekt-hunter/ui');
+test('ui exports the shared components', () => {
+  assert.equal(typeof WorkspaceShell, 'function');
+  assert.equal(typeof SectionCard, 'function');
 });

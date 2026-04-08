@@ -1,5 +1,0 @@
-
-
-> @connekt-hunter/candidate-web@0.1.0 lint
-> tsc --noEmit -p tsconfig.json
-

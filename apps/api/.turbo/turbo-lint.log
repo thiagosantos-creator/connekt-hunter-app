@@ -1,5 +1,0 @@
-
-
-> @connekt-hunter/api@0.1.0 lint
-> tsc --noEmit -p tsconfig.json
-

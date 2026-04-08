@@ -1,0 +1,22 @@
+{
+  "name": "connekt-hunter-app",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@10.9.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.4.0",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
+  }
+}

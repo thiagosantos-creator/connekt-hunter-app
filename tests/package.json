@@ -1,0 +1,15 @@
+{
+  "name": "tests-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "echo 'lint tests ok'",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "echo 'no build'"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.1",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,14 @@
+
+> candidate-web@0.1.0 test /home/runner/work/connekt-hunter-app/connekt-hunter-app/apps/candidate-web
+> vitest run
+
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/home/runner/work/connekt-hunter-app/connekt-hunter-app/apps/candidate-web[39m
+
+ [32m✓[39m src/main.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 19:57:29
+[2m   Duration [22m 2.79s[2m (transform 149ms, setup 0ms, collect 90ms, tests 10ms, environment 1.30s, prepare 350ms)[22m
+

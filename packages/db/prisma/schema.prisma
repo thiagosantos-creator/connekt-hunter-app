@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  role          String
+  createdAt     DateTime      @default(now())
+  memberships   Membership[]
+  vacancies     Vacancy[]     @relation("VacancyCreator")
+  evaluations   Evaluation[]
+  clientReviews ClientDecision[] @relation("ClientReviewer")
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+  vacancies   Vacancy[]
+  candidates  Candidate[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+}
+
+model Vacancy {
+  id             String        @id @default(cuid())
+  organizationId String
+  title          String
+  description    String
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  creator        User          @relation("VacancyCreator", fields: [createdBy], references: [id])
+  applications   Application[]
+  shortlist      Shortlist?
+}
+
+model Candidate {
+  id             String                      @id @default(cuid())
+  organizationId String
+  email          String                      @unique
+  token          String                      @unique
+  createdAt      DateTime                    @default(now())
+  organization   Organization                @relation(fields: [organizationId], references: [id])
+  profile        CandidateProfile?
+  applications   Application[]
+  onboarding     CandidateOnboardingSession?
+}
+
+model CandidateProfile {
+  id          String    @id @default(cuid())
+  candidateId String    @unique
+  fullName    String?
+  phone       String?
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+}
+
+model Application {
+  id          String       @id @default(cuid())
+  candidateId String
+  vacancyId   String
+  status      String       @default("submitted")
+  createdAt   DateTime     @default(now())
+  candidate   Candidate    @relation(fields: [candidateId], references: [id])
+  vacancy     Vacancy      @relation(fields: [vacancyId], references: [id])
+  evaluations Evaluation[]
+  shortlistItems ShortlistItem[]
+
+  @@unique([candidateId, vacancyId])
+}
+
+model CandidateOnboardingSession {
+  id               String              @id @default(cuid())
+  candidateId      String              @unique
+  basicCompleted   Boolean             @default(false)
+  consentCompleted Boolean             @default(false)
+  resumeCompleted  Boolean             @default(false)
+  status           String              @default("pending")
+  candidate        Candidate           @relation(fields: [candidateId], references: [id])
+  consents         CandidateConsent[]
+  resumes          CandidateResume[]
+}
+
+model CandidateConsent {
+  id            String                      @id @default(cuid())
+  sessionId     String
+  type          String
+  accepted      Boolean
+  acceptedAt    DateTime                    @default(now())
+  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
+}
+
+model CandidateResume {
+  id            String                      @id @default(cuid())
+  sessionId     String
+  objectKey     String
+  provider      String
+  status        String                      @default("uploaded")
+  uploadedAt    DateTime                    @default(now())
+  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
+  parseResult   ResumeParseResult?
+}
+
+model ResumeParseResult {
+  id          String          @id @default(cuid())
+  resumeId    String          @unique
+  status      String
+  parsedJson  Json
+  createdAt   DateTime        @default(now())
+  resume      CandidateResume @relation(fields: [resumeId], references: [id])
+}
+
+model Shortlist {
+  id          String          @id @default(cuid())
+  vacancyId   String          @unique
+  createdAt   DateTime        @default(now())
+  vacancy     Vacancy         @relation(fields: [vacancyId], references: [id])
+  items       ShortlistItem[]
+}
+
+model ShortlistItem {
+  id            String       @id @default(cuid())
+  shortlistId   String
+  applicationId String
+  createdAt     DateTime     @default(now())
+  shortlist     Shortlist    @relation(fields: [shortlistId], references: [id])
+  application   Application  @relation(fields: [applicationId], references: [id])
+  decisions     ClientDecision[]
+
+  @@unique([shortlistId, applicationId])
+}
+
+model Evaluation {
+  id            String       @id @default(cuid())
+  applicationId String
+  evaluatorId   String
+  comment       String
+  createdAt     DateTime     @default(now())
+  application   Application  @relation(fields: [applicationId], references: [id])
+  evaluator     User         @relation(fields: [evaluatorId], references: [id])
+}
+
+model ClientDecision {
+  id             String        @id @default(cuid())
+  shortlistItemId String
+  reviewerId     String
+  decision       String
+  createdAt      DateTime      @default(now())
+  shortlistItem  ShortlistItem @relation(fields: [shortlistItemId], references: [id])
+  reviewer       User          @relation("ClientReviewer", fields: [reviewerId], references: [id])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json
+  createdAt   DateTime @default(now())
+}
+
+model MessageDispatch {
+  id          String   @id @default(cuid())
+  channel     String
+  destination String
+  content     String
+  status      String   @default("queued")
+  createdAt   DateTime @default(now())
+}
+
+model OutboxEvent {
+  id          String   @id @default(cuid())
+  topic       String
+  payload     Json
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}

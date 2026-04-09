@@ -1,0 +1,29 @@
+import { Module } from '@nestjs/common';
+import { HealthController } from './modules/health/health.controller.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { VacanciesModule } from './modules/vacancies/vacancies.module.js';
+import { CandidatesModule } from './modules/candidates/candidates.module.js';
+import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
+import { ApplicationsModule } from './modules/applications/applications.module.js';
+import { ShortlistModule } from './modules/shortlist/shortlist.module.js';
+import { EvaluationsModule } from './modules/evaluations/evaluations.module.js';
+import { ClientDecisionsModule } from './modules/client-decisions/client-decisions.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
+
+@Module({
+  imports: [
+    AuthModule,
+    OrganizationsModule,
+    VacanciesModule,
+    CandidatesModule,
+    OnboardingModule,
+    ApplicationsModule,
+    ShortlistModule,
+    EvaluationsModule,
+    ClientDecisionsModule,
+    AuditModule,
+  ],
+  controllers: [HealthController],
+})
+export class AppModule {}

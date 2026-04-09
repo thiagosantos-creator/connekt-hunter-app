@@ -1,0 +1,4 @@
+
+> @connekt/db@0.1.0 build /home/runner/work/connekt-hunter-app/connekt-hunter-app/packages/db
+> tsc -p tsconfig.json
+

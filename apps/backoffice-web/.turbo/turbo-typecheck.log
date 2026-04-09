@@ -1,0 +1,4 @@
+
+> backoffice-web@0.1.0 typecheck /home/runner/work/connekt-hunter-app/connekt-hunter-app/apps/backoffice-web
+> tsc -p tsconfig.json --noEmit
+

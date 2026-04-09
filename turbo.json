@@ -14,7 +14,14 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**"]
+      "outputs": ["dist/**", "build/**"],
+      "outputLogs": "errors-only"
+    },
+    "worker#build": {
+      "outputs": ["dist/**"]
+    },
+    "tests-e2e#build": {
+      "outputs": []
     }
   }
 }

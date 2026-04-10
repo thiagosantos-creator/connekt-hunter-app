@@ -8,6 +8,7 @@ import { Step2ConsentView } from './views/Step2ConsentView.js';
 import { Step3ResumeView } from './views/Step3ResumeView.js';
 import { StatusView } from './views/StatusView.js';
 import { InterviewView } from './views/InterviewView.js';
+import { AccountView } from './views/AccountView.js';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="/onboarding/resume" element={<RequiresToken><Step3ResumeView /></RequiresToken>} />
           <Route path="/status" element={<RequiresToken><StatusView /></RequiresToken>} />
           <Route path="/interview" element={<RequiresToken><InterviewView /></RequiresToken>} />
+          <Route path="/account" element={<RequiresToken><AccountView /></RequiresToken>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

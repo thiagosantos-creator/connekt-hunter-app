@@ -7,9 +7,12 @@ export function getToken(): string {
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const sessionToken = localStorage.getItem('candidate_session_token');
+  if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
   const res = await fetch(`${API}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
   if (res.status === 401) {
@@ -26,7 +29,10 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`);
+  const headers: Record<string, string> = {};
+  const sessionToken = localStorage.getItem('candidate_session_token');
+  if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+  const res = await fetch(`${API}${path}`, { headers });
   if (res.status === 401) {
     const body = await res.text();
     if (body.includes('token_expired')) {

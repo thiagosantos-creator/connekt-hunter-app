@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
 import { addAuditEvent, generateMockMfaQr, saveProfile } from '../services/account.js';
+import { apiPost } from '../services/api.js';
 import {
   PageContent,
   PageHeader,
@@ -37,9 +38,11 @@ export function AccountView() {
   const [title, setTitle] = useState(user?.title ?? '');
   const [company, setCompany] = useState(user?.company ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [feedbackVariant, setFeedbackVariant] = useState<'success' | 'error'>('success');
 
   const exp = useMemo(() => roleExperience[user?.role ?? 'client'], [user?.role]);
 
@@ -50,16 +53,26 @@ export function AccountView() {
     addAuditEvent('profile.updated', user.email, user.id);
     refreshAuth();
     setFeedback('Perfil atualizado com sucesso.');
+    setFeedbackVariant('success');
   };
 
-  const changePassword = () => {
+  const changePassword = async () => {
     if (password.length < 8) {
       setFeedback('Senha deve conter ao menos 8 caracteres.');
+      setFeedbackVariant('error');
       return;
     }
-    addAuditEvent('password.changed', user.email, user.id);
-    setPassword('');
-    setFeedback('Senha alterada com sucesso.');
+    try {
+      await apiPost('/auth/change-password', { currentPassword: currentPassword || undefined, newPassword: password });
+      addAuditEvent('password.changed', user.email, user.id);
+      setCurrentPassword('');
+      setPassword('');
+      setFeedback('Senha alterada com sucesso.');
+      setFeedbackVariant('success');
+    } catch (err) {
+      setFeedback(`Erro ao trocar senha: ${String(err)}`);
+      setFeedbackVariant('error');
+    }
   };
 
   const toggleMfa = () => {
@@ -67,13 +80,14 @@ export function AccountView() {
     setMfaEnabled(next);
     addAuditEvent(next ? 'mfa.enabled' : 'mfa.disabled', user.email, user.id);
     setFeedback(next ? 'MFA ativado.' : 'MFA desativado.');
+    setFeedbackVariant('success');
   };
 
   return (
     <PageContent>
       <PageHeader title="Conta e Segurança" description="Gerencie seus dados, segurança e experiência por perfil." />
 
-      {feedback && <InlineMessage variant="success">{feedback}</InlineMessage>}
+      {feedback && <InlineMessage variant={feedbackVariant}>{feedback}</InlineMessage>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
         <Card>
@@ -97,13 +111,20 @@ export function AccountView() {
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
             <Input
+              label="Senha atual"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              placeholder="Deixe em branco se não possui senha"
+            />
+            <Input
               label="Nova senha"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Mínimo de 8 caracteres"
             />
-            <Button variant="outline" onClick={changePassword}>Trocar senha</Button>
+            <Button variant="outline" onClick={() => { void changePassword(); }}>Trocar senha</Button>
 
             <div style={{ border: `1px solid ${colors.border}`, borderRadius: 8, padding: spacing.md }}>
               <strong>MFA</strong>

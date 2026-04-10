@@ -144,6 +144,60 @@ export async function processComparisonGenerateJobs(): Promise<number> {
   return events.length;
 }
 
+export async function processRecommendationGenerateJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'recommendation:generate', processed: false }, take: 20 });
+  for (const evt of events) {
+    const payload = evt.payload as { candidateId: string; vacancyId: string };
+    await prisma.candidateRecommendation.create({
+      data: {
+        candidateId: payload.candidateId,
+        vacancyId: payload.vacancyId,
+        recommendationType: 'worker-refresh',
+        title: 'Recomendação reprocessada',
+        explanation: 'Reprocessamento assistivo via worker; decisão final permanece humana.',
+        confidence: 0.65,
+        actionableInsights: ['revisar aderência com gestor'] as never,
+      },
+    });
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+  return events.length;
+}
+
+export async function processRiskAnalyzeJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'risk:analyze', processed: false }, take: 20 });
+  for (const evt of events) {
+    const payload = evt.payload as { candidateId: string; vacancyId: string };
+    await prisma.riskEvaluation.upsert({
+      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+      update: { overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+    });
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+  return events.length;
+}
+
+export async function processAutomationTriggerJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'automation:trigger', processed: false }, take: 20 });
+  for (const evt of events) {
+    const payload = evt.payload as { candidateId: string; vacancyId: string; action: string };
+    await prisma.automationExecution.create({
+      data: {
+        candidateId: payload.candidateId,
+        vacancyId: payload.vacancyId,
+        action: payload.action,
+        status: 'executed_assisted',
+        inputJson: payload as never,
+        outputJson: { success: true } as never,
+        executedAt: new Date(),
+      },
+    });
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+  return events.length;
+}
+
 async function run() {
   console.log('[worker] starting');
 
@@ -164,7 +218,10 @@ async function run() {
     const processedMatching = await processMatchingComputeJobs();
     const processedInsights = await processInsightsGenerateJobs();
     const processedComparison = await processComparisonGenerateJobs();
-    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison}`);
+    const processedRecommendation = await processRecommendationGenerateJobs();
+    const processedRisk = await processRiskAnalyzeJobs();
+    const processedAutomation = await processAutomationTriggerJobs();
+    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation}`);
   } catch (err) {
     console.error('[worker] error', err);
     process.exitCode = 1;

@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -82,6 +82,13 @@ pnpm --filter candidate-web dev
 - `POST /candidate-ranking/generate`
 - `GET /candidate-ranking/:vacancyId`
 - `POST /candidate-ranking/override`
+- `POST /recommendation-engine/generate`
+- `GET /recommendation-engine/:vacancyId`
+- `POST /risk-analysis/analyze`
+- `GET /risk-analysis?candidateId=&vacancyId=`
+- `POST /decision-engine/priority/calculate`
+- `POST /workflow-automation/suggest`
+- `POST /workflow-automation/execute`
 
 ## Vertical Slice 02
 Implementado nesta fase:
@@ -152,3 +159,12 @@ Implementado nesta fase:
 - Ranking assistido com snapshot e possibilidade de override humano.
 - Reprocessamento assíncrono no worker (`matching:compute`, `insights:generate`, `comparison:generate`).
 - Novas telas no backoffice para score, insights, comparador e reorder manual.
+
+## Vertical Slice 06
+Implementado nesta fase:
+- Recommendation engine para ações sugeridas com explicação obrigatória e persistência.
+- Decision engine para priorização dinâmica por vaga (`CandidatePriorityScore`).
+- Risk analysis com sinais (`RiskSignal`) + avaliação consolidada (`RiskEvaluation`).
+- Workflow automation assistida com aprovação humana (`WorkflowSuggestion` + `AutomationExecution`).
+- Auditoria para geração de recomendações, cálculo de prioridade, análise de risco e execução assistida.
+- Worker com novos tópicos: `recommendation:generate`, `risk:analyze`, `automation:trigger`.

@@ -60,6 +60,12 @@ model Vacancy {
   embeddings      VacancyEmbedding[]
   matchingScores  MatchingScore[]
   rankingSnapshots CandidateRankingSnapshot[]
+  recommendations CandidateRecommendation[]
+  priorityScores  CandidatePriorityScore[]
+  workflowSuggestions WorkflowSuggestion[]
+  automationExecutions AutomationExecution[]
+  riskSignals     RiskSignal[]
+  riskEvaluations RiskEvaluation[]
 }
 
 model Candidate {
@@ -84,6 +90,12 @@ model Candidate {
   rankingSnapshots CandidateRankingSnapshot[]
   aiEvidences     AiEvidence[]
   aiExplanations  AiExplanation[]
+  recommendations CandidateRecommendation[]
+  priorityScores  CandidatePriorityScore[]
+  workflowSuggestions WorkflowSuggestion[]
+  automationExecutions AutomationExecution[]
+  riskSignals     RiskSignal[]
+  riskEvaluations RiskEvaluation[]
   invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
@@ -609,4 +621,111 @@ model StorageAssetMetadata {
   provider   String
   metadata   Json
   createdAt  DateTime @default(now())
+}
+
+model CandidateRecommendation {
+  id                String   @id @default(cuid())
+  candidateId       String
+  vacancyId         String
+  recommendationType String
+  title             String
+  explanation       String
+  confidence        Float
+  actionableInsights Json
+  status            String   @default("active")
+  source            String   @default("ai-assisted")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  candidate         Candidate @relation(fields: [candidateId], references: [id])
+  vacancy           Vacancy   @relation(fields: [vacancyId], references: [id])
+
+  @@index([vacancyId, status])
+  @@index([candidateId, vacancyId])
+}
+
+model CandidatePriorityScore {
+  id             String   @id @default(cuid())
+  candidateId    String
+  vacancyId      String
+  score          Float
+  priorityBand   String
+  factors        Json
+  rationale      String
+  manualOverride Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id])
+
+  @@unique([candidateId, vacancyId])
+  @@index([vacancyId, score])
+}
+
+model WorkflowSuggestion {
+  id                   String   @id @default(cuid())
+  candidateId          String
+  vacancyId            String
+  suggestionType       String
+  payload              Json
+  explanation          String
+  requiresHumanApproval Boolean @default(true)
+  status               String   @default("pending")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  candidate            Candidate @relation(fields: [candidateId], references: [id])
+  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id])
+  automationExecutions AutomationExecution[]
+
+  @@index([vacancyId, status])
+}
+
+model AutomationExecution {
+  id                   String   @id @default(cuid())
+  candidateId          String
+  vacancyId            String
+  workflowSuggestionId String?
+  action               String
+  status               String   @default("queued")
+  inputJson            Json
+  outputJson           Json
+  triggeredBy          String?
+  executedAt           DateTime?
+  createdAt            DateTime @default(now())
+  candidate            Candidate @relation(fields: [candidateId], references: [id])
+  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id])
+  suggestion           WorkflowSuggestion? @relation(fields: [workflowSuggestionId], references: [id])
+
+  @@index([vacancyId, status])
+}
+
+model RiskSignal {
+  id          String   @id @default(cuid())
+  candidateId String
+  vacancyId   String
+  signalType  String
+  severity    String
+  score       Float
+  details     Json
+  createdAt   DateTime @default(now())
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  vacancy     Vacancy   @relation(fields: [vacancyId], references: [id])
+
+  @@index([vacancyId, severity])
+}
+
+model RiskEvaluation {
+  id             String   @id @default(cuid())
+  candidateId    String
+  vacancyId      String
+  overallRisk    String
+  riskScore      Float
+  findings       Json
+  explanation    String
+  requiresReview Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id])
+
+  @@unique([candidateId, vacancyId])
 }

@@ -13,8 +13,10 @@ export class RateLimitGuard implements CanActivate {
   };
   private readonly fallbackStore = new Map<string, { count: number; resetAt: number }>();
   private readonly fallbackCleanupIntervalMs = 30_000;
+  private readonly fallbackSizeCleanupIntervalMs = 1_000;
   private readonly fallbackMaxEntries = 5_000;
   private lastFallbackCleanupAt = 0;
+  private lastFallbackSizeCleanupAt = 0;
 
   constructor(private readonly reflector: Reflector) {}
 
@@ -70,12 +72,16 @@ export class RateLimitGuard implements CanActivate {
 
   private cleanupExpiredFallbackEntries(now: number): void {
     const shouldCleanupByTime = now - this.lastFallbackCleanupAt >= this.fallbackCleanupIntervalMs;
-    const shouldCleanupBySize = this.fallbackStore.size >= this.fallbackMaxEntries;
+    const shouldCleanupBySize =
+      this.fallbackStore.size >= this.fallbackMaxEntries &&
+      now - this.lastFallbackSizeCleanupAt >= this.fallbackSizeCleanupIntervalMs;
     if (!shouldCleanupByTime && !shouldCleanupBySize) return;
 
     for (const [key, value] of this.fallbackStore.entries()) {
       if (now > value.resetAt) this.fallbackStore.delete(key);
     }
-    this.lastFallbackCleanupAt = now;
+
+    if (shouldCleanupByTime) this.lastFallbackCleanupAt = now;
+    if (shouldCleanupBySize) this.lastFallbackSizeCleanupAt = now;
   }
 }

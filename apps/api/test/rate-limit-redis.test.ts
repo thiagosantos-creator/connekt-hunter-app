@@ -23,6 +23,31 @@ describe('RateLimitGuard fallback store cleanup', () => {
     expect(guard.fallbackStore.has('scope:/route:old')).toBe(false);
     expect(guard.fallbackStore.has('scope:/route:active')).toBe(true);
   });
+
+  it('throttles size-triggered cleanup scans while fallback store stays full', () => {
+    const guard = new RateLimitGuard(new Reflector()) as RateLimitGuard & {
+      fallbackStore: Map<string, { count: number; resetAt: number }>;
+      checkMemory: (ip: string, config: { scope: string; windowSec: number; maxRequests: number }, routePath: string) => boolean;
+      cleanupExpiredFallbackEntries: (now: number) => void;
+      fallbackMaxEntries: number;
+      lastFallbackCleanupAt: number;
+      lastFallbackSizeCleanupAt: number;
+    };
+
+    guard.lastFallbackCleanupAt = 0;
+    guard.lastFallbackSizeCleanupAt = 0;
+
+    for (let i = 0; i < guard.fallbackMaxEntries; i++) {
+      guard.fallbackStore.set(`scope:/route:key-${i}`, { count: 1, resetAt: 60_000 });
+    }
+
+    const entriesSpy = vi.spyOn(guard.fallbackStore, 'entries');
+
+    guard.cleanupExpiredFallbackEntries(31_000);
+    guard.cleanupExpiredFallbackEntries(31_100);
+
+    expect(entriesSpy).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('redisIncrWithExpire', () => {

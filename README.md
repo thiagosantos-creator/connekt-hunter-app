@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening) + **Vertical Slice 08** (segurança defensiva, tenant isolation e e2e integrado).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -178,3 +178,22 @@ Implementado nesta fase:
 - Logs estruturados para seleção de providers e fallback de integrações.
 - Testes adicionais (unitários + contrato e2e) para validar guardrails críticos.
 - Relatório consolidado em `docs/reports/slice-07-gap-report.md`.
+
+## Vertical Slice 08
+Implementado nesta fase:
+- Tenant isolation defensivo em módulos de inteligência (matching, insights, recommendation, decision, risk).
+- Validação `candidate.organizationId === vacancy.organizationId` em todos os services de inteligência.
+- `assertTenantAccess()` com membership check em todos os endpoints protegidos.
+- Rate limiting (`RateLimitGuard`, 30 req/min por IP) em endpoints públicos do candidato.
+- Token validation (`PublicTokenGuard`) com expiração checada em `GuestSession`.
+- Worker defensivo com `assertWorkerTenantConsistency` por evento.
+- Frontend com tratamento de token expirado no bootstrap.
+- Suite e2e real (contrato) para tenant isolation, rate limiting, worker defense e fluxos ponta a ponta.
+- 30+ novos testes unitários para módulos de inteligência e onboarding.
+- Verificação automatizada de audit trail em endpoints críticos.
+- Documentação de segurança (`docs/sdd/06-security/spec.md`) e testes (`docs/sdd/07-testing/spec.md`).
+
+### Documentação adicional
+- `docs/adr/015-defensive-security-tenant-isolation.md`
+- `docs/sdd/06-security/spec.md`
+- `docs/sdd/07-testing/spec.md`

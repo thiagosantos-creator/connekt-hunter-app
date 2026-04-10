@@ -28,7 +28,12 @@ Consolidar critérios de validação transversal dos Slices 01–06 e orientar c
 | ClientDecisionsService | ✓ (membership) | ✓ (c/ actorId) | — | ✓ |
 | OnboardingService | N/A (token-based) | ✓ | — | ✓ |
 | ProviderRegistryService | N/A | N/A | — | ✓ (fail-fast) |
-| Worker (main.ts) | N/A | — | — | ✓ (per-event) |
+| Worker (main.ts) | ✓ (assertWorkerTenantConsistency) | ✓ | — | ✓ (per-event) |
+| CandidateMatchingService | ✓ (cross-tenant + membership) | ✓ | — | ✓ |
+| CandidateInsightsService | ✓ (cross-tenant + membership) | ✓ | — | ✓ |
+| RecommendationEngineService | ✓ (cross-tenant + membership) | ✓ | — | ✓ |
+| DecisionEngineService | ✓ (vacancy + membership) | ✓ | — | ✓ |
+| RiskAnalysisService | ✓ (cross-tenant + membership) | ✓ | — | ✓ |
 
 ## Critérios de aceitação
 - Fluxos principais executáveis ponta a ponta sem inconsistências de estado.

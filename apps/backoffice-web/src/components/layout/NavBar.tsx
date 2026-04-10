@@ -27,6 +27,7 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     { label: 'Candidatos', to: '/candidates' },
     { label: 'Aplicações', to: '/applications' },
     { label: 'Shortlist', to: '/shortlist' },
+    { label: 'Revisão Cliente', to: '/client-review' },
     { label: 'Entrevista', to: '/smart-interview' },
     { label: 'Inteligência', to: '/product-intelligence' },
     { label: 'Conta', to: '/account' },

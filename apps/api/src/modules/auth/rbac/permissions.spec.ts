@@ -21,9 +21,24 @@ describe('RBAC permissions', () => {
   it('allows admin to read shortlist items', () => {
     expect(hasPermission('admin', 'shortlist:read')).toBe(true);
   });
-});
 
+  it('allows headhunter to configure smart interview', () => {
+    expect(hasPermission('headhunter', 'smart-interview:configure')).toBe(true);
+  });
 
-it('allows headhunter to configure smart interview', () => {
-  expect(hasPermission('headhunter', 'smart-interview:configure')).toBe(true);
+  it('allows admin to manage users', () => {
+    expect(hasPermission('admin', 'users:manage')).toBe(true);
+  });
+
+  it('denies headhunter from managing users', () => {
+    expect(hasPermission('headhunter', 'users:manage')).toBe(false);
+  });
+
+  it('allows admin to read audit', () => {
+    expect(hasPermission('admin', 'audit:read')).toBe(true);
+  });
+
+  it('denies client from reading audit', () => {
+    expect(hasPermission('client', 'audit:read')).toBe(false);
+  });
 });

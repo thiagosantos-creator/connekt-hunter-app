@@ -12,6 +12,7 @@ export function StatusView() {
   const [fullName, setFullName] = useState(info.profile?.fullName ?? '');
   const [upgradeMsg, setUpgradeMsg] = useState('');
   const [upgrading, setUpgrading] = useState(false);
+  const [interviewToken, setInterviewToken] = useState('');
 
   const upgradeAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +26,12 @@ export function StatusView() {
     } finally {
       setUpgrading(false);
     }
+  };
+
+  const goToInterview = () => {
+    if (!interviewToken.trim()) return;
+    localStorage.setItem('si_public_token', interviewToken.trim());
+    navigate('/interview');
   };
 
   return (
@@ -50,9 +57,30 @@ export function StatusView() {
           <ol style={{ textAlign: 'left', color: colors.textSecondary, paddingLeft: spacing.lg, margin: 0 }}>
             <li style={{ marginBottom: spacing.sm }}>Seu currículo será processado automaticamente.</li>
             <li style={{ marginBottom: spacing.sm }}>Um recrutador irá revisar sua candidatura.</li>
-            <li style={{ marginBottom: spacing.sm }}>Se selecionado, o cliente tomará uma decisão.</li>
+            <li style={{ marginBottom: spacing.sm }}>Se selecionado, você poderá ser convidado para uma entrevista inteligente.</li>
             <li>Você será notificado sobre o resultado.</li>
           </ol>
+        </CardContent>
+      </Card>
+
+      <Card style={{ marginTop: spacing.md }}>
+        <CardHeader>
+          <CardTitle>Entrevista Inteligente</CardTitle>
+          <CardDescription>Se recebeu um código de entrevista, insira abaixo para iniciar.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                placeholder="Código da entrevista"
+                value={interviewToken}
+                onChange={(e) => setInterviewToken(e.target.value)}
+              />
+            </div>
+            <Button variant="primary" onClick={goToInterview} disabled={!interviewToken.trim()}>
+              Iniciar Entrevista
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

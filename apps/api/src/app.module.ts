@@ -15,6 +15,10 @@ import { IntegrationsModule } from './modules/integrations/integrations.module.j
 import { CandidateMatchingModule } from './modules/candidate-matching/candidate-matching.module.js';
 import { CandidateInsightsModule } from './modules/candidate-insights/candidate-insights.module.js';
 import { CandidateRankingModule } from './modules/candidate-ranking/candidate-ranking.module.js';
+import { RecommendationEngineModule } from './modules/recommendation-engine/recommendation-engine.module.js';
+import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
+import { WorkflowAutomationModule } from './modules/workflow-automation/workflow-automation.module.js';
+import { RiskAnalysisModule } from './modules/risk-analysis/risk-analysis.module.js';
 
 @Module({
   imports: [
@@ -33,6 +37,10 @@ import { CandidateRankingModule } from './modules/candidate-ranking/candidate-ra
     CandidateMatchingModule,
     CandidateInsightsModule,
     CandidateRankingModule,
+    RecommendationEngineModule,
+    DecisionEngineModule,
+    WorkflowAutomationModule,
+    RiskAnalysisModule,
   ],
   controllers: [HealthController],
 })

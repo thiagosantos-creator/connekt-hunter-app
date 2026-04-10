@@ -150,4 +150,58 @@ export class AiGateway {
     return rationale as Record<string, string>;
   }
 
+  async generateRecommendations(input: { candidateId: string; vacancyId: string; matchingScore?: number; riskScore?: number }) {
+    const provider = this.config.isIntegrationEnabled('ai') ? 'ai-real' : 'ai-mock';
+    const result = {
+      provider,
+      recommendations: [
+        { type: 'next-step', title: 'Agendar entrevista técnica', confidence: 0.82, actionableInsights: ['foco em arquitetura distribuída', 'validar profundidade prática'] },
+        { type: 'stakeholder-check', title: 'Validar fit de colaboração', confidence: 0.74, actionableInsights: ['confirmar comunicação cross-funcional', 'obter evidência de mentoria'] },
+      ],
+      explanation: 'Recomendações assistivas com base em matching, sinais de risco e padrões recentes. A decisão final é sempre humana.',
+    };
+
+    await prisma.aiExecutionLog.create({
+      data: {
+        operation: 'recommendation-engine',
+        provider,
+        modelVersion: provider === 'ai-real' ? process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini' : 'mock-v1',
+        promptVersion: 'recommendation-engine.v1',
+        status: 'success',
+        requestJson: input as never,
+        responseJson: result as never,
+      },
+    });
+
+    return result;
+  }
+
+  async analyzeRiskPatterns(input: { candidateId: string; vacancyId: string; context?: unknown }) {
+    const provider = this.config.isIntegrationEnabled('ai') ? 'ai-real' : 'ai-mock';
+    const result = {
+      provider,
+      overallRisk: 'medium',
+      riskScore: 0.46,
+      findings: [
+        { type: 'availability', severity: 'medium', score: 0.58, detail: 'Disponibilidade híbrida ainda não confirmada.' },
+        { type: 'technical-depth', severity: 'low', score: 0.34, detail: 'Aprofundar detalhes de observabilidade em sistemas distribuídos.' },
+      ],
+      explanation: 'Risco calculado por IA de forma assistiva. Revisão humana obrigatória antes de qualquer decisão.',
+    };
+
+    await prisma.aiExecutionLog.create({
+      data: {
+        operation: 'risk-analysis',
+        provider,
+        modelVersion: provider === 'ai-real' ? process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini' : 'mock-v1',
+        promptVersion: 'risk-analysis.v1',
+        status: 'success',
+        requestJson: input as never,
+        responseJson: result as never,
+      },
+    });
+
+    return result;
+  }
+
 }

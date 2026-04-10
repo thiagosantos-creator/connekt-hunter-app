@@ -196,6 +196,15 @@ function VacanciesView() {
 // Candidates view
 // ---------------------------------------------------------------------------
 interface Candidate { id: string; email: string; token: string }
+interface CandidateRecommendation {
+  id: string;
+  candidateId: string;
+  vacancyId: string;
+  recommendationType: string;
+  title: string;
+  explanation: string;
+  confidence: number;
+}
 
 function CandidatesView() {
   const [email, setEmail] = useState('');
@@ -204,6 +213,9 @@ function CandidatesView() {
   const [result, setResult] = useState<Candidate | null>(null);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recommendationCandidateId, setRecommendationCandidateId] = useState('');
+  const [recommendationVacancyId, setRecommendationVacancyId] = useState('');
+  const [recommendations, setRecommendations] = useState<CandidateRecommendation[]>([]);
 
   const invite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +225,14 @@ function CandidatesView() {
       setResult(c);
       setMsg('Candidate invited! Token: ' + c.token);
     } catch (err) { setMsg(String(err)); } finally { setLoading(false); }
+  };
+
+  const loadRecommendations = async () => {
+    try {
+      const data = await apiGet<CandidateRecommendation[]>(`/recommendation-engine/${recommendationVacancyId}`);
+      setRecommendations(data.filter((item) => item.candidateId === recommendationCandidateId));
+      setMsg('Recomendações carregadas para o candidato.');
+    } catch (err) { setMsg(String(err)); }
   };
 
   return (
@@ -232,6 +252,17 @@ function CandidatesView() {
           <small>Share with candidate for candidate-web login</small>
         </div>
       )}
+      <div style={{ marginTop: 20, border: '1px solid #ddd', padding: 16, borderRadius: 8, maxWidth: 700 }}>
+        <h3 style={{ marginTop: 0 }}>Recomendações por candidato</h3>
+        <input placeholder="Candidate ID" value={recommendationCandidateId} onChange={(e) => setRecommendationCandidateId(e.target.value)} style={{ width: '100%', marginBottom: 8 }} />
+        <input placeholder="Vacancy ID" value={recommendationVacancyId} onChange={(e) => setRecommendationVacancyId(e.target.value)} style={{ width: '100%', marginBottom: 8 }} />
+        <button onClick={() => { void loadRecommendations(); }} disabled={!recommendationCandidateId || !recommendationVacancyId}>Carregar recomendações</button>
+        {recommendations.length > 0 && (
+          <ul>
+            {recommendations.map((item) => <li key={item.id}><strong>{item.title}</strong> ({Math.round(item.confidence * 100)}%) — {item.explanation}</li>)}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
@@ -284,6 +315,7 @@ function ApplicationsView() {
 // ---------------------------------------------------------------------------
 interface ShortlistItem { id: string; applicationId: string; shortlistId: string }
 interface EvalRecord { id: string; comment: string; evaluatorId: string }
+interface PriorityScore { id: string; candidateId: string; score: number; priorityBand: string }
 
 function ShortlistView() {
   const { user } = useAuth();
@@ -293,6 +325,8 @@ function ShortlistView() {
   const [selectedApp, setSelectedApp] = useState('');
   const [evals, setEvals] = useState<EvalRecord[]>([]);
   const [msg, setMsg] = useState('');
+  const [vacancyIdForPriority, setVacancyIdForPriority] = useState('');
+  const [priorities, setPriorities] = useState<PriorityScore[]>([]);
 
   useEffect(() => { void apiGet<Application[]>('/applications').then(setApps); }, []);
 
@@ -301,6 +335,14 @@ function ShortlistView() {
       await apiPost<ShortlistItem>('/shortlist', { applicationId: appId });
       setShortlistedIds(prev => new Set([...prev, appId]));
       setMsg('Added to shortlist!');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const calculatePriority = async () => {
+    try {
+      const data = await apiPost<PriorityScore[]>('/decision-engine/priority/calculate', { vacancyId: vacancyIdForPriority });
+      setPriorities(data);
+      setMsg('Priorização dinâmica calculada.');
     } catch (err) { setMsg(String(err)); }
   };
 
@@ -351,6 +393,17 @@ function ShortlistView() {
           {evals.length > 0 && <p style={{ color: 'green', marginTop: 8 }}>{evals.length} evaluation(s) saved</p>}
         </form>
       )}
+      <div style={{ marginTop: 24, border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Priorização dinâmica da shortlist</h3>
+        <input placeholder="Vacancy ID" value={vacancyIdForPriority} onChange={(e) => setVacancyIdForPriority(e.target.value)} style={{ width: 320, marginRight: 8 }} />
+        <button onClick={() => { void calculatePriority(); }} disabled={!vacancyIdForPriority}>Calcular prioridade</button>
+        {priorities.length > 0 && (
+          <table style={{ width: '100%', marginTop: 12 }}>
+            <thead><tr><th>Candidato</th><th>Score</th><th>Banda</th></tr></thead>
+            <tbody>{priorities.map((item) => <tr key={item.id}><td>{item.candidateId}</td><td>{item.score.toFixed(1)}</td><td>{item.priorityBand}</td></tr>)}</tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -494,6 +547,9 @@ function ProductIntelligenceView() {
   const [otherCandidateId, setOtherCandidateId] = useState('');
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [ranking, setRanking] = useState<Array<{ candidateId: string; rank: number; score: number; manualOverride: boolean }>>([]);
+  const [recommendations, setRecommendations] = useState<CandidateRecommendation[]>([]);
+  const [risk, setRisk] = useState<Record<string, unknown> | null>(null);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; suggestionType: string; explanation: string; status: string }>>([]);
   const [msg, setMsg] = useState('');
 
   const compute = async () => {
@@ -528,6 +584,38 @@ function ProductIntelligenceView() {
     } catch (err) { setMsg(String(err)); }
   };
 
+  const generateRecommendations = async () => {
+    try {
+      const data = await apiPost<CandidateRecommendation[]>('/recommendation-engine/generate', { candidateId, vacancyId });
+      setRecommendations(data);
+      setMsg('Recomendações geradas com explicações.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const analyzeRisk = async () => {
+    try {
+      const data = await apiPost<Record<string, unknown>>('/risk-analysis/analyze', { candidateId, vacancyId });
+      setRisk(data);
+      setMsg('Risco identificado com explicação assistiva.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const suggestWorkflow = async () => {
+    try {
+      const data = await apiPost<Array<{ id: string; suggestionType: string; explanation: string; status: string }>>('/workflow-automation/suggest', { candidateId, vacancyId });
+      setSuggestions(data);
+      setMsg('Ações sugeridas carregadas.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const executeSuggestion = async (suggestionId: string) => {
+    try {
+      const data = await apiPost<Record<string, unknown>>('/workflow-automation/execute', { suggestionId });
+      setResult(data);
+      setMsg('Automação assistida executada com override humano.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
   const moveUp = async (candidateIdToPromote: string) => {
     const ordered = [...ranking].sort((a, b) => a.rank - b.rank).map((item) => item.candidateId);
     const idx = ordered.indexOf(candidateIdToPromote);
@@ -553,6 +641,9 @@ function ProductIntelligenceView() {
         <input placeholder="Compare with Candidate ID" value={otherCandidateId} onChange={(e) => setOtherCandidateId(e.target.value)} />
         <button onClick={() => { void compare(); }} disabled={!vacancyId || !candidateId || !otherCandidateId}>Compare candidates</button>
         <button onClick={() => { void generateRanking(); }} disabled={!vacancyId}>Generate ranking</button>
+        <button onClick={() => { void generateRecommendations(); }} disabled={!vacancyId || !candidateId}>Generate recommendations</button>
+        <button onClick={() => { void analyzeRisk(); }} disabled={!vacancyId || !candidateId}>Analyze risk</button>
+        <button onClick={() => { void suggestWorkflow(); }} disabled={!vacancyId || !candidateId}>Suggest actions</button>
       </div>
       {msg && <p style={{ color: msg.startsWith('Error') ? 'red' : 'green' }}>{msg}</p>}
       {ranking.length > 0 && (
@@ -562,6 +653,24 @@ function ProductIntelligenceView() {
             <tr key={item.candidateId}><td>{item.rank}</td><td>{item.candidateId}</td><td>{item.score}</td><td><button onClick={() => { void moveUp(item.candidateId); }}>Move up</button> {item.manualOverride ? 'manual' : 'assistive'}</td></tr>
           ))}</tbody>
         </table>
+      )}
+      {recommendations.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <h3>Painel de recomendações</h3>
+          <ul>{recommendations.map((item) => <li key={item.id}><strong>{item.title}</strong> ({Math.round(item.confidence * 100)}%) — {item.explanation}</li>)}</ul>
+        </div>
+      )}
+      {risk && <pre style={{ marginTop: 16, background: '#fff5f5', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{JSON.stringify(risk, null, 2)}</pre>}
+      {suggestions.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <h3>Ações sugeridas</h3>
+          {suggestions.map((item) => (
+            <div key={item.id} style={{ border: '1px solid #eee', padding: 8, marginBottom: 8 }}>
+              <strong>{item.suggestionType}</strong> — {item.explanation}
+              <div><button onClick={() => { void executeSuggestion(item.id); }}>Executar ação sugerida</button></div>
+            </div>
+          ))}
+        </div>
       )}
       {result && <pre style={{ marginTop: 16, background: '#f7f7f7', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{JSON.stringify(result, null, 2)}</pre>}
     </div>

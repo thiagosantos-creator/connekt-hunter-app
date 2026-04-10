@@ -9,7 +9,7 @@ const SESSION_HOURS = Number(process.env.AUTH_SESSION_HOURS ?? 24);
 export class DevAuthProvider implements AuthProvider {
   readonly name = 'dev-local';
 
-  async login(input: { email: string }): Promise<LoginResult | null> {
+  async login(input: { email: string; password?: string }): Promise<LoginResult | null> {
     const user = await prisma.user.findUnique({
       where: { email: input.email },
       include: { memberships: true },
@@ -39,7 +39,7 @@ export class DevAuthProvider implements AuthProvider {
         email: user.email,
         name: user.name,
         role: user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-        organizationIds: user.memberships.map((membership) => membership.organizationId),
+        organizationIds: user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
       },
     };
   }
@@ -67,7 +67,7 @@ export class DevAuthProvider implements AuthProvider {
         email: session.user.email,
         name: session.user.name,
         role: session.user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-        organizationIds: session.user.memberships.map((membership) => membership.organizationId),
+        organizationIds: session.user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
       },
     };
   }

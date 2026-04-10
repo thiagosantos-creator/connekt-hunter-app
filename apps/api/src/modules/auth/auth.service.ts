@@ -44,7 +44,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           role: user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-          organizationIds: user.memberships.map((membership) => membership.organizationId),
+          organizationIds: user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
         },
       };
     }

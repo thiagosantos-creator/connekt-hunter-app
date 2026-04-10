@@ -1,7 +1,9 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service.js';
+import { RateLimitGuard } from '../auth/rate-limit.guard.js';
 
 @Controller('candidate/onboarding')
+@UseGuards(RateLimitGuard)
 export class OnboardingController {
   constructor(private readonly onboardingService: OnboardingService) {}
 

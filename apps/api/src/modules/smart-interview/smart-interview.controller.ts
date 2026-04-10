@@ -5,6 +5,7 @@ import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { RateLimitGuard } from '../auth/rate-limit.guard.js';
 
 @Controller('smart-interview')
 export class SmartInterviewController {
@@ -60,21 +61,25 @@ export class SmartInterviewController {
   }
 
   @Get('candidate/session/:publicToken')
+  @UseGuards(RateLimitGuard)
   candidateSession(@Param('publicToken') publicToken: string) {
     return this.smartInterviewService.getCandidateSession(publicToken);
   }
 
   @Post('sessions/:sessionId/answers/presign')
+  @UseGuards(RateLimitGuard)
   createUpload(@Param('sessionId') sessionId: string, @Body() body: { questionId: string }) {
     return this.smartInterviewService.createPresignedUpload({ sessionId, questionId: body.questionId });
   }
 
   @Post('sessions/:sessionId/answers/complete')
+  @UseGuards(RateLimitGuard)
   completeAnswer(@Param('sessionId') sessionId: string, @Body() body: { questionId: string; objectKey: string; durationSec?: number }) {
     return this.smartInterviewService.completeAnswer({ sessionId, ...body });
   }
 
   @Post('sessions/:sessionId/submit')
+  @UseGuards(RateLimitGuard)
   submitSession(@Param('sessionId') sessionId: string) {
     return this.smartInterviewService.submitSession(sessionId);
   }

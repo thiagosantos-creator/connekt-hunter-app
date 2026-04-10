@@ -10,6 +10,39 @@ async function safeProcess(label: string, eventId: string, fn: () => Promise<voi
   }
 }
 
+async function assertWorkerTenantConsistency(
+  candidateId: string,
+  vacancyId: string,
+  topic: string,
+  eventId: string,
+): Promise<string> {
+  const [candidate, vacancy] = await Promise.all([
+    prisma.candidate.findUnique({ where: { id: candidateId } }),
+    prisma.vacancy.findUnique({ where: { id: vacancyId } }),
+  ]);
+
+  if (!candidate || !vacancy) {
+    throw new Error(`[${topic}] missing entity: candidateId=${candidateId} vacancyId=${vacancyId} eventId=${eventId}`);
+  }
+
+  if (candidate.organizationId !== vacancy.organizationId) {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        source: 'worker',
+        event: 'cross_tenant_rejected',
+        topic,
+        eventId,
+        candidateOrg: candidate.organizationId,
+        vacancyOrg: vacancy.organizationId,
+      }),
+    );
+    throw new Error(`[${topic}] cross-tenant mismatch rejected: candidateOrg=${candidate.organizationId} vacancyOrg=${vacancy.organizationId} eventId=${eventId}`);
+  }
+
+  return vacancy.organizationId;
+}
+
 export async function processResumeUploads(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({
     where: { topic: 'resume.uploaded', processed: false },
@@ -120,6 +153,9 @@ export async function processMatchingComputeJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { applicationId: string; candidateId: string; vacancyId: string };
     const ok = await safeProcess('matching:compute', evt.id, async () => {
+      const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'matching:compute', evt.id);
+      console.log(JSON.stringify({ source: 'worker', event: 'matching_compute_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
+
       const existing = await prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } });
       const score = existing?.score ?? 50;
 
@@ -144,6 +180,9 @@ export async function processInsightsGenerateJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
     const ok = await safeProcess('insights:generate', evt.id, async () => {
+      const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'insights:generate', evt.id);
+      console.log(JSON.stringify({ source: 'worker', event: 'insights_generate_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
+
       await prisma.candidateInsight.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
         update: { summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
@@ -164,6 +203,10 @@ export async function processComparisonGenerateJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { vacancyId: string; leftCandidateId: string; rightCandidateId: string };
     const ok = await safeProcess('comparison:generate', evt.id, async () => {
+      const vacancy = await prisma.vacancy.findUnique({ where: { id: payload.vacancyId } });
+      if (!vacancy) throw new Error(`[comparison:generate] vacancy not found: ${payload.vacancyId} eventId=${evt.id}`);
+      console.log(JSON.stringify({ source: 'worker', event: 'comparison_generate_start', eventId: evt.id, tenantId: vacancy.organizationId, vacancyId: payload.vacancyId }));
+
       await prisma.candidateComparison.upsert({
         where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId } },
         update: { comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
@@ -183,6 +226,9 @@ export async function processRecommendationGenerateJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
     const ok = await safeProcess('recommendation:generate', evt.id, async () => {
+      const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'recommendation:generate', evt.id);
+      console.log(JSON.stringify({ source: 'worker', event: 'recommendation_generate_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
+
       await prisma.candidateRecommendation.create({
         data: {
           candidateId: payload.candidateId,
@@ -207,6 +253,9 @@ export async function processRiskAnalyzeJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
     const ok = await safeProcess('risk:analyze', evt.id, async () => {
+      const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'risk:analyze', evt.id);
+      console.log(JSON.stringify({ source: 'worker', event: 'risk_analyze_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
+
       await prisma.riskEvaluation.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
         update: { overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
@@ -225,6 +274,9 @@ export async function processAutomationTriggerJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string; action: string };
     const ok = await safeProcess('automation:trigger', evt.id, async () => {
+      const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'automation:trigger', evt.id);
+      console.log(JSON.stringify({ source: 'worker', event: 'automation_trigger_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId, action: payload.action }));
+
       await prisma.automationExecution.create({
         data: {
           candidateId: payload.candidateId,

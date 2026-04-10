@@ -1,10 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
 
 @Injectable()
 export class CandidateMatchingService {
   constructor(private readonly aiGateway: AiGateway) {}
+
+  private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
+    if (!actorId) return;
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+  }
 
   private toEmbedding(text: string): number[] {
     const base = text.length || 1;
@@ -17,7 +25,7 @@ export class CandidateMatchingService {
   }
 
   async computeMatching(applicationId: string, actorId?: string) {
-    const application = await prisma.application.findUniqueOrThrow({
+    const application = await prisma.application.findUnique({
       where: { id: applicationId },
       include: {
         candidate: { include: { profile: true, onboarding: { include: { resumes: { include: { parseResult: true } } } } } },
@@ -26,6 +34,13 @@ export class CandidateMatchingService {
         smartInterviewSessions: { include: { aiAnalysis: true } },
       },
     });
+    if (!application) throw new NotFoundException('application_not_found');
+
+    if (application.candidate.organizationId !== application.vacancy.organizationId) {
+      throw new ForbiddenException('candidate_vacancy_cross_tenant_mismatch');
+    }
+
+    await this.assertTenantAccess(application.vacancy.organizationId, actorId);
 
     const resumeSummary = application.candidate.onboarding?.resumes.at(0)?.parseResult?.parsedJson;
     const resumeText = JSON.stringify(resumeSummary ?? { summary: 'no-resume' });
@@ -124,7 +139,11 @@ export class CandidateMatchingService {
     });
   }
 
-  async compareCandidates(vacancyId: string, leftCandidateId: string, rightCandidateId: string) {
+  async compareCandidates(vacancyId: string, leftCandidateId: string, rightCandidateId: string, actorId?: string) {
+    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+    await this.assertTenantAccess(vacancy.organizationId, actorId);
+
     const [left, right] = await Promise.all([
       prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: leftCandidateId, vacancyId } } }),
       prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: rightCandidateId, vacancyId } } }),

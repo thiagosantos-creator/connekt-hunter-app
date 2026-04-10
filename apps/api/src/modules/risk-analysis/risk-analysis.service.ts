@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
 
@@ -6,7 +6,26 @@ import { AiGateway } from '../integrations/ai.gateway.js';
 export class RiskAnalysisService {
   constructor(private readonly aiGateway: AiGateway) {}
 
+  private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
+    if (!actorId) return;
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+  }
+
   async analyze(candidateId: string, vacancyId: string, actorId?: string) {
+    const [candidate, vacancy] = await Promise.all([
+      prisma.candidate.findUnique({ where: { id: candidateId } }),
+      prisma.vacancy.findUnique({ where: { id: vacancyId } }),
+    ]);
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+    if (candidate.organizationId !== vacancy.organizationId) {
+      throw new ForbiddenException('candidate_vacancy_cross_tenant_mismatch');
+    }
+    await this.assertTenantAccess(vacancy.organizationId, actorId);
+
     const result = await this.aiGateway.analyzeRiskPatterns({ candidateId, vacancyId });
 
     await prisma.riskSignal.deleteMany({ where: { candidateId, vacancyId } });

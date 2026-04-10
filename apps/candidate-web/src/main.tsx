@@ -15,12 +15,30 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (res.status === 401) {
+    const text = await res.text();
+    if (text.includes('token_expired')) {
+      localStorage.removeItem('invite_token');
+      localStorage.removeItem('candidate_info');
+      throw new Error('Token expirado. Por favor, solicite um novo convite.');
+    }
+    throw new Error(text || 'Unauthorized');
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<T>;
 }
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API}${path}`);
+  if (res.status === 401) {
+    const body = await res.text();
+    if (body.includes('token_expired')) {
+      localStorage.removeItem('invite_token');
+      localStorage.removeItem('candidate_info');
+      throw new Error('Token expirado. Por favor, solicite um novo convite.');
+    }
+    throw new Error(body || 'Unauthorized');
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json() as Promise<T>;
 }
@@ -351,11 +369,27 @@ function InterviewView() {
 }
 
 // ---------------------------------------------------------------------------
-// Guard - requires invite token in localStorage
+// Guard - requires invite token in localStorage + validates on bootstrap
 // ---------------------------------------------------------------------------
 function RequiresToken({ children }: { children: React.ReactNode }) {
   const token = getToken();
-  return token ? <>{children}</> : <Navigate to="/" replace />;
+  const navigate = useNavigate();
+  const [valid, setValid] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!token) { setValid(false); return; }
+    apiGet(`/candidate/token/${encodeURIComponent(token)}`)
+      .then(() => setValid(true))
+      .catch(() => {
+        localStorage.removeItem('invite_token');
+        localStorage.removeItem('candidate_info');
+        setValid(false);
+      });
+  }, [token]);
+
+  if (valid === null) return <div style={{ textAlign: 'center', marginTop: 80 }}>Validando token…</div>;
+  if (!valid) { navigate('/', { replace: true }); return null; }
+  return <>{children}</>;
 }
 
 // ---------------------------------------------------------------------------

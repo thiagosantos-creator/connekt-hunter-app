@@ -10,11 +10,20 @@ export class RateLimitGuard implements CanActivate {
   private readonly windowMs = 60_000; // 1 minute
   private readonly maxRequests = 30;
   private readonly store = new Map<string, { count: number; resetAt: number }>();
+  private lastCleanup = Date.now();
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<{ ip?: string; headers: Record<string, string> }>();
     const ip = req.ip ?? req.headers['x-forwarded-for'] ?? 'unknown';
     const now = Date.now();
+
+    // Periodic cleanup of expired entries to prevent memory leaks
+    if (now - this.lastCleanup > this.windowMs) {
+      this.lastCleanup = now;
+      for (const [key, val] of this.store) {
+        if (now > val.resetAt) this.store.delete(key);
+      }
+    }
 
     const entry = this.store.get(ip);
     if (!entry || now > entry.resetAt) {

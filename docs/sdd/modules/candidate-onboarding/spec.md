@@ -5,7 +5,11 @@
 - Eventos continuam publicados no outbox.
 
 ## Endpoint Hardening (Slice 08)
-- Endpoints `/candidate/onboarding/*` agora protegidos com `RateLimitGuard` (30 req/min por IP).
+- Endpoints `/candidate/onboarding/*` agora protegidos com `RateLimitGuard` (20 req/min por IP, configurável via `@RateLimit`).
 - Token de candidato validado via `NotFoundException` caso não exista no banco.
 - Cada etapa (basic, consent, resume) registra `auditEvent` com `candidateId` e `organizationId`.
 - Testes unitários adicionados para validar token inválido e audit trail.
+
+
+## Slice 09 update
+- Endpoints públicos de onboarding protegidos por `RateLimitGuard` distribuído + `PublicTokenGuard` com cache de token.

@@ -27,13 +27,13 @@
 | workflow-automation | ✓ | ✓ | ✓ |
 
 ## Proteção de Endpoints Públicos
-- `RateLimitGuard`: 30 requests/minuto por IP (in-memory sliding window).
-- `PublicTokenGuard`: valida formato, existência e expiração do token via `GuestSession`.
+- `RateLimitGuard`: rate limiting distribuído (Redis) com fallback in-memory, configurável por rota via `@RateLimit`.
+- `PublicTokenGuard`: valida formato, existência e expiração do token via cache (`PublicTokenCacheService`) + fallback DB (`GuestSession`, `SmartInterviewSession`, `Candidate`).
 - Logging estruturado para tentativas inválidas/expiradas.
 - Endpoints protegidos:
   - `GET /candidate/token/:token` — RateLimitGuard + PublicTokenGuard
-  - `POST /candidate/onboarding/*` — RateLimitGuard
-  - `GET /smart-interview/candidate/session/:publicToken` — RateLimitGuard
+  - `POST /candidate/onboarding/*` — RateLimitGuard + PublicTokenGuard
+  - `GET /smart-interview/candidate/session/:publicToken` — RateLimitGuard + PublicTokenGuard
   - `POST /smart-interview/sessions/:id/answers/presign` — RateLimitGuard
   - `POST /smart-interview/sessions/:id/answers/complete` — RateLimitGuard
   - `POST /smart-interview/sessions/:id/submit` — RateLimitGuard

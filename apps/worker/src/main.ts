@@ -5,7 +5,7 @@ async function safeProcess(label: string, eventId: string, fn: () => Promise<voi
     await fn();
     return true;
   } catch (err) {
-    console.error(`[worker] error processing ${label} event=${eventId}`, err);
+    console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'process_event_failed', topic: label, eventId, error: String(err) }));
     return false;
   }
 }

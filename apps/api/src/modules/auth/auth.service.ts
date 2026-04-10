@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import type { AuthSession, LoginResult, MembershipReference } from './auth.types.js';
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
@@ -61,17 +61,30 @@ export class AuthService {
 
   async guestUpgrade(token: string, email: string, fullName: string) {
     const candidate = await prisma.candidate.findUniqueOrThrow({ where: { token }, include: { profile: true } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const resolvedName = fullName || candidate.profile?.fullName || 'Candidate';
 
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { name: fullName || candidate.profile?.fullName || 'Candidate', role: 'candidate' },
-      create: { email, name: fullName || candidate.profile?.fullName || 'Candidate', role: 'candidate' },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (existingUser && existingUser.role !== 'candidate') {
+      throw new ConflictException('email_already_associated_with_staff_user');
+    }
+
+    const user = existingUser
+      ? existingUser
+      : await prisma.user.create({
+          data: { email: normalizedEmail, name: resolvedName, role: 'candidate' },
+        });
 
     await prisma.authIdentity.upsert({
-      where: { provider_subject: { provider: 'candidate-passwordless', subject: email } },
+      where: { provider_subject: { provider: 'candidate-passwordless', subject: normalizedEmail } },
       update: { userId: user.id },
-      create: { provider: 'candidate-passwordless', subject: email, userId: user.id, email },
+      create: {
+        provider: 'candidate-passwordless',
+        subject: normalizedEmail,
+        userId: user.id,
+        email: normalizedEmail,
+      },
     });
 
     await prisma.candidate.update({
@@ -79,6 +92,6 @@ export class AuthService {
       data: { userId: user.id, guestUpgradeAt: new Date() },
     });
 
-    return this.login(email);
+    return this.login(normalizedEmail);
   }
 }

@@ -19,8 +19,8 @@ model User {
   clientReviews ClientDecision[] @relation("ClientReviewer")
   identities    AuthIdentity[]
   sessions      UserSession[]
-  candidates    Candidate[]    @relation("CandidateUser")
-  invitedCandidates Candidate[] @relation("CandidateInviter")
+  candidates    Candidate[]    @relation("CandidateAccountUser")
+  invitedCandidates Candidate[] @relation("CandidateInvitedByUser")
   mfaPreference MfaPreference?
 }
 
@@ -70,8 +70,8 @@ model Candidate {
   profile        CandidateProfile?
   applications   Application[]
   onboarding     CandidateOnboardingSession?
-  invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
-  user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
+  invitedBy      User?                       @relation("CandidateInvitedByUser", fields: [invitedByUserId], references: [id])
+  user           User?                       @relation("CandidateAccountUser", fields: [userId], references: [id])
   guestSession   GuestSession?
 }
 

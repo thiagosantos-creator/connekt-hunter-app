@@ -7,11 +7,13 @@ import { DevAuthProvider } from './providers/dev-auth.provider.js';
 import { CognitoAuthProvider } from './providers/cognito-auth.provider.js';
 import { IntegrationsModule } from '../integrations/integrations.module.js';
 import { PermissionsGuard } from './rbac/permissions.guard.js';
+import { RateLimitGuard } from './rate-limit.guard.js';
+import { PublicTokenGuard } from './public-token.guard.js';
 
 @Module({
   imports: [IntegrationsModule],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, PermissionsGuard, DevAuthProvider, CognitoAuthProvider, Reflector],
-  exports: [AuthService, JwtAuthGuard, PermissionsGuard],
+  providers: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard, DevAuthProvider, CognitoAuthProvider, Reflector],
+  exports: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard],
 })
 export class AuthModule {}

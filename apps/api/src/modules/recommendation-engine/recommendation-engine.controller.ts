@@ -18,7 +18,7 @@ export class RecommendationEngineController {
 
   @Get(':vacancyId')
   @RequirePermissions('applications:read')
-  list(@Param('vacancyId') vacancyId: string) {
-    return this.service.list(vacancyId);
+  list(@Param('vacancyId') vacancyId: string, @CurrentUser() user: { id: string }) {
+    return this.service.list(vacancyId, user.id);
   }
 }

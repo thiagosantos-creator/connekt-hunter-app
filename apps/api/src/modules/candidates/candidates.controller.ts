@@ -5,6 +5,8 @@ import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { RateLimitGuard } from '../auth/rate-limit.guard.js';
+import { PublicTokenGuard } from '../auth/public-token.guard.js';
 
 @Controller()
 export class CandidatesController {
@@ -18,6 +20,7 @@ export class CandidatesController {
   }
 
   @Get('candidate/token/:token')
+  @UseGuards(RateLimitGuard, PublicTokenGuard)
   byToken(@Param('token') token: string) {
     return this.candidatesService.byToken(token);
   }

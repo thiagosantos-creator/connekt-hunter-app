@@ -24,7 +24,7 @@ export class CandidateMatchingController {
 
   @Post('compare')
   @RequirePermissions('applications:read')
-  compare(@Body() body: { vacancyId: string; leftCandidateId: string; rightCandidateId: string }) {
-    return this.service.compareCandidates(body.vacancyId, body.leftCandidateId, body.rightCandidateId);
+  compare(@Body() body: { vacancyId: string; leftCandidateId: string; rightCandidateId: string }, @CurrentUser() user: { id: string }) {
+    return this.service.compareCandidates(body.vacancyId, body.leftCandidateId, body.rightCandidateId, user.id);
   }
 }

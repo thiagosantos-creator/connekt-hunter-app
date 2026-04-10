@@ -1,9 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
 @Injectable()
 export class DecisionEngineService {
+  private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
+    if (!actorId) return;
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+  }
+
   async calculatePriority(vacancyId: string, actorId?: string) {
+    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+    await this.assertTenantAccess(vacancy.organizationId, actorId);
+
     const scores = await prisma.matchingScore.findMany({ where: { vacancyId } });
 
     const output = [];

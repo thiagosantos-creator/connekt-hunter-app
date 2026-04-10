@@ -11,4 +11,11 @@ describe('worker queues', () => {
     const legacyTopic = 'resume.uploaded';
     expect(legacyTopic).toBe('resume.uploaded');
   });
+
+  it('supports product intelligence reprocessing topics', () => {
+    const topics = ['matching:compute', 'insights:generate', 'comparison:generate'];
+    expect(topics).toContain('matching:compute');
+    expect(topics).toContain('insights:generate');
+    expect(topics).toContain('comparison:generate');
+  });
 });

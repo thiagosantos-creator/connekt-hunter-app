@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -74,6 +74,14 @@ pnpm --filter candidate-web dev
 - `POST /smart-interview/sessions/:sessionId/answers/presign`
 - `POST /smart-interview/sessions/:sessionId/answers/complete`
 - `POST /smart-interview/sessions/:sessionId/submit`
+- `POST /candidate-matching/compute`
+- `GET /candidate-matching/:vacancyId/:candidateId`
+- `POST /candidate-matching/compare`
+- `POST /candidate-insights/generate`
+- `GET /candidate-insights/:vacancyId/:candidateId`
+- `POST /candidate-ranking/generate`
+- `GET /candidate-ranking/:vacancyId`
+- `POST /candidate-ranking/override`
 
 ## Vertical Slice 02
 Implementado nesta fase:
@@ -135,3 +143,12 @@ Consulte `.env.example` para flags `FF_*_REAL`, providers e placeholders de secr
 - `docs/adr/014-vertical-slice-04-real-integrations-fallback.md`
 - `docs/sdd/integrations/*`
 - `docs/sdd/modules/*`
+
+
+## Vertical Slice 05
+Implementado nesta fase:
+- Matching score com breakdown por dimensão e persistência de embeddings.
+- Geração assistiva de evidências, explicações, insights e comparativos entre candidatos.
+- Ranking assistido com snapshot e possibilidade de override humano.
+- Reprocessamento assíncrono no worker (`matching:compute`, `insights:generate`, `comparison:generate`).
+- Novas telas no backoffice para score, insights, comparador e reorder manual.

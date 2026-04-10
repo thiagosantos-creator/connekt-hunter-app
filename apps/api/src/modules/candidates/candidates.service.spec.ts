@@ -3,8 +3,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 vi.mock('@connekt/db', () => ({
   prisma: {
     candidate: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
+      upsert: vi.fn(),
       findUnique: vi.fn(),
     },
     candidateOnboardingSession: { upsert: vi.fn() },
@@ -27,8 +26,7 @@ describe('CandidatesService', () => {
 
   it('invites a candidate', async () => {
     const candidate = { id: 'c1', email: 'a@b.com', token: 'tok', organizationId: 'org1' };
-    vi.mocked(prisma.candidate.findFirst).mockResolvedValue(null);
-    vi.mocked(prisma.candidate.create).mockResolvedValue(candidate as never);
+    vi.mocked(prisma.candidate.upsert).mockResolvedValue(candidate as never);
     vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.application.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.messageDispatch.create).mockResolvedValue({} as never);
@@ -36,8 +34,11 @@ describe('CandidatesService', () => {
 
     const result = await service.invite('org1', 'a@b.com', 'v1');
     expect(result).toEqual(candidate);
-    expect(prisma.candidate.findFirst).toHaveBeenCalledOnce();
-    expect(prisma.candidate.create).toHaveBeenCalledOnce();
+    expect(prisma.candidate.upsert).toHaveBeenCalledWith({
+      where: { organizationId_email: { organizationId: 'org1', email: 'a@b.com' } },
+      update: {},
+      create: { organizationId: 'org1', email: 'a@b.com', token: expect.any(String) },
+    });
     expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();
     expect(prisma.auditEvent.create).toHaveBeenCalledOnce();
   });

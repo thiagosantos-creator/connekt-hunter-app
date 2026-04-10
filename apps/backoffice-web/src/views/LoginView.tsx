@@ -48,6 +48,7 @@ export function LoginView() {
       localStorage.setItem('bo_token', data.token);
       localStorage.setItem('bo_user', JSON.stringify(data.user));
       refreshAuth();
+      navigate('/vacancies');
     } catch (err) {
       setError(String(err));
     } finally {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import {
   Button,
@@ -45,14 +45,17 @@ export function InterviewView() {
   const [loading, setLoading] = useState(false);
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
+  const autoLoaded = useRef(false);
 
-  // Auto-load session from stored token
+  // Auto-load session from stored token (once on mount)
   useEffect(() => {
+    if (autoLoaded.current) return;
+    autoLoaded.current = true;
     const stored = localStorage.getItem('si_public_token');
-    if (stored && !session) {
+    if (stored) {
       void loadSession(stored);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   const loadSession = async (token?: string) => {
     const t = token ?? sessionToken;

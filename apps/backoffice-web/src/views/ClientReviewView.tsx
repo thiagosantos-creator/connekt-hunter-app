@@ -77,9 +77,9 @@ export function ClientReviewView() {
     if (context[app.id] || contextLoading[app.id]) return;
     setContextLoading((prev) => ({ ...prev, [app.id]: true }));
     const [matching, risk, insights] = await Promise.all([
-      apiGet<CandidateContext['matching']>(`/candidate-matching/${app.vacancy.id}/${app.candidate.id}`).catch(() => undefined),
-      apiGet<CandidateContext['risk']>(`/risk-analysis?candidateId=${app.candidate.id}&vacancyId=${app.vacancy.id}`).catch(() => undefined),
-      apiGet<CandidateContext['insights']>(`/candidate-insights/${app.vacancy.id}/${app.candidate.id}`).catch(() => undefined),
+      apiGet<CandidateContext['matching']>(`/candidate-matching/${app.vacancy.id}/${app.candidate.id}`).catch((e) => { console.warn('matching unavailable', e); return undefined; }),
+      apiGet<CandidateContext['risk']>(`/risk-analysis?candidateId=${app.candidate.id}&vacancyId=${app.vacancy.id}`).catch((e) => { console.warn('risk unavailable', e); return undefined; }),
+      apiGet<CandidateContext['insights']>(`/candidate-insights/${app.vacancy.id}/${app.candidate.id}`).catch((e) => { console.warn('insights unavailable', e); return undefined; }),
     ]);
     setContext((prev) => ({ ...prev, [app.id]: { matching, risk, insights } }));
     setContextLoading((prev) => ({ ...prev, [app.id]: false }));
@@ -298,11 +298,14 @@ export function ClientReviewView() {
             searchPlaceholder="Buscar candidato ou vaga…"
           />
 
-          {expandedId && (
-            <div style={{ marginTop: spacing.md }}>
-              {renderExpandedPanel(apps.find((a) => a.id === expandedId)!)}
-            </div>
-          )}
+          {expandedId && (() => {
+            const app = apps.find((a) => a.id === expandedId);
+            return app ? (
+              <div style={{ marginTop: spacing.md }}>
+                {renderExpandedPanel(app)}
+              </div>
+            ) : null;
+          })()}
         </>
       )}
     </PageContent>

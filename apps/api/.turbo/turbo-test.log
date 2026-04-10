@@ -5,13 +5,19 @@
 
 [1m[46m RUN [49m[22m [36mv3.2.4 [39m[90m/home/runner/work/connekt-hunter-app/connekt-hunter-app/apps/api[39m
 
- [32m✓[39m test/service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 13[2mms[22m[39m
- [32m✓[39m src/modules/candidates/candidates.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 19[2mms[22m[39m
- [32m✓[39m src/modules/vacancies/vacancies.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 8[2mms[22m[39m
- [32m✓[39m src/modules/applications/applications.service.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/smart-interview/smart-interview.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/candidates/candidates.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/workflow-automation/workflow-automation.service.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/modules/vacancies/vacancies.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/candidate-ranking/candidate-ranking.service.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m[Nest] 5540  - [39m04/10/2026, 11:42:27 AM [32m    LOG[39m [38;5;3m[ProviderRegistryService] [39m[32m{"event":"integration_provider_selected","integration":"ai","strategy":"real_or_fallback","primary":"ai-real","primaryMode":"real","fallback":"ai-mock"}[39m
+ [32m✓[39m src/modules/integrations/provider-registry.service.spec.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m test/service.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m src/modules/auth/rbac/permissions.spec.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/modules/applications/applications.service.spec.ts [2m([22m[2m1 test[22m[2m)[22m[32m 4[2mms[22m[39m
 
-[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
-[2m      Tests [22m [1m[32m6 passed[39m[22m[90m (6)[39m
-[2m   Start at [22m 19:57:33
-[2m   Duration [22m 2.48s[2m (transform 689ms, setup 0ms, collect 2.38s, tests 45ms, environment 1ms, prepare 1.20s)[22m
+[2m Test Files [22m [1m[32m9 passed[39m[22m[90m (9)[39m
+[2m      Tests [22m [1m[32m17 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 11:42:26
+[2m   Duration [22m 1.64s[2m (transform 320ms, setup 0ms, collect 1.75s, tests 43ms, environment 2ms, prepare 852ms)[22m
 

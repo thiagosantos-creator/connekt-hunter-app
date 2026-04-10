@@ -14,6 +14,6 @@ export class ApplicationsController {
   @Get()
   @RequirePermissions('applications:read')
   findAll(@CurrentUser() user: AuthUser) {
-    return this.applicationsService.findAll(user.organizationIds);
+    return this.applicationsService.findAll(user.organizationIds, user.role);
   }
 }

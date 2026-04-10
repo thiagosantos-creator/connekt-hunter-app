@@ -20,6 +20,6 @@ export class VacanciesController {
   @Get()
   @RequirePermissions('vacancies:read')
   findAll(@CurrentUser() user: AuthUser) {
-    return this.vacanciesService.findAll(user.organizationIds);
+    return this.vacanciesService.findAll(user.organizationIds, user.role);
   }
 }

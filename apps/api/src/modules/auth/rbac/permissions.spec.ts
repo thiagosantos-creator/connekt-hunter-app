@@ -9,6 +9,18 @@ describe('RBAC permissions', () => {
   it('denies candidate by default', () => {
     expect(hasPermission('candidate', 'vacancies:read')).toBe(false);
   });
+
+  it('allows client to read shortlist items', () => {
+    expect(hasPermission('client', 'shortlist:read')).toBe(true);
+  });
+
+  it('denies candidate from reading shortlist', () => {
+    expect(hasPermission('candidate', 'shortlist:read')).toBe(false);
+  });
+
+  it('allows admin to read shortlist items', () => {
+    expect(hasPermission('admin', 'shortlist:read')).toBe(true);
+  });
 });
 
 

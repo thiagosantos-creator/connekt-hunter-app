@@ -5,6 +5,12 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
+  organizationIds?: string[];
+  title?: string;
+  company?: string;
+  avatarUrl?: string;
+  tenantId?: string;
+  isActive?: boolean;
 }
 
 export interface AuthCtx {
@@ -83,4 +89,32 @@ export interface WorkflowSuggestion {
   suggestionType: string;
   explanation: string;
   status: string;
+}
+
+export interface ShortlistItemWithApplication {
+  id: string;
+  applicationId: string;
+  createdAt: string;
+  application: Application;
+}
+
+export interface ManagedUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'headhunter' | 'client';
+  tenantId: string;
+  title?: string;
+  company?: string;
+  avatarUrl?: string;
+  isActive: boolean;
+}
+
+export interface AuditEvent {
+  id: string;
+  action: string;
+  actorEmail: string;
+  target?: string;
+  createdAt: string;
+  metadata?: Record<string, string>;
 }

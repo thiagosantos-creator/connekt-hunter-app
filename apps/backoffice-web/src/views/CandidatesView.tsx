@@ -25,10 +25,11 @@ import {
 } from '@connekt/ui';
 
 export function CandidatesView() {
-  useAuth();
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [vacancyId, setVacancyId] = useState('');
-  const [orgId, setOrgId] = useState('org_demo');
+  const [orgId, setOrgId] = useState(() => user?.organizationIds?.[0] ?? '');
+  const orgOptions = user?.organizationIds?.map((id: string) => ({ value: id, label: id })) ?? [];
   const [result, setResult] = useState<Candidate | null>(null);
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
@@ -38,6 +39,12 @@ export function CandidatesView() {
   const [recommendations, setRecommendations] = useState<CandidateRecommendation[]>([]);
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
+
+  useEffect(() => {
+    if (!orgId && user?.organizationIds?.[0]) {
+      setOrgId(user.organizationIds[0]);
+    }
+  }, [user, orgId]);
 
   useEffect(() => {
     void Promise.all([
@@ -124,11 +131,22 @@ export function CandidatesView() {
             <CardTitle>Convidar Candidato</CardTitle>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Organização"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-            />
+            {orgOptions.length > 1 ? (
+              <Select
+                label="Organização"
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+                options={orgOptions}
+                placeholder="Selecione a organização"
+                required
+              />
+            ) : (
+              <Input
+                label="ID da Organização"
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+              />
+            )}
             <Input
               label="E-mail do Candidato"
               type="email"

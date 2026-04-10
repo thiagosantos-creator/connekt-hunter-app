@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import type { AuthSession, LoginResult, MembershipReference } from './auth.types.js';
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
@@ -8,6 +8,8 @@ import { PublicTokenCacheService } from './public-token-cache.service.js';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly devProvider: DevAuthProvider,
     private readonly cognitoProvider: CognitoAuthProvider,
@@ -90,5 +92,38 @@ export class AuthService {
     });
 
     return this.login(email);
+  }
+
+  /**
+   * Returns configuration for Cognito-based candidate authentication.
+   * Candidates authenticate via Cognito Hosted UI with Social Login (Google / LinkedIn).
+   * Password management, MFA, and social identity federation are handled entirely by Cognito.
+   */
+  getCandidateAuthConfig() {
+    const poolId = process.env.COGNITO_CANDIDATE_POOL_ID ?? process.env.COGNITO_USER_POOL_ID ?? '';
+    const clientId = process.env.COGNITO_CANDIDATE_CLIENT_ID ?? process.env.COGNITO_CLIENT_ID ?? '';
+    const domain = process.env.COGNITO_CANDIDATE_DOMAIN ?? '';
+    const redirectUri = process.env.COGNITO_CANDIDATE_REDIRECT_URI ?? 'http://localhost:5174/auth/callback';
+    const region = process.env.AWS_REGION ?? process.env.S3_REGION ?? 'us-east-1';
+
+    if (!poolId || !clientId) {
+      this.logger.warn('Cognito candidate pool not configured. Social login unavailable.');
+    }
+
+    return {
+      provider: 'aws-cognito',
+      poolId,
+      clientId,
+      domain,
+      region,
+      redirectUri,
+      socialProviders: ['Google', 'LinkedIn'] as const,
+      hostedUiUrl: domain
+        ? `https://${domain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirectUri)}`
+        : null,
+      changePasswordUrl: domain
+        ? `https://${domain}/forgotPassword?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`
+        : null,
+    };
   }
 }

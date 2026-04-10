@@ -33,7 +33,7 @@ describe('VacanciesService', () => {
 
   it('lists vacancies', async () => {
     vi.mocked(prisma.vacancy.findMany).mockResolvedValue([]);
-    const result = await service.findAll(['org1']);
+    const result = await service.findAll(['org1'], 'headhunter');
     expect(result).toEqual([]);
   });
 });

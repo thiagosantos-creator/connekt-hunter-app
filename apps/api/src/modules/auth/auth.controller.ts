@@ -23,6 +23,16 @@ export class AuthController {
     return this.authService.guestUpgrade(body.token, body.email, body.fullName);
   }
 
+  /**
+   * Returns Cognito configuration for candidate social login.
+   * Candidates use a dedicated Cognito User Pool with Google/LinkedIn federation.
+   * No passwords are stored locally.
+   */
+  @Get('candidate-auth-config')
+  getCandidateAuthConfig() {
+    return this.authService.getCandidateAuthConfig();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('session')
   getSession(@CurrentUser() user: AuthUser | undefined) {

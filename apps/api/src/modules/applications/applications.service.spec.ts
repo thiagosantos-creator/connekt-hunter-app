@@ -21,7 +21,7 @@ describe('ApplicationsService', () => {
 
   it('lists all applications', async () => {
     vi.mocked(prisma.application.findMany).mockResolvedValue([]);
-    const result = await service.findAll(['org_demo']);
+    const result = await service.findAll(['org_demo'], 'headhunter');
     expect(result).toEqual([]);
     expect(prisma.application.findMany).toHaveBeenCalledWith({
       where: { vacancy: { organizationId: { in: ['org_demo'] } } },

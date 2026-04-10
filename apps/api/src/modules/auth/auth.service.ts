@@ -2,21 +2,23 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import type { AuthSession, LoginResult, MembershipReference } from './auth.types.js';
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
-import { PlaceholderIamProvider } from './providers/placeholder-iam.provider.js';
+import { CognitoAuthProvider } from './providers/cognito-auth.provider.js';
+import { IntegrationsConfigService } from '../integrations/integrations-config.service.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly devProvider: DevAuthProvider,
-    private readonly iamProvider: PlaceholderIamProvider,
+    private readonly cognitoProvider: CognitoAuthProvider,
+    private readonly integrationsConfig: IntegrationsConfigService,
   ) {}
 
   async login(email: string, password?: string): Promise<LoginResult> {
-    const preferRealProvider = process.env.AUTH_REAL_PROVIDER === 'true';
+    const preferRealProvider = this.integrationsConfig.isIntegrationEnabled('auth');
 
     if (preferRealProvider) {
-      const fromIam = await this.iamProvider.login({ email, password });
-      if (fromIam) return fromIam;
+      const fromCognito = await this.cognitoProvider.login({ email, password });
+      if (fromCognito) return fromCognito;
     }
 
     const fromDev = await this.devProvider.login({ email, password });
@@ -52,7 +54,10 @@ export class AuthService {
     const fromDev = await this.devProvider.validateToken(token);
     if (fromDev) return fromDev;
 
-    return this.iamProvider.validateToken(token);
+    const fromCognito = await this.cognitoProvider.validateToken(token);
+    if (fromCognito) return fromCognito;
+
+    return null;
   }
 
   async revokeSession(token: string): Promise<void> {

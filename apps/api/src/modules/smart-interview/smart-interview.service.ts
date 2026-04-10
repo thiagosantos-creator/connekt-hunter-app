@@ -1,9 +1,18 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
+import { AiGateway } from '../integrations/ai.gateway.js';
+import { StorageGateway } from '../integrations/storage.gateway.js';
+import { TranscriptionGateway } from '../integrations/transcription.gateway.js';
 
 @Injectable()
 export class SmartInterviewService {
+  constructor(
+    private readonly aiGateway: AiGateway,
+    private readonly storageGateway: StorageGateway,
+    private readonly transcriptionGateway: TranscriptionGateway,
+  ) {}
+
   async upsertTemplate(input: { vacancyId: string; configJson: Record<string, unknown>; createdBy: string }) {
     const vacancy = await prisma.vacancy.findUnique({ where: { id: input.vacancyId } });
     if (!vacancy) throw new NotFoundException('vacancy_not_found');
@@ -25,20 +34,19 @@ export class SmartInterviewService {
     const template = await prisma.smartInterviewTemplate.findUnique({ where: { id: templateId } });
     if (!template) throw new NotFoundException('template_not_found');
 
-    await prisma.smartInterviewQuestion.deleteMany({ where: { templateId } });
-    const prompts = [
-      'Fale sobre um desafio técnico recente e como você resolveu.',
-      'Explique como você prioriza demandas com prazo curto.',
-      'Conte um exemplo de colaboração com times multidisciplinares.',
-    ];
+    const generated = await this.aiGateway.generateInterviewQuestions({
+      templateId,
+      context: template.configJson as Record<string, unknown>,
+    });
 
+    await prisma.smartInterviewQuestion.deleteMany({ where: { templateId } });
     await prisma.smartInterviewQuestion.createMany({
-      data: prompts.map((prompt, idx) => ({
+      data: generated.questions.map((prompt, idx) => ({
         templateId,
         orderIndex: idx + 1,
         prompt,
         maxDuration: 120,
-        source: 'ai-mock',
+        source: generated.provider,
       })),
     });
 
@@ -121,18 +129,16 @@ export class SmartInterviewService {
   async createPresignedUpload(input: { sessionId: string; questionId: string }) {
     const session = await prisma.smartInterviewSession.findUnique({
       where: { id: input.sessionId },
-      include: { application: true },
+      include: { application: { include: { candidate: true, vacancy: true } } },
     });
     if (!session) throw new NotFoundException('session_not_found');
 
-    const objectKey = `smart-interview/${session.applicationId}/${input.questionId}/${randomUUID()}.webm`;
-    return {
-      objectKey,
-      method: 'PUT',
-      expiresIn: 900,
-      url: `https://mock-storage.local/upload/${encodeURIComponent(objectKey)}`,
-      headers: { 'x-mock-signature': 'enabled' },
-    };
+    return this.storageGateway.createPresignedUpload({
+      tenantId: session.application.vacancy.organizationId,
+      namespace: `smart-interview/${session.applicationId}/${input.questionId}`,
+      filename: 'answer.webm',
+      metadata: { questionId: input.questionId, sessionId: input.sessionId },
+    });
   }
 
   async completeAnswer(input: { sessionId: string; questionId: string; objectKey: string; durationSec?: number }) {
@@ -150,10 +156,16 @@ export class SmartInterviewService {
         questionId: input.questionId,
         candidateId: session.application.candidateId,
         objectKey: input.objectKey,
-        provider: 'mock-s3',
+        provider: 'storage-gateway',
         durationSec: input.durationSec,
         status: 'uploaded',
       },
+    });
+
+    await this.transcriptionGateway.enqueue({
+      answerId: answer.id,
+      objectKey: answer.objectKey,
+      tenantId: session.application.candidateId,
     });
 
     await prisma.outboxEvent.create({
@@ -166,10 +178,30 @@ export class SmartInterviewService {
   async submitSession(sessionId: string) {
     const session = await prisma.smartInterviewSession.findUnique({
       where: { id: sessionId },
-      include: { answers: true },
+      include: { answers: { include: { transcript: true } } },
     });
     if (!session) throw new NotFoundException('session_not_found');
     if (!session.answers.length) throw new BadRequestException('no_answers_uploaded');
+
+    const transcriptText = session.answers.map((answer) => answer.transcript?.content ?? '').join('\n').trim();
+    const aiResult = await this.aiGateway.analyzeInterview({ sessionId, transcript: transcriptText || 'transcript pending' });
+
+    await prisma.smartInterviewAiAnalysis.upsert({
+      where: { sessionId },
+      update: {
+        status: 'completed',
+        summary: aiResult.summary,
+        highlights: aiResult.highlights as never,
+        risks: aiResult.risks as never,
+      },
+      create: {
+        sessionId,
+        status: 'completed',
+        summary: aiResult.summary,
+        highlights: aiResult.highlights as never,
+        risks: aiResult.risks as never,
+      },
+    });
 
     return prisma.smartInterviewSession.update({
       where: { id: sessionId },

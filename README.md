@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -110,3 +110,28 @@ Implementado nesta fase:
 - `docs/sdd/001-system-context.md`
 - `docs/sdd/002-auth-session.md`
 - `docs/sdd/003-recruitment-flow.md`
+
+
+## Vertical Slice 04
+Implementado nesta fase:
+- Registry/config central de integrações + feature flags por ambiente.
+- Storage gateway (S3 real-ready + MinIO fallback local) com metadata de assets.
+- Email gateway (SES real-ready + Mailhog fallback) com eventos/webhooks básicos.
+- Auth provider Cognito real-ready com fallback para dev auth.
+- AI gateway real-ready com logs de execução e fallback mock.
+- CV parser/transcription gateways real-ready com fallback e persistência de metadata.
+
+### Variáveis de ambiente
+Consulte `.env.example` para flags `FF_*_REAL`, providers e placeholders de secrets.
+
+### Smoke staging (providers reais)
+1. `APP_ENV=staging`
+2. ativar `FF_*_REAL=true` por integração desejada
+3. preencher credenciais reais (AWS/AI/gateways)
+4. validar `GET /health` e conferir providers ativos por integração
+5. executar fluxo completo de convite -> onboarding -> smart interview -> review humano
+
+### Documentação adicional
+- `docs/adr/014-vertical-slice-04-real-integrations-fallback.md`
+- `docs/sdd/integrations/*`
+- `docs/sdd/modules/*`

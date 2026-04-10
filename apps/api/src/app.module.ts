@@ -11,9 +11,11 @@ import { EvaluationsModule } from './modules/evaluations/evaluations.module.js';
 import { ClientDecisionsModule } from './modules/client-decisions/client-decisions.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { SmartInterviewModule } from './modules/smart-interview/smart-interview.module.js';
+import { IntegrationsModule } from './modules/integrations/integrations.module.js';
 
 @Module({
   imports: [
+    IntegrationsModule,
     AuthModule,
     OrganizationsModule,
     VacanciesModule,

@@ -10,7 +10,6 @@ vi.mock('@connekt/db', () => ({
     candidateOnboardingSession: { upsert: vi.fn() },
     guestSession: { upsert: vi.fn() },
     application: { upsert: vi.fn() },
-    messageDispatch: { create: vi.fn() },
     auditEvent: { create: vi.fn() },
   },
 }));
@@ -20,9 +19,10 @@ import { prisma } from '@connekt/db';
 
 describe('CandidatesService', () => {
   let service: CandidatesService;
+  const emailGateway = { sendTemplated: vi.fn() };
 
   beforeEach(() => {
-    service = new CandidatesService();
+    service = new CandidatesService(emailGateway as never);
     vi.clearAllMocks();
   });
 
@@ -33,13 +33,12 @@ describe('CandidatesService', () => {
     vi.mocked(prisma.guestSession.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.application.upsert).mockResolvedValue({} as never);
-    vi.mocked(prisma.messageDispatch.create).mockResolvedValue({} as never);
     vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
 
     const result = await service.invite('org1', 'a@b.com', 'v1', 'u1');
     expect(result).toEqual(candidate);
     expect(prisma.candidate.upsert).toHaveBeenCalledOnce();
-    expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();
+    expect(emailGateway.sendTemplated).toHaveBeenCalledOnce();
     expect(prisma.auditEvent.create).toHaveBeenCalledOnce();
   });
 

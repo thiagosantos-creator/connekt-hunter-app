@@ -1,8 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { StorageGateway } from '../integrations/storage.gateway.js';
+import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
 
 @Injectable()
 export class OnboardingService {
+  constructor(
+    private readonly storageGateway: StorageGateway,
+    private readonly cvParserGateway: CvParserGateway,
+  ) {}
+
   async basic(token: string, fullName: string, phone: string) {
     const candidate = await prisma.candidate.findUniqueOrThrow({ where: { token } });
     await prisma.candidateProfile.upsert({
@@ -40,14 +47,43 @@ export class OnboardingService {
     const session = await prisma.candidateOnboardingSession.findUniqueOrThrow({
       where: { candidateId: candidate.id },
     });
-    const resume = await prisma.candidateResume.create({
-      data: { sessionId: session.id, objectKey: `cv/${candidate.id}/${filename}`, provider: 'minio' },
+
+    const upload = await this.storageGateway.createPresignedUpload({
+      tenantId: candidate.organizationId,
+      namespace: `candidate-cv/${candidate.id}`,
+      filename,
+      metadata: { source: 'candidate-onboarding' },
     });
+
+    const resume = await prisma.candidateResume.create({
+      data: { sessionId: session.id, objectKey: upload.objectKey, provider: upload.provider },
+    });
+
+    await this.storageGateway.recordAsset({
+      tenantId: candidate.organizationId,
+      objectKey: upload.objectKey,
+      category: 'resume-cv',
+      provider: upload.provider,
+      metadata: { candidateId: candidate.id, sessionId: session.id },
+    });
+
+    const parsed = await this.cvParserGateway.parseResume({
+      resumeId: resume.id,
+      objectKey: resume.objectKey,
+      candidateId: candidate.id,
+    });
+
+    await prisma.resumeParseResult.upsert({
+      where: { resumeId: resume.id },
+      update: { status: 'parsed', parsedJson: parsed as never },
+      create: { resumeId: resume.id, status: 'parsed', parsedJson: parsed as never },
+    });
+
     await prisma.outboxEvent.create({ data: { topic: 'resume.uploaded', payload: { resumeId: resume.id } } });
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
       data: { resumeCompleted: true, status: 'completed' },
     });
-    return resume;
+    return { ...resume, upload };
   }
 }

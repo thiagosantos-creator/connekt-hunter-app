@@ -16,12 +16,16 @@ describe('SmartInterviewService', () => {
   let service: SmartInterviewService;
 
   beforeEach(() => {
-    service = new SmartInterviewService();
+    service = new SmartInterviewService(
+      { generateInterviewQuestions: vi.fn().mockResolvedValue({ questions: ['Q1', 'Q2', 'Q3'], provider: 'ai-mock' }) } as never,
+      {} as never,
+      {} as never,
+    );
     vi.clearAllMocks();
   });
 
-  it('generates mock AI questions', async () => {
-    vi.mocked(prisma.smartInterviewTemplate.findUnique).mockResolvedValue({ id: 'tpl_1' } as never);
+  it('generates AI questions through gateway', async () => {
+    vi.mocked(prisma.smartInterviewTemplate.findUnique).mockResolvedValue({ id: 'tpl_1', configJson: {} } as never);
     vi.mocked(prisma.smartInterviewTemplate.update).mockResolvedValue({ id: 'tpl_1', questions: [] } as never);
 
     await service.generateQuestions('tpl_1');

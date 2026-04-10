@@ -21,10 +21,11 @@ describe('candidate-web unit tests', () => {
   });
 
   it('routes are defined for all onboarding steps', () => {
-    const routes = ['/', '/onboarding/basic', '/onboarding/consent', '/onboarding/resume', '/status'];
-    expect(routes).toHaveLength(5);
+    const routes = ['/', '/onboarding/basic', '/onboarding/consent', '/onboarding/resume', '/status', '/interview'];
+    expect(routes).toHaveLength(6);
     expect(routes[0]).toBe('/');
-    expect(routes[routes.length - 1]).toBe('/status');
+    expect(routes).toContain('/status');
+    expect(routes).toContain('/interview');
   });
 
   it('consent types match backend expectations', () => {

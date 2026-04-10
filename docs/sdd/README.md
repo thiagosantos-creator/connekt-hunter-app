@@ -11,6 +11,7 @@ Este diretório centraliza as **Software Design Descriptions (SDD)** dos slices 
 - `001-system-context.md`: contexto de sistema e limites de domínio.
 - `002-auth-session.md`: autenticação, sessão e autorização.
 - `003-recruitment-flow.md`: fluxo fim-a-fim de recrutamento.
+- `004-smart-interview.md`: entrevista estruturada assíncrona (Slice 03).
 
 ## Regras de manutenção
 1. Toda alteração relevante de comportamento deve atualizar a SDD correspondente.

@@ -22,6 +22,7 @@ model User {
   candidates    Candidate[]    @relation("CandidateUser")
   invitedCandidates Candidate[] @relation("CandidateInviter")
   mfaPreference MfaPreference?
+  smartInterviewReviews SmartInterviewHumanReview[] @relation("SmartInterviewReviewer")
 }
 
 model Organization {
@@ -55,6 +56,7 @@ model Vacancy {
   creator        User          @relation("VacancyCreator", fields: [createdBy], references: [id])
   applications   Application[]
   shortlist      Shortlist?
+  smartInterviewTemplates SmartInterviewTemplate[]
 }
 
 model Candidate {
@@ -70,6 +72,7 @@ model Candidate {
   profile        CandidateProfile?
   applications   Application[]
   onboarding     CandidateOnboardingSession?
+  smartInterviewAnswers SmartInterviewAnswer[]
   invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
@@ -93,6 +96,7 @@ model Application {
   vacancy     Vacancy      @relation(fields: [vacancyId], references: [id])
   evaluations Evaluation[]
   shortlistItems ShortlistItem[]
+  smartInterviewSessions SmartInterviewSession[]
 
   @@unique([candidateId, vacancyId])
 }
@@ -247,6 +251,105 @@ model MfaPreference {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields: [userId], references: [id])
+}
+
+
+model SmartInterviewTemplate {
+  id             String   @id @default(cuid())
+  vacancyId      String   @unique
+  configJson     Json
+  status         String   @default("draft")
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  vacancy        Vacancy  @relation(fields: [vacancyId], references: [id])
+  questions      SmartInterviewQuestion[]
+  sessions       SmartInterviewSession[]
+}
+
+model SmartInterviewQuestion {
+  id          String   @id @default(cuid())
+  templateId  String
+  orderIndex  Int
+  prompt      String
+  maxDuration Int      @default(120)
+  source      String   @default("manual")
+  createdAt   DateTime @default(now())
+  template    SmartInterviewTemplate @relation(fields: [templateId], references: [id])
+  answers     SmartInterviewAnswer[]
+
+  @@unique([templateId, orderIndex])
+}
+
+model SmartInterviewSession {
+  id            String   @id @default(cuid())
+  applicationId String   @unique
+  templateId    String
+  publicToken   String   @unique
+  status        String   @default("draft")
+  startedAt     DateTime?
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  application   Application @relation(fields: [applicationId], references: [id])
+  template      SmartInterviewTemplate @relation(fields: [templateId], references: [id])
+  answers       SmartInterviewAnswer[]
+  aiAnalysis    SmartInterviewAiAnalysis?
+  humanReview   SmartInterviewHumanReview?
+}
+
+model SmartInterviewAnswer {
+  id           String   @id @default(cuid())
+  sessionId     String
+  questionId    String
+  candidateId   String
+  objectKey     String
+  provider      String
+  durationSec   Int?
+  status        String   @default("uploaded")
+  uploadedAt    DateTime @default(now())
+  processedAt   DateTime?
+  session       SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  question      SmartInterviewQuestion @relation(fields: [questionId], references: [id])
+  candidate     Candidate @relation(fields: [candidateId], references: [id])
+  transcript    SmartInterviewTranscript?
+
+  @@unique([sessionId, questionId])
+}
+
+model SmartInterviewTranscript {
+  id          String   @id @default(cuid())
+  answerId    String   @unique
+  status      String   @default("pending")
+  content     String
+  language    String   @default("pt-BR")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id])
+}
+
+model SmartInterviewAiAnalysis {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  status      String   @default("pending")
+  summary     String
+  highlights  Json
+  risks       Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  session     SmartInterviewSession @relation(fields: [sessionId], references: [id])
+}
+
+model SmartInterviewHumanReview {
+  id          String   @id @default(cuid())
+  sessionId   String   @unique
+  reviewerId  String
+  decision    String
+  notes       String
+  createdAt   DateTime @default(now())
+  session     SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  reviewer    User     @relation("SmartInterviewReviewer", fields: [reviewerId], references: [id])
 }
 
 model FeatureFlag {

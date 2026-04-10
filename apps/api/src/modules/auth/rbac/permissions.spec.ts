@@ -10,3 +10,8 @@ describe('RBAC permissions', () => {
     expect(hasPermission('candidate', 'vacancies:read')).toBe(false);
   });
 });
+
+
+it('allows headhunter to configure smart interview', () => {
+  expect(hasPermission('headhunter', 'smart-interview:configure')).toBe(true);
+});

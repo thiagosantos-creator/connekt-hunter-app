@@ -290,6 +290,66 @@ function StatusView() {
   );
 }
 
+
+
+function InterviewView() {
+  const [sessionToken, setSessionToken] = useState(localStorage.getItem('si_public_token') ?? '');
+  const [session, setSession] = useState<any>(null);
+  const [current, setCurrent] = useState(0);
+  const [msg, setMsg] = useState('');
+
+  const loadSession = async () => {
+    try {
+      const data = await apiGet<any>(`/smart-interview/candidate/session/${encodeURIComponent(sessionToken)}`);
+      setSession(data);
+      localStorage.setItem('si_public_token', sessionToken);
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const uploadAnswer = async (questionId: string) => {
+    try {
+      const presign = await apiPost<any>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
+      await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec: 45 });
+      setMsg('Resposta gravada (mock).');
+      if (current < session.template.questions.length - 1) setCurrent(current + 1);
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const finalize = async () => {
+    try {
+      await apiPost(`/smart-interview/sessions/${session.id}/submit`, {});
+      setMsg('Entrevista finalizada com sucesso!');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const q = session?.template?.questions?.[current];
+
+  return (
+    <div style={{ maxWidth: 640, margin: '40px auto', padding: 24 }}>
+      <h2>Smart Interview</h2>
+      <p style={{ color: '#666' }}>Fluxo assíncrono: intro, setup de câmera e gravação por pergunta.</p>
+      {!session && (
+        <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
+          <label>Session public token
+            <input value={sessionToken} onChange={(e) => setSessionToken(e.target.value)} style={{ width: '100%', padding: 6 }} />
+          </label>
+          <button style={{ marginTop: 8 }} onClick={() => { void loadSession(); }}>Iniciar entrevista</button>
+        </div>
+      )}
+      {session && q && (
+        <div style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
+          <p><strong>Progresso:</strong> {current + 1}/{session.template.questions.length}</p>
+          <p><strong>Pergunta:</strong> {q.prompt}</p>
+          <p style={{ color: '#777', fontSize: 13 }}>Setup de câmera (mock): dispositivo pronto ✅</p>
+          <button onClick={() => { void uploadAnswer(q.id); }}>Gravar resposta (mock)</button>
+          <button onClick={() => { void finalize(); }} style={{ marginLeft: 8 }}>Finalizar entrevista</button>
+        </div>
+      )}
+      {msg && <p style={{ color: msg.startsWith('Error') ? 'red' : 'green' }}>{msg}</p>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Guard - requires invite token in localStorage
 // ---------------------------------------------------------------------------
@@ -314,6 +374,7 @@ function App() {
           <Route path="/onboarding/consent" element={<RequiresToken><Step2ConsentView /></RequiresToken>} />
           <Route path="/onboarding/resume" element={<RequiresToken><Step3ResumeView /></RequiresToken>} />
           <Route path="/status" element={<RequiresToken><StatusView /></RequiresToken>} />
+          <Route path="/interview" element={<RequiresToken><InterviewView /></RequiresToken>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

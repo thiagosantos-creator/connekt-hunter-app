@@ -23,6 +23,11 @@ export interface DataTableProps<T> {
 export function DataTable<T>({ columns, data, rowKey, emptyMessage = 'Nenhum dado encontrado.', onRowClick }: DataTableProps<T>) {
   return (
     <div style={{ overflowX: 'auto', border: `1px solid ${colors.border}`, borderRadius: radius.lg }}>
+      <style>{`
+        .connekt-data-table__row:hover {
+          background: ${colors.surfaceHover};
+        }
+      `}</style>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ background: colors.surfaceAlt }}>
@@ -50,13 +55,12 @@ export function DataTable<T>({ columns, data, rowKey, emptyMessage = 'Nenhum dad
             <tr
               key={rowKey(row)}
               onClick={() => onRowClick?.(row)}
+              className="connekt-data-table__row"
               style={{
                 borderBottom: `1px solid ${colors.borderLight}`,
                 cursor: onRowClick ? 'pointer' : 'default',
                 transition: 'background 0.1s',
               }}
-              onMouseEnter={(e) => { (e.currentTarget.style.background = colors.surfaceHover); }}
-              onMouseLeave={(e) => { (e.currentTarget.style.background = 'transparent'); }}
             >
               {columns.map((col) => (
                 <td key={col.key} style={{ padding: `${spacing.sm + 2}px ${spacing.md}px`, fontSize: fontSize.md, color: colors.text }}>

@@ -33,7 +33,7 @@
 - Endpoints protegidos:
   - `GET /candidate/token/:token` — RateLimitGuard + PublicTokenGuard
   - `POST /candidate/onboarding/*` — RateLimitGuard + PublicTokenGuard
-  - `GET /smart-interview/candidate/session/:publicToken` — RateLimitGuard
+  - `GET /smart-interview/candidate/session/:publicToken` — RateLimitGuard + PublicTokenGuard
   - `POST /smart-interview/sessions/:id/answers/presign` — RateLimitGuard
   - `POST /smart-interview/sessions/:id/answers/complete` — RateLimitGuard
   - `POST /smart-interview/sessions/:id/submit` — RateLimitGuard

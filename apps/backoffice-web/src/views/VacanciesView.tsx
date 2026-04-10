@@ -62,6 +62,11 @@ export function VacanciesView() {
 
   const columns = [
     {
+      key: 'id',
+      header: 'ID da Vaga',
+      render: (row: Vacancy) => row.id,
+    },
+    {
       key: 'title',
       header: 'Título',
       render: (row: Vacancy) => row.title,

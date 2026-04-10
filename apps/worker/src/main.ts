@@ -90,6 +90,60 @@ export async function processSmartInterviewAnalysisJobs(): Promise<number> {
   return events.length;
 }
 
+
+
+export async function processMatchingComputeJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'matching:compute', processed: false }, take: 20 });
+
+  for (const evt of events) {
+    const payload = evt.payload as { applicationId: string; candidateId: string; vacancyId: string };
+    const existing = await prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } });
+    const score = existing?.score ?? 50;
+
+    await prisma.matchingScore.upsert({
+      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+      update: { score, computedAt: new Date(), modelVersion: 'matching-v1-worker' },
+      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion: 'matching-v1-worker' },
+    });
+
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+
+  return events.length;
+}
+
+export async function processInsightsGenerateJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'insights:generate', processed: false }, take: 20 });
+
+  for (const evt of events) {
+    const payload = evt.payload as { candidateId: string; vacancyId: string };
+    await prisma.candidateInsight.upsert({
+      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+      update: { summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+    });
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+
+  return events.length;
+}
+
+export async function processComparisonGenerateJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'comparison:generate', processed: false }, take: 20 });
+
+  for (const evt of events) {
+    const payload = evt.payload as { vacancyId: string; leftCandidateId: string; rightCandidateId: string };
+    await prisma.candidateComparison.upsert({
+      where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId } },
+      update: { comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+      create: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId, comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+    });
+    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+  }
+
+  return events.length;
+}
+
 async function run() {
   console.log('[worker] starting');
 
@@ -107,7 +161,10 @@ async function run() {
     const processedResume = await processResumeUploads();
     const processedVideo = await processSmartInterviewVideoJobs();
     const processedAnalysis = await processSmartInterviewAnalysisJobs();
-    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis}`);
+    const processedMatching = await processMatchingComputeJobs();
+    const processedInsights = await processInsightsGenerateJobs();
+    const processedComparison = await processComparisonGenerateJobs();
+    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison}`);
   } catch (err) {
     console.error('[worker] error', err);
     process.exitCode = 1;

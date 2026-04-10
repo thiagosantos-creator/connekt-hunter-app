@@ -57,6 +57,9 @@ model Vacancy {
   applications   Application[]
   shortlist      Shortlist?
   smartInterviewTemplates SmartInterviewTemplate[]
+  embeddings      VacancyEmbedding[]
+  matchingScores  MatchingScore[]
+  rankingSnapshots CandidateRankingSnapshot[]
 }
 
 model Candidate {
@@ -73,6 +76,14 @@ model Candidate {
   applications   Application[]
   onboarding     CandidateOnboardingSession?
   smartInterviewAnswers SmartInterviewAnswer[]
+  embeddings      CandidateEmbedding[]
+  matchingScores  MatchingScore[]
+  insights        CandidateInsight[]
+  leftComparisons CandidateComparison[] @relation("ComparisonLeftCandidate")
+  rightComparisons CandidateComparison[] @relation("ComparisonRightCandidate")
+  rankingSnapshots CandidateRankingSnapshot[]
+  aiEvidences     AiEvidence[]
+  aiExplanations  AiExplanation[]
   invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
@@ -459,6 +470,135 @@ model MessageEvent {
   dispatch          MessageDispatch @relation(fields: [dispatchId], references: [id])
 
   @@index([provider, providerMessageId])
+}
+
+model CandidateEmbedding {
+  id          String   @id @default(cuid())
+  candidateId String
+  source      String   @default("resume+interview")
+  vector      Json
+  metadata    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, source])
+}
+
+model VacancyEmbedding {
+  id          String   @id @default(cuid())
+  vacancyId   String
+  source      String   @default("vacancy-description")
+  vector      Json
+  metadata    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id])
+
+  @@unique([vacancyId, source])
+}
+
+model MatchingScore {
+  id            String   @id @default(cuid())
+  candidateId   String
+  vacancyId     String
+  score         Float
+  modelVersion  String
+  status        String   @default("completed")
+  computedAt    DateTime @default(now())
+  candidate     Candidate @relation(fields: [candidateId], references: [id])
+  vacancy       Vacancy  @relation(fields: [vacancyId], references: [id])
+  breakdowns    MatchingBreakdown[]
+  evidences     AiEvidence[]
+  explanations  AiExplanation[]
+
+  @@unique([candidateId, vacancyId])
+}
+
+model MatchingBreakdown {
+  id             String   @id @default(cuid())
+  matchingScoreId String
+  dimension      String
+  score          Float
+  weight         Float
+  reasoning      String
+  createdAt      DateTime @default(now())
+  matchingScore  MatchingScore @relation(fields: [matchingScoreId], references: [id])
+
+  @@unique([matchingScoreId, dimension])
+}
+
+model CandidateInsight {
+  id          String   @id @default(cuid())
+  candidateId String
+  vacancyId   String
+  summary     String
+  strengths   Json
+  risks       Json
+  recommendations Json
+  source      String   @default("ai-assisted")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([candidateId, vacancyId])
+}
+
+model CandidateComparison {
+  id               String   @id @default(cuid())
+  vacancyId        String
+  leftCandidateId  String
+  rightCandidateId String
+  comparisonJson   Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  leftCandidate    Candidate @relation("ComparisonLeftCandidate", fields: [leftCandidateId], references: [id])
+  rightCandidate   Candidate @relation("ComparisonRightCandidate", fields: [rightCandidateId], references: [id])
+
+  @@unique([vacancyId, leftCandidateId, rightCandidateId])
+}
+
+model CandidateRankingSnapshot {
+  id          String   @id @default(cuid())
+  vacancyId   String
+  candidateId String
+  rank        Int
+  score       Float
+  rationale   String
+  manualOverride Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+
+  @@unique([vacancyId, candidateId])
+  @@unique([vacancyId, rank])
+}
+
+model AiEvidence {
+  id             String   @id @default(cuid())
+  candidateId    String
+  matchingScoreId String?
+  sourceType     String
+  sourceRef      String
+  excerpt        String
+  confidence     Float
+  metadata       Json
+  createdAt      DateTime @default(now())
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id])
+}
+
+model AiExplanation {
+  id             String   @id @default(cuid())
+  candidateId    String
+  matchingScoreId String?
+  context        String
+  explanation    String
+  generatedBy    String
+  createdAt      DateTime @default(now())
+  candidate      Candidate @relation(fields: [candidateId], references: [id])
+  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id])
 }
 
 model StorageAssetMetadata {

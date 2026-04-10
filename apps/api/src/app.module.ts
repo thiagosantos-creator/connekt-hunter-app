@@ -12,6 +12,9 @@ import { ClientDecisionsModule } from './modules/client-decisions/client-decisio
 import { AuditModule } from './modules/audit/audit.module.js';
 import { SmartInterviewModule } from './modules/smart-interview/smart-interview.module.js';
 import { IntegrationsModule } from './modules/integrations/integrations.module.js';
+import { CandidateMatchingModule } from './modules/candidate-matching/candidate-matching.module.js';
+import { CandidateInsightsModule } from './modules/candidate-insights/candidate-insights.module.js';
+import { CandidateRankingModule } from './modules/candidate-ranking/candidate-ranking.module.js';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { IntegrationsModule } from './modules/integrations/integrations.module.j
     ClientDecisionsModule,
     AuditModule,
     SmartInterviewModule,
+    CandidateMatchingModule,
+    CandidateInsightsModule,
+    CandidateRankingModule,
   ],
   controllers: [HealthController],
 })

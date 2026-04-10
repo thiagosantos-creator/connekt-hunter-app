@@ -108,10 +108,10 @@ function NavBar() {
   const navigate = useNavigate();
   const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     admin: [
-      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Client Review', to: '/client-review' }, { label: 'Smart Interview', to: '/smart-interview' },
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Client Review', to: '/client-review' }, { label: 'Smart Interview', to: '/smart-interview' }, { label: 'Product Intelligence', to: '/product-intelligence' },
     ],
     headhunter: [
-      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Smart Interview', to: '/smart-interview' },
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Smart Interview', to: '/smart-interview' }, { label: 'Product Intelligence', to: '/product-intelligence' },
     ],
     client: [
       { label: 'Applications', to: '/applications' }, { label: 'Client Review', to: '/client-review' },
@@ -485,6 +485,89 @@ function SmartInterviewView() {
   );
 }
 
+
+
+function ProductIntelligenceView() {
+  const [applicationId, setApplicationId] = useState('');
+  const [vacancyId, setVacancyId] = useState('');
+  const [candidateId, setCandidateId] = useState('');
+  const [otherCandidateId, setOtherCandidateId] = useState('');
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [ranking, setRanking] = useState<Array<{ candidateId: string; rank: number; score: number; manualOverride: boolean }>>([]);
+  const [msg, setMsg] = useState('');
+
+  const compute = async () => {
+    try {
+      const data = await apiPost<Record<string, unknown>>('/candidate-matching/compute', { applicationId });
+      setResult(data);
+      setMsg('Matching calculado com breakdown, evidências e explicação.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const generateInsights = async () => {
+    try {
+      const data = await apiPost<Record<string, unknown>>('/candidate-insights/generate', { candidateId, vacancyId });
+      setResult(data);
+      setMsg('Insights gerados.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const compare = async () => {
+    try {
+      const data = await apiPost<Record<string, unknown>>('/candidate-matching/compare', { vacancyId, leftCandidateId: candidateId, rightCandidateId: otherCandidateId });
+      setResult(data);
+      setMsg('Comparativo assistido gerado.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const generateRanking = async () => {
+    try {
+      const data = await apiPost<Array<{ candidateId: string; rank: number; score: number; manualOverride: boolean }>>('/candidate-ranking/generate', { vacancyId });
+      setRanking(data);
+      setMsg('Ranking assistido gerado.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const moveUp = async (candidateIdToPromote: string) => {
+    const ordered = [...ranking].sort((a, b) => a.rank - b.rank).map((item) => item.candidateId);
+    const idx = ordered.indexOf(candidateIdToPromote);
+    if (idx <= 0) return;
+    [ordered[idx - 1], ordered[idx]] = [ordered[idx], ordered[idx - 1]];
+    try {
+      const data = await apiPost<Array<{ candidateId: string; rank: number; score: number; manualOverride: boolean }>>('/candidate-ranking/override', { vacancyId, orderedCandidateIds: ordered });
+      setRanking(data);
+      setMsg('Ordem atualizada com override humano.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Product Intelligence</h2>
+      <p style={{ color: '#666' }}>Matching, insights, comparador e ranking assistido (decisão final sempre humana).</p>
+      <div style={{ display: 'grid', gap: 8, maxWidth: 720 }}>
+        <input placeholder="Application ID" value={applicationId} onChange={(e) => setApplicationId(e.target.value)} />
+        <button onClick={() => { void compute(); }} disabled={!applicationId}>Compute matching</button>
+        <input placeholder="Vacancy ID" value={vacancyId} onChange={(e) => setVacancyId(e.target.value)} />
+        <input placeholder="Candidate ID" value={candidateId} onChange={(e) => setCandidateId(e.target.value)} />
+        <button onClick={() => { void generateInsights(); }} disabled={!vacancyId || !candidateId}>Generate insights</button>
+        <input placeholder="Compare with Candidate ID" value={otherCandidateId} onChange={(e) => setOtherCandidateId(e.target.value)} />
+        <button onClick={() => { void compare(); }} disabled={!vacancyId || !candidateId || !otherCandidateId}>Compare candidates</button>
+        <button onClick={() => { void generateRanking(); }} disabled={!vacancyId}>Generate ranking</button>
+      </div>
+      {msg && <p style={{ color: msg.startsWith('Error') ? 'red' : 'green' }}>{msg}</p>}
+      {ranking.length > 0 && (
+        <table style={{ width: '100%', marginTop: 14 }}>
+          <thead><tr><th>Rank</th><th>Candidate</th><th>Score</th><th>Override</th></tr></thead>
+          <tbody>{ranking.sort((a, b) => a.rank - b.rank).map((item) => (
+            <tr key={item.candidateId}><td>{item.rank}</td><td>{item.candidateId}</td><td>{item.score}</td><td><button onClick={() => { void moveUp(item.candidateId); }}>Move up</button> {item.manualOverride ? 'manual' : 'assistive'}</td></tr>
+          ))}</tbody>
+        </table>
+      )}
+      {result && <pre style={{ marginTop: 16, background: '#f7f7f7', padding: 12, borderRadius: 8, overflowX: 'auto' }}>{JSON.stringify(result, null, 2)}</pre>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // App shell
 // ---------------------------------------------------------------------------
@@ -501,6 +584,7 @@ function App() {
         <Route path="/shortlist" element={<ProtectedRoute><ShortlistView /></ProtectedRoute>} />
         <Route path="/client-review" element={<ProtectedRoute><ClientReviewView /></ProtectedRoute>} />
         <Route path="/smart-interview" element={<ProtectedRoute><SmartInterviewView /></ProtectedRoute>} />
+        <Route path="/product-intelligence" element={<ProtectedRoute><ProductIntelligenceView /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to={user ? '/vacancies' : '/login'} replace />} />
       </Routes>
     </BrowserRouter>

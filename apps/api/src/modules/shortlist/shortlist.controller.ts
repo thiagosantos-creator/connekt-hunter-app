@@ -3,6 +3,8 @@ import { ShortlistService } from './shortlist.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import type { AuthUser } from '../auth/auth.types.js';
 
 @Controller('shortlist')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -11,7 +13,7 @@ export class ShortlistController {
 
   @Post()
   @RequirePermissions('shortlist:write')
-  add(@Body() body: { applicationId: string }) {
-    return this.shortlistService.addToShortlist(body.applicationId);
+  add(@Body() body: { applicationId: string }, @CurrentUser() user: AuthUser) {
+    return this.shortlistService.addToShortlist(body.applicationId, user.id);
   }
 }

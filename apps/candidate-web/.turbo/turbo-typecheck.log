@@ -1,4 +1,0 @@
-
-> candidate-web@0.1.0 typecheck /home/runner/work/connekt-hunter-app/connekt-hunter-app/apps/candidate-web
-> tsc -p tsconfig.json --noEmit
-

@@ -12,6 +12,7 @@ Este diretório centraliza as **Software Design Descriptions (SDD)** dos slices 
 - `002-auth-session.md`: autenticação, sessão e autorização.
 - `003-recruitment-flow.md`: fluxo fim-a-fim de recrutamento.
 - `004-smart-interview.md`: entrevista estruturada assíncrona (Slice 03).
+- `007-global-validation-hardening.md`: critérios de validação global, gap analysis e hardening (Slice 07).
 
 ## Regras de manutenção
 1. Toda alteração relevante de comportamento deve atualizar a SDD correspondente.

@@ -131,6 +131,7 @@ model CandidateResume {
   uploadedAt    DateTime                    @default(now())
   session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
   parseResult   ResumeParseResult?
+  parseMetadata ResumeParseMetadata?
 }
 
 model ResumeParseResult {
@@ -199,6 +200,7 @@ model MessageDispatch {
   content     String
   status      String   @default("queued")
   createdAt   DateTime @default(now())
+  events      MessageEvent[]
 }
 
 model OutboxEvent {
@@ -314,6 +316,7 @@ model SmartInterviewAnswer {
   question      SmartInterviewQuestion @relation(fields: [questionId], references: [id])
   candidate     Candidate @relation(fields: [candidateId], references: [id])
   transcript    SmartInterviewTranscript?
+  transcriptMeta TranscriptMetadata?
 
   @@unique([sessionId, questionId])
 }
@@ -360,4 +363,110 @@ model FeatureFlag {
   metadata   Json
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+
+model IntegrationConnection {
+  id            String   @id @default(cuid())
+  integration   String
+  provider      String
+  environment   String
+  status        String   @default("inactive")
+  configJson    Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([integration, environment])
+}
+
+model ProviderExecutionLog {
+  id             String   @id @default(cuid())
+  integration    String
+  provider       String
+  operation      String
+  status         String
+  idempotencyKey String?
+  requestJson    Json
+  responseJson   Json
+  createdAt      DateTime @default(now())
+}
+
+model AiExecutionLog {
+  id            String   @id @default(cuid())
+  operation     String
+  provider      String
+  modelVersion  String
+  promptVersion String
+  status        String
+  requestJson   Json
+  responseJson  Json
+  createdAt     DateTime @default(now())
+}
+
+model SocialIdentityLink {
+  id          String   @id @default(cuid())
+  userId      String
+  provider    String
+  subject     String
+  profileJson Json
+  createdAt   DateTime @default(now())
+
+  @@unique([provider, subject])
+}
+
+model WebhookDelivery {
+  id          String   @id @default(cuid())
+  provider    String
+  eventType   String
+  status      String
+  payload     Json
+  createdAt   DateTime @default(now())
+}
+
+model TranscriptMetadata {
+  id          String   @id @default(cuid())
+  answerId    String   @unique
+  provider    String
+  status      String
+  retries     Int      @default(0)
+  lastError   String?
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id])
+}
+
+model ResumeParseMetadata {
+  id             String   @id @default(cuid())
+  resumeId        String   @unique
+  provider        String
+  status          String
+  confidenceJson  Json
+  mergedAt        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  resume          CandidateResume @relation(fields: [resumeId], references: [id])
+}
+
+model MessageEvent {
+  id                String   @id @default(cuid())
+  dispatchId        String
+  provider          String
+  eventType         String
+  providerMessageId String
+  metadata          Json
+  createdAt         DateTime @default(now())
+  dispatch          MessageDispatch @relation(fields: [dispatchId], references: [id])
+
+  @@index([provider, providerMessageId])
+}
+
+model StorageAssetMetadata {
+  id         String   @id @default(cuid())
+  tenantId   String
+  objectKey  String   @unique
+  category   String
+  provider   String
+  metadata   Json
+  createdAt  DateTime @default(now())
 }

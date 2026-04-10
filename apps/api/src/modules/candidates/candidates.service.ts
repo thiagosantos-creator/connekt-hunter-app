@@ -1,9 +1,12 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
+import { EmailGateway } from '../integrations/email.gateway.js';
 
 @Injectable()
 export class CandidatesService {
+  constructor(private readonly emailGateway: EmailGateway) {}
+
   async invite(organizationId: string, email: string, vacancyId: string, actorUserId: string) {
     const membership = await prisma.membership.findUnique({
       where: { organizationId_userId: { organizationId, userId: actorUserId } },
@@ -34,8 +37,13 @@ export class CandidatesService {
       create: { candidateId: candidate.id, vacancyId },
     });
 
-    await prisma.messageDispatch.create({
-      data: { channel: 'email-mock', destination: email, content: `Use token ${candidate.token}` },
+    await this.emailGateway.sendTemplated({
+      tenantId: organizationId,
+      to: email,
+      templateKey: 'candidate-invite',
+      templateVersion: 'v1',
+      payload: { token: candidate.token, vacancyId },
+      correlationId: candidate.id,
     });
 
     await prisma.auditEvent.create({

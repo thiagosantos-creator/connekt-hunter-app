@@ -41,8 +41,8 @@ export class SmartInterviewController {
   @Post('sessions')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('smart-interview:configure')
-  createSession(@Body() body: { applicationId: string }) {
-    return this.smartInterviewService.createSession(body);
+  createSession(@Body() body: { applicationId: string }, @CurrentUser() user: AuthUser) {
+    return this.smartInterviewService.createSession({ ...body, createdBy: user.id });
   }
 
   @Get('sessions/:sessionId/review')
@@ -65,17 +65,17 @@ export class SmartInterviewController {
   }
 
   @Post('sessions/:sessionId/answers/presign')
-  createUpload(@Param('sessionId') sessionId: string, @Body() body: { questionId: string }) {
-    return this.smartInterviewService.createPresignedUpload({ sessionId, questionId: body.questionId });
+  createUpload(@Param('sessionId') sessionId: string, @Body() body: { questionId: string; publicToken: string }) {
+    return this.smartInterviewService.createPresignedUpload({ sessionId, questionId: body.questionId, publicToken: body.publicToken });
   }
 
   @Post('sessions/:sessionId/answers/complete')
-  completeAnswer(@Param('sessionId') sessionId: string, @Body() body: { questionId: string; objectKey: string; durationSec?: number }) {
+  completeAnswer(@Param('sessionId') sessionId: string, @Body() body: { questionId: string; objectKey: string; durationSec?: number; publicToken: string }) {
     return this.smartInterviewService.completeAnswer({ sessionId, ...body });
   }
 
   @Post('sessions/:sessionId/submit')
-  submitSession(@Param('sessionId') sessionId: string) {
-    return this.smartInterviewService.submitSession(sessionId);
+  submitSession(@Param('sessionId') sessionId: string, @Body() body: { publicToken: string }) {
+    return this.smartInterviewService.submitSession({ sessionId, publicToken: body.publicToken });
   }
 }

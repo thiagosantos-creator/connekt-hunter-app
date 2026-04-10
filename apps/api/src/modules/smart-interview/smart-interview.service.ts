@@ -81,12 +81,22 @@ export class SmartInterviewService {
     });
   }
 
-  async createSession(input: { applicationId: string }) {
+  async createSession(input: { applicationId: string; createdBy: string }) {
     const application = await prisma.application.findUnique({
       where: { id: input.applicationId },
       include: { vacancy: true },
     });
     if (!application) throw new NotFoundException('application_not_found');
+
+    const membership = await prisma.membership.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: application.vacancy.organizationId,
+          userId: input.createdBy,
+        },
+      },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
 
     const template = await prisma.smartInterviewTemplate.findUnique({ where: { vacancyId: application.vacancyId } });
     if (!template) throw new NotFoundException('template_not_found_for_vacancy');
@@ -118,12 +128,8 @@ export class SmartInterviewService {
     return session;
   }
 
-  async createPresignedUpload(input: { sessionId: string; questionId: string }) {
-    const session = await prisma.smartInterviewSession.findUnique({
-      where: { id: input.sessionId },
-      include: { application: true },
-    });
-    if (!session) throw new NotFoundException('session_not_found');
+  async createPresignedUpload(input: { sessionId: string; questionId: string; publicToken: string }) {
+    const session = await this.getCandidateAuthorizedSession(input.sessionId, input.publicToken);
 
     const objectKey = `smart-interview/${session.applicationId}/${input.questionId}/${randomUUID()}.webm`;
     return {
@@ -135,12 +141,8 @@ export class SmartInterviewService {
     };
   }
 
-  async completeAnswer(input: { sessionId: string; questionId: string; objectKey: string; durationSec?: number }) {
-    const session = await prisma.smartInterviewSession.findUnique({
-      where: { id: input.sessionId },
-      include: { application: true },
-    });
-    if (!session) throw new NotFoundException('session_not_found');
+  async completeAnswer(input: { sessionId: string; questionId: string; objectKey: string; durationSec?: number; publicToken: string }) {
+    const session = await this.getCandidateAuthorizedSession(input.sessionId, input.publicToken);
 
     const answer = await prisma.smartInterviewAnswer.upsert({
       where: { sessionId_questionId: { sessionId: input.sessionId, questionId: input.questionId } },
@@ -163,18 +165,29 @@ export class SmartInterviewService {
     return answer;
   }
 
-  async submitSession(sessionId: string) {
+  async submitSession(input: { sessionId: string; publicToken: string }) {
     const session = await prisma.smartInterviewSession.findUnique({
-      where: { id: sessionId },
+      where: { id: input.sessionId },
       include: { answers: true },
     });
     if (!session) throw new NotFoundException('session_not_found');
+    if (session.publicToken !== input.publicToken) throw new ForbiddenException('invalid_public_token');
     if (!session.answers.length) throw new BadRequestException('no_answers_uploaded');
 
     return prisma.smartInterviewSession.update({
-      where: { id: sessionId },
+      where: { id: input.sessionId },
       data: { status: 'submitted', submittedAt: new Date() },
     });
+  }
+
+  private async getCandidateAuthorizedSession(sessionId: string, publicToken: string) {
+    const session = await prisma.smartInterviewSession.findUnique({
+      where: { id: sessionId },
+      include: { application: true },
+    });
+    if (!session) throw new NotFoundException('session_not_found');
+    if (session.publicToken !== publicToken) throw new ForbiddenException('invalid_public_token');
+    return session;
   }
 
   getReviewSession(sessionId: string) {

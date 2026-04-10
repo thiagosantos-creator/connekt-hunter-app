@@ -71,9 +71,9 @@ pnpm --filter candidate-web dev
 - `GET /smart-interview/sessions/:sessionId/review`
 - `POST /smart-interview/sessions/:sessionId/human-review`
 - `GET /smart-interview/candidate/session/:publicToken`
-- `POST /smart-interview/sessions/:sessionId/answers/presign`
-- `POST /smart-interview/sessions/:sessionId/answers/complete`
-- `POST /smart-interview/sessions/:sessionId/submit`
+- `POST /smart-interview/sessions/:sessionId/answers/presign` (body: `questionId`, `publicToken`)
+- `POST /smart-interview/sessions/:sessionId/answers/complete` (body: `questionId`, `objectKey`, `publicToken`)
+- `POST /smart-interview/sessions/:sessionId/submit` (body: `publicToken`)
 
 ## Vertical Slice 02
 Implementado nesta fase:

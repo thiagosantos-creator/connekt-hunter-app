@@ -25,9 +25,9 @@ describe('Vertical Slice 03 smart interview (contract)', () => {
       'PUT /smart-interview/templates/:templateId/questions',
       'POST /smart-interview/sessions',
       'GET /smart-interview/candidate/session/:publicToken',
-      'POST /smart-interview/sessions/:sessionId/answers/presign',
-      'POST /smart-interview/sessions/:sessionId/answers/complete',
-      'POST /smart-interview/sessions/:sessionId/submit',
+      'POST /smart-interview/sessions/:sessionId/answers/presign (requires publicToken)',
+      'POST /smart-interview/sessions/:sessionId/answers/complete (requires publicToken)',
+      'POST /smart-interview/sessions/:sessionId/submit (requires publicToken)',
       'GET /smart-interview/sessions/:sessionId/review',
       'POST /smart-interview/sessions/:sessionId/human-review',
     ];

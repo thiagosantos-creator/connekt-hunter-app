@@ -308,8 +308,9 @@ function InterviewView() {
 
   const uploadAnswer = async (questionId: string) => {
     try {
-      const presign = await apiPost<any>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
-      await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec: 45 });
+      const publicToken = session.publicToken ?? sessionToken;
+      const presign = await apiPost<any>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId, publicToken });
+      await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec: 45, publicToken });
       setMsg('Resposta gravada (mock).');
       if (current < session.template.questions.length - 1) setCurrent(current + 1);
     } catch (err) { setMsg(String(err)); }
@@ -317,7 +318,8 @@ function InterviewView() {
 
   const finalize = async () => {
     try {
-      await apiPost(`/smart-interview/sessions/${session.id}/submit`, {});
+      const publicToken = session.publicToken ?? sessionToken;
+      await apiPost(`/smart-interview/sessions/${session.id}/submit`, { publicToken });
       setMsg('Entrevista finalizada com sucesso!');
     } catch (err) { setMsg(String(err)); }
   };

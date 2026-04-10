@@ -2,17 +2,33 @@ import React, { useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, InlineMessage, ScoreBar, colors, spacing, fontSize, radius } from '@connekt/ui';
 
+interface InterviewQuestion {
+  id: string;
+  prompt: string;
+}
+
+interface InterviewTemplate {
+  questions: InterviewQuestion[];
+}
+
+interface InterviewSession {
+  id: string;
+  template: InterviewTemplate;
+}
+
+interface PresignResponse {
+  objectKey: string;
+}
+
 export function InterviewView() {
   const [sessionToken, setSessionToken] = useState(localStorage.getItem('si_public_token') ?? '');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<InterviewSession | null>(null);
   const [current, setCurrent] = useState(0);
   const [msg, setMsg] = useState('');
 
   const loadSession = async () => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await apiGet<any>(`/smart-interview/candidate/session/${encodeURIComponent(sessionToken)}`);
+      const data = await apiGet<InterviewSession>(`/smart-interview/candidate/session/${encodeURIComponent(sessionToken)}`);
       setSession(data);
       localStorage.setItem('si_public_token', sessionToken);
     } catch (err) {
@@ -21,9 +37,9 @@ export function InterviewView() {
   };
 
   const uploadAnswer = async (questionId: string) => {
+    if (!session) return;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const presign = await apiPost<any>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
+      const presign = await apiPost<PresignResponse>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
       await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec: 45 });
       setMsg('Resposta gravada com sucesso.');
       if (current < session.template.questions.length - 1) setCurrent(current + 1);
@@ -33,6 +49,7 @@ export function InterviewView() {
   };
 
   const finalize = async () => {
+    if (!session) return;
     try {
       await apiPost(`/smart-interview/sessions/${session.id}/submit`, {});
       setMsg('Entrevista finalizada com sucesso!');

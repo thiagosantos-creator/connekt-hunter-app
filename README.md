@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening) + **Vertical Slice 08** (segurança defensiva, tenant isolation e e2e integrado) + **Vertical Slice 09** (rate limiting distribuído, token cache Redis, integração real e tracing).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening) + **Vertical Slice 08** (segurança defensiva, tenant isolation e e2e integrado) + **Vertical Slice 09** (rate limiting distribuído, token cache Redis, integração real e tracing) + **Vertical Slice 10** (Identity, Access e UX por perfil de usuário no backoffice).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -38,6 +38,11 @@ pnpm --filter worker dev
 pnpm --filter backoffice-web dev
 pnpm --filter candidate-web dev
 ```
+
+### Backoffice Web — rotas principais (Slice 10)
+- `/account` gestão de perfil + segurança (senha/MFA) + UX por tipo de usuário
+- `/admin/users` gestão administrativa de usuários (role/status/tenant)
+- `/audit` trilha de auditoria para administradores
 
 ## API — endpoints principais
 ### Health

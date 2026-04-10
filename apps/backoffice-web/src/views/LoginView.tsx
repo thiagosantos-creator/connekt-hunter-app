@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { AuthUser } from '../services/types.js';
+import { addAuditEvent } from '../services/account.js';
 import {
   Button,
   Input,
@@ -21,6 +22,11 @@ import {
   radius,
 } from '@connekt/ui';
 
+function getHomeRoute(role?: string): string {
+  if (role === 'admin' || role === 'headhunter') return '/vacancies';
+  return '/applications';
+}
+
 export function LoginView() {
   const navigate = useNavigate();
   const { user, refreshAuth } = useAuth();
@@ -29,7 +35,7 @@ export function LoginView() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/vacancies');
+    if (user) navigate(getHomeRoute(user.role));
   }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,8 +53,9 @@ export function LoginView() {
       }
       localStorage.setItem('bo_token', data.token);
       localStorage.setItem('bo_user', JSON.stringify(data.user));
+      addAuditEvent('login.success', data.user.email, data.user.id);
       refreshAuth();
-      navigate('/vacancies');
+      navigate(getHomeRoute(data.user.role));
     } catch (err) {
       setError(String(err));
     } finally {

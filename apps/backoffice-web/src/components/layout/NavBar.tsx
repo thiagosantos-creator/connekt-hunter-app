@@ -2,6 +2,9 @@ import React from 'react';
 import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { colors, fontSize, fontWeight, spacing } from '@connekt/ui';
+import { hasPermission } from '../../services/rbac.js';
+import { apiPost } from '../../services/api.js';
+import { addAuditEvent } from '../../services/account.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Nav items per role                                                        */
@@ -15,6 +18,9 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     { label: 'Revisão Cliente', to: '/client-review' },
     { label: 'Entrevista', to: '/smart-interview' },
     { label: 'Inteligência', to: '/product-intelligence' },
+    { label: 'Conta', to: '/account' },
+    { label: 'Usuários', to: '/admin/users' },
+    { label: 'Auditoria', to: '/audit' },
   ],
   headhunter: [
     { label: 'Vagas', to: '/vacancies' },
@@ -23,10 +29,12 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     { label: 'Shortlist', to: '/shortlist' },
     { label: 'Entrevista', to: '/smart-interview' },
     { label: 'Inteligência', to: '/product-intelligence' },
+    { label: 'Conta', to: '/account' },
   ],
   client: [
     { label: 'Aplicações', to: '/applications' },
     { label: 'Revisão Cliente', to: '/client-review' },
+    { label: 'Conta', to: '/account' },
   ],
 };
 
@@ -80,7 +88,15 @@ export function NavBar() {
           {user?.name} <span style={{ opacity: 0.6 }}>({user?.role})</span>
         </span>
         <button
-          onClick={() => { logout(); navigate('/login'); }}
+          onClick={() => {
+            void apiPost('/auth/logout', {})
+              .catch(() => null)
+              .finally(() => {
+                if (user) addAuditEvent('logout', user.email, user.id);
+                logout();
+                navigate('/login');
+              });
+          }}
           style={{
             fontSize: fontSize.sm,
             padding: `${spacing.xs}px ${spacing.sm + 4}px`,
@@ -104,6 +120,19 @@ export function NavBar() {
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return user ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+export function PermissionRoute({
+  children,
+  permission,
+}: {
+  children: React.ReactNode;
+  permission: Parameters<typeof hasPermission>[1];
+}) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (!hasPermission(user, permission)) return <Navigate to="/applications" replace />;
+  return <>{children}</>;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

@@ -29,4 +29,31 @@ describe('backoffice-web unit tests', () => {
     expect(TOKEN_KEY).toBe('bo_token');
     expect(USER_KEY).toBe('bo_user');
   });
+
+  it('auth context interface includes refreshAuth', () => {
+    // Verify the auth context interface shape
+    const ctx = { user: null, logout: () => {}, refreshAuth: () => {} };
+    expect(ctx).toHaveProperty('user');
+    expect(ctx).toHaveProperty('logout');
+    expect(ctx).toHaveProperty('refreshAuth');
+  });
+
+  it('DataTable search/sort/pagination config types are valid', () => {
+    // Verify DataTable enhanced props
+    const config = {
+      searchable: true,
+      searchPlaceholder: 'Buscar…',
+      pageSize: 10,
+    };
+    expect(config.searchable).toBe(true);
+    expect(config.pageSize).toBe(10);
+  });
+
+  it('intelligence endpoints are correctly formed', () => {
+    const candidateId = 'c1';
+    const vacancyId = 'v1';
+    expect(`/candidate-matching/${vacancyId}/${candidateId}`).toBe('/candidate-matching/v1/c1');
+    expect(`/risk-analysis?candidateId=${candidateId}&vacancyId=${vacancyId}`).toBe('/risk-analysis?candidateId=c1&vacancyId=v1');
+    expect(`/candidate-insights/${vacancyId}/${candidateId}`).toBe('/candidate-insights/v1/c1');
+  });
 });

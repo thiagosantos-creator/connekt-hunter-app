@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tokens, colors, spacing, radius, fontSize } from './index.js';
+import { tokens, colors, spacing, radius, fontSize, shadows, fontWeight } from './index.js';
 
 describe('@connekt/ui design tokens', () => {
   it('exports primary brand color', () => {
@@ -35,5 +35,18 @@ describe('@connekt/ui design tokens', () => {
   it('tokens object aggregates all sub-tokens', () => {
     expect(tokens.colors).toBe(colors);
     expect(tokens.spacing).toBe(spacing);
+  });
+
+  it('shadows scale is defined', () => {
+    expect(shadows.sm).toBeDefined();
+    expect(shadows.md).toBeDefined();
+    expect(shadows.lg).toBeDefined();
+  });
+
+  it('font weights are defined', () => {
+    expect(fontWeight.normal).toBe(400);
+    expect(fontWeight.medium).toBe(500);
+    expect(fontWeight.semibold).toBe(600);
+    expect(fontWeight.bold).toBe(700);
   });
 });

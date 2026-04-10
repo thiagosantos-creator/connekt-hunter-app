@@ -10,6 +10,7 @@ export interface AuthUser {
 export interface AuthCtx {
   user: AuthUser | null;
   logout: () => void;
+  refreshAuth: () => void;
 }
 
 export interface Vacancy {

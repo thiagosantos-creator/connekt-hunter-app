@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { colors, radius, spacing, fontSize, fontWeight } from '../tokens/tokens.js';
 
 /* -------------------------------------------------------------------------- */
-/*  Data Table — lightweight enterprise table                                 */
+/*  Data Table — enterprise table with search, sort, pagination               */
 /* -------------------------------------------------------------------------- */
 
 export interface Column<T> {
@@ -10,6 +10,10 @@ export interface Column<T> {
   header: string;
   render: (row: T) => React.ReactNode;
   width?: string;
+  /** Optional text extractor for search — returns searchable text from row */
+  searchValue?: (row: T) => string;
+  /** Optional sort comparator */
+  sortValue?: (row: T) => string | number;
 }
 
 export interface DataTableProps<T> {
@@ -18,62 +22,170 @@ export interface DataTableProps<T> {
   rowKey: (row: T) => string;
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  /** Enable search bar */
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  /** Items per page — set to enable pagination */
+  pageSize?: number;
 }
 
-export function DataTable<T>({ columns, data, rowKey, emptyMessage = 'Nenhum dado encontrado.', onRowClick }: DataTableProps<T>) {
+export function DataTable<T>({
+  columns,
+  data,
+  rowKey,
+  emptyMessage = 'Nenhum dado encontrado.',
+  onRowClick,
+  searchable = false,
+  searchPlaceholder = 'Buscar…',
+  pageSize,
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortAsc, setSortAsc] = useState(true);
+  const [page, setPage] = useState(0);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const term = search.toLowerCase();
+    return data.filter((row) =>
+      columns.some((col) => {
+        const text = col.searchValue ? col.searchValue(row) : '';
+        return text.toLowerCase().includes(term);
+      }),
+    );
+  }, [data, search, columns]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const col = columns.find((c) => c.key === sortKey);
+    if (!col?.sortValue) return filtered;
+    const fn = col.sortValue;
+    return [...filtered].sort((a, b) => {
+      const aVal = fn(a);
+      const bVal = fn(b);
+      if (typeof aVal === 'number' && typeof bVal === 'number') return sortAsc ? aVal - bVal : bVal - aVal;
+      return sortAsc ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+    });
+  }, [filtered, sortKey, sortAsc, columns]);
+
+  const totalPages = pageSize ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
+  const paginated = pageSize ? sorted.slice(page * pageSize, (page + 1) * pageSize) : sorted;
+
+  const handleSort = (key: string) => {
+    const col = columns.find((c) => c.key === key);
+    if (!col?.sortValue) return;
+    if (sortKey === key) { setSortAsc(!sortAsc); } else { setSortKey(key); setSortAsc(true); }
+  };
+
   return (
-    <div style={{ overflowX: 'auto', border: `1px solid ${colors.border}`, borderRadius: radius.lg }}>
+    <div style={{ border: `1px solid ${colors.border}`, borderRadius: radius.lg, overflow: 'hidden' }}>
       <style>{`
         .connekt-data-table__row:hover {
           background: ${colors.surfaceHover};
         }
       `}</style>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ background: colors.surfaceAlt }}>
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                style={{
-                  textAlign: 'left',
-                  padding: `${spacing.sm + 2}px ${spacing.md}px`,
-                  fontSize: fontSize.sm,
-                  fontWeight: fontWeight.semibold,
-                  color: colors.textSecondary,
-                  borderBottom: `1px solid ${colors.border}`,
-                  whiteSpace: 'nowrap',
-                  width: col.width,
-                }}
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row) => (
-            <tr
-              key={rowKey(row)}
-              onClick={() => onRowClick?.(row)}
-              className="connekt-data-table__row"
-              style={{
-                borderBottom: `1px solid ${colors.borderLight}`,
-                cursor: onRowClick ? 'pointer' : 'default',
-                transition: 'background 0.1s',
-              }}
-            >
+
+      {searchable && (
+        <div style={{ padding: `${spacing.sm}px ${spacing.md}px`, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            placeholder={searchPlaceholder}
+            style={{
+              width: '100%',
+              padding: `${spacing.xs + 2}px ${spacing.sm + 4}px`,
+              fontSize: fontSize.sm,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radius.md,
+              outline: 'none',
+              color: colors.text,
+              background: colors.surfaceAlt,
+            }}
+          />
+        </div>
+      )}
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: colors.surfaceAlt }}>
               {columns.map((col) => (
-                <td key={col.key} style={{ padding: `${spacing.sm + 2}px ${spacing.md}px`, fontSize: fontSize.md, color: colors.text }}>
-                  {col.render(row)}
-                </td>
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  style={{
+                    textAlign: 'left',
+                    padding: `${spacing.sm + 2}px ${spacing.md}px`,
+                    fontSize: fontSize.sm,
+                    fontWeight: fontWeight.semibold,
+                    color: colors.textSecondary,
+                    borderBottom: `1px solid ${colors.border}`,
+                    whiteSpace: 'nowrap',
+                    width: col.width,
+                    cursor: col.sortValue ? 'pointer' : 'default',
+                    userSelect: 'none',
+                  }}
+                >
+                  {col.header}
+                  {col.sortValue && sortKey === col.key && (
+                    <span style={{ marginLeft: 4, fontSize: fontSize.xs }}>
+                      {sortAsc ? '▲' : '▼'}
+                    </span>
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {data.length === 0 && (
+          </thead>
+          <tbody>
+            {paginated.map((row) => (
+              <tr
+                key={rowKey(row)}
+                onClick={() => onRowClick?.(row)}
+                className="connekt-data-table__row"
+                style={{
+                  borderBottom: `1px solid ${colors.borderLight}`,
+                  cursor: onRowClick ? 'pointer' : 'default',
+                  transition: 'background 0.1s',
+                }}
+              >
+                {columns.map((col) => (
+                  <td key={col.key} style={{ padding: `${spacing.sm + 2}px ${spacing.md}px`, fontSize: fontSize.md, color: colors.text }}>
+                    {col.render(row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {paginated.length === 0 && (
         <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.textMuted, fontSize: fontSize.md }}>
           {emptyMessage}
+        </div>
+      )}
+
+      {pageSize && totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.sm}px ${spacing.md}px`, borderTop: `1px solid ${colors.borderLight}`, background: colors.surface, fontSize: fontSize.sm, color: colors.textSecondary }}>
+          <span>{sorted.length} resultado(s)</span>
+          <div style={{ display: 'flex', gap: spacing.xs }}>
+            <button
+              onClick={() => setPage(Math.max(0, page - 1))}
+              disabled={page === 0}
+              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: page === 0 ? 'not-allowed' : 'pointer', color: page === 0 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
+            >
+              ←
+            </button>
+            <span style={{ padding: `2px ${spacing.sm}px` }}>{page + 1} / {totalPages}</span>
+            <button
+              onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+              disabled={page >= totalPages - 1}
+              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', color: page >= totalPages - 1 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
+            >
+              →
+            </button>
+          </div>
         </div>
       )}
     </div>

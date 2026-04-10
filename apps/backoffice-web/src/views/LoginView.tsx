@@ -23,7 +23,7 @@ import {
 
 export function LoginView() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshAuth } = useAuth();
   const [email, setEmail] = useState('headhunter@demo.local');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,7 @@ export function LoginView() {
       }
       localStorage.setItem('bo_token', data.token);
       localStorage.setItem('bo_user', JSON.stringify(data.user));
-      window.location.href = '/vacancies';
+      refreshAuth();
     } catch (err) {
       setError(String(err));
     } finally {

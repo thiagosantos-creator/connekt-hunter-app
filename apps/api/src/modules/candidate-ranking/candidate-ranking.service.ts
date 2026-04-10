@@ -57,22 +57,40 @@ export class CandidateRankingService {
   }
 
   async override(vacancyId: string, orderedCandidateIds: string[], actorId?: string) {
-    for (const [idx, candidateId] of orderedCandidateIds.entries()) {
-      await prisma.candidateRankingSnapshot.upsert({
-        where: { vacancyId_candidateId: { vacancyId, candidateId } },
-        update: { rank: idx + 1, manualOverride: true, rationale: 'Ranking ajustado manualmente por usuário autorizado.' },
-        create: { vacancyId, candidateId, rank: idx + 1, score: 0, manualOverride: true, rationale: 'Ranking ajustado manualmente por usuário autorizado.' },
-      });
-    }
+    const manualRationale = 'Ranking ajustado manualmente por usuário autorizado.';
 
-    await prisma.auditEvent.create({
-      data: {
-        actorId,
-        action: 'ranking.overridden',
-        entityType: 'Vacancy',
-        entityId: vacancyId,
-        metadata: { orderedCandidateIds } as never,
-      },
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.candidateRankingSnapshot.findMany({
+        where: { vacancyId, candidateId: { in: orderedCandidateIds } },
+        select: { candidateId: true, score: true },
+      });
+
+      const scoresByCandidate = new Map(existing.map((snapshot) => [snapshot.candidateId, snapshot.score]));
+
+      await tx.candidateRankingSnapshot.deleteMany({ where: { vacancyId } });
+
+      for (const [idx, candidateId] of orderedCandidateIds.entries()) {
+        await tx.candidateRankingSnapshot.create({
+          data: {
+            vacancyId,
+            candidateId,
+            rank: idx + 1,
+            score: scoresByCandidate.get(candidateId) ?? 0,
+            manualOverride: true,
+            rationale: manualRationale,
+          },
+        });
+      }
+
+      await tx.auditEvent.create({
+        data: {
+          actorId,
+          action: 'ranking.overridden',
+          entityType: 'Vacancy',
+          entityId: vacancyId,
+          metadata: { orderedCandidateIds } as never,
+        },
+      });
     });
 
     return this.list(vacancyId);

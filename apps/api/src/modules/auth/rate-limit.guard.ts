@@ -12,6 +12,9 @@ export class RateLimitGuard implements CanActivate {
     scope: 'public-default',
   };
   private readonly fallbackStore = new Map<string, { count: number; resetAt: number }>();
+  private readonly fallbackCleanupIntervalMs = 30_000;
+  private readonly fallbackMaxEntries = 5_000;
+  private lastFallbackCleanupAt = 0;
 
   constructor(private readonly reflector: Reflector) {}
 
@@ -51,6 +54,8 @@ export class RateLimitGuard implements CanActivate {
 
   private checkMemory(ip: string, config: RateLimitConfig, routePath: string): boolean {
     const now = Date.now();
+    this.cleanupExpiredFallbackEntries(now);
+
     const key = `${config.scope}:${routePath}:${ip}`;
     const existing = this.fallbackStore.get(key);
 
@@ -61,5 +66,16 @@ export class RateLimitGuard implements CanActivate {
 
     existing.count++;
     return existing.count <= config.maxRequests;
+  }
+
+  private cleanupExpiredFallbackEntries(now: number): void {
+    const shouldCleanupByTime = now - this.lastFallbackCleanupAt >= this.fallbackCleanupIntervalMs;
+    const shouldCleanupBySize = this.fallbackStore.size >= this.fallbackMaxEntries;
+    if (!shouldCleanupByTime && !shouldCleanupBySize) return;
+
+    for (const [key, value] of this.fallbackStore.entries()) {
+      if (now > value.resetAt) this.fallbackStore.delete(key);
+    }
+    this.lastFallbackCleanupAt = now;
   }
 }

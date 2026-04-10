@@ -9,8 +9,6 @@ import {
   PageHeader,
   PageContent,
   EmptyState,
-  colors,
-  fontSize,
 } from '@connekt/ui';
 
 export function ApplicationsView() {
@@ -45,13 +43,6 @@ export function ApplicationsView() {
       key: 'createdAt',
       header: 'Data',
       render: (row: Application) => new Date(row.createdAt).toLocaleDateString('pt-BR'),
-    },
-    {
-      key: 'id',
-      header: 'ID',
-      render: (row: Application) => (
-        <span style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>{row.id}</span>
-      ),
     },
   ];
 

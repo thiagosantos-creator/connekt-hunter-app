@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiPost, getToken } from '../services/api.js';
 import type { CandidateInfo } from '../services/types.js';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, InlineMessage, colors, spacing, fontSize, radius } from '@connekt/ui';
 
 export function StatusView() {
+  const navigate = useNavigate();
   const raw = localStorage.getItem('candidate_info');
   const info: Partial<CandidateInfo> = raw ? (JSON.parse(raw) as Partial<CandidateInfo>) : {};
   const [email, setEmail] = useState(info.email ?? '');
@@ -78,7 +80,7 @@ export function StatusView() {
       <div style={{ textAlign: 'center', marginTop: spacing.lg }}>
         <Button
           variant="ghost"
-          onClick={() => { localStorage.clear(); window.location.href = '/'; }}
+          onClick={() => { localStorage.clear(); navigate('/'); }}
         >
           Iniciar Nova Candidatura
         </Button>

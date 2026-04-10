@@ -6,10 +6,12 @@ import type {
   ShortlistItem,
   EvalRecord,
   PriorityScore,
+  Vacancy,
 } from '../services/types.js';
 import {
   Button,
   Input,
+  Select,
   Textarea,
   Card,
   CardHeader,
@@ -38,9 +40,13 @@ export function ShortlistView() {
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
   const [vacancyIdForPriority, setVacancyIdForPriority] = useState('');
   const [priorities, setPriorities] = useState<PriorityScore[]>([]);
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
 
   useEffect(() => {
-    void apiGet<Application[]>('/applications').then(setApps);
+    void Promise.all([
+      apiGet<Application[]>('/applications').then(setApps),
+      apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
+    ]);
   }, []);
 
   const addToShortlist = async (appId: string) => {
@@ -213,11 +219,12 @@ export function ShortlistView() {
         <SectionTitle>Priorização Dinâmica</SectionTitle>
         <Card>
           <CardContent style={{ display: 'flex', gap: spacing.sm, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <Input
-              label="ID da Vaga"
-              placeholder="ID da vaga"
+            <Select
+              label="Vaga"
               value={vacancyIdForPriority}
               onChange={(e) => setVacancyIdForPriority(e.target.value)}
+              options={vacancies.map((item) => ({ value: item.id, label: item.title }))}
+              placeholder="Selecione uma vaga"
               style={{ flex: 1, minWidth: 200 }}
             />
             <Button

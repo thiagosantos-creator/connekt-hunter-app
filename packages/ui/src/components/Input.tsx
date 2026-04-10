@@ -61,3 +61,36 @@ export function Textarea({ label, error, style, ...props }: TextareaProps) {
     </div>
   );
 }
+
+export interface SelectOption {
+  value: string;
+  label: string;
+}
+
+export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string;
+  error?: string;
+  options: SelectOption[];
+  placeholder?: string;
+}
+
+export function Select({ label, error, style, options, placeholder, ...props }: SelectProps) {
+  return (
+    <div style={{ marginBottom: spacing.md }}>
+      {label && (
+        <label style={{ display: 'block', marginBottom: spacing.xs, fontSize: fontSize.sm, fontWeight: 500, color: colors.textSecondary }}>
+          {label}
+        </label>
+      )}
+      <select style={{ ...inputStyle, ...(error ? { borderColor: colors.danger } : {}), ...style }} {...props}>
+        {placeholder && <option value="">{placeholder}</option>}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
+    </div>
+  );
+}

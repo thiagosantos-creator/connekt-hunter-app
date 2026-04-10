@@ -5,8 +5,8 @@ export { tokens, colors, spacing, radius, fontSize, fontWeight, shadows } from '
 export { Button } from './components/Button.js';
 export type { ButtonProps, ButtonVariant } from './components/Button.js';
 
-export { Input, Textarea } from './components/Input.js';
-export type { InputProps, TextareaProps } from './components/Input.js';
+export { Input, Textarea, Select } from './components/Input.js';
+export type { InputProps, TextareaProps, SelectProps, SelectOption } from './components/Input.js';
 
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/Card.js';
 export type { CardProps } from './components/Card.js';

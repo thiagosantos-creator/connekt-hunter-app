@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import type { Candidate, CandidateRecommendation } from '../services/types.js';
+import type { Application, Candidate, CandidateRecommendation, Vacancy } from '../services/types.js';
 import {
   Button,
   Input,
+  Select,
   Card,
   CardHeader,
   CardTitle,
@@ -35,6 +36,34 @@ export function CandidatesView() {
   const [recommendationCandidateId, setRecommendationCandidateId] = useState('');
   const [recommendationVacancyId, setRecommendationVacancyId] = useState('');
   const [recommendations, setRecommendations] = useState<CandidateRecommendation[]>([]);
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+
+  useEffect(() => {
+    void Promise.all([
+      apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
+      apiGet<Application[]>('/applications').then(setApplications).catch(() => setApplications([])),
+    ]);
+  }, []);
+
+  const vacancyOptions = useMemo(
+    () => vacancies.map((item) => ({ value: item.id, label: item.title })),
+    [vacancies],
+  );
+  const applicationOptions = useMemo(
+    () => applications.map((item) => ({
+      value: item.id,
+      label: `${item.candidate.email} — ${item.vacancy.title}`,
+    })),
+    [applications],
+  );
+
+  const handleRecommendationSelection = (applicationId: string) => {
+    const selected = applications.find((item) => item.id === applicationId);
+    if (!selected) return;
+    setRecommendationCandidateId(selected.candidate.id);
+    setRecommendationVacancyId(selected.vacancy.id);
+  };
 
   const invite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,10 +136,12 @@ export function CandidatesView() {
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <Input
-              label="ID da Vaga"
+            <Select
+              label="Vaga"
               value={vacancyId}
               onChange={(e) => setVacancyId(e.target.value)}
+              options={vacancyOptions}
+              placeholder="Selecione uma vaga"
               required
             />
           </CardContent>
@@ -154,18 +185,17 @@ export function CandidatesView() {
           </CardDescription>
         </CardHeader>
         <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-          <Input
-            label="ID do Candidato"
-            placeholder="ID do candidato"
-            value={recommendationCandidateId}
-            onChange={(e) => setRecommendationCandidateId(e.target.value)}
-          />
-          <Input
-            label="ID da Vaga"
-            placeholder="ID da vaga"
-            value={recommendationVacancyId}
-            onChange={(e) => setRecommendationVacancyId(e.target.value)}
-          />
+            <Select
+              label="Aplicação"
+              value={
+                applications.find((item) =>
+                  item.candidate.id === recommendationCandidateId && item.vacancy.id === recommendationVacancyId,
+                )?.id ?? ''
+              }
+              onChange={(e) => handleRecommendationSelection(e.target.value)}
+              options={applicationOptions}
+              placeholder="Selecione candidato e vaga"
+            />
           <div>
             <Button
               variant="secondary"

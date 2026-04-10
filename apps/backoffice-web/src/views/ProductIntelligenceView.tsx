@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { apiPost } from '../services/api.js';
+import { useEffect, useMemo, useState } from 'react';
+import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import type { CandidateRecommendation, RankingItem, WorkflowSuggestion } from '../services/types.js';
+import type { Application, CandidateRecommendation, RankingItem, Vacancy, WorkflowSuggestion } from '../services/types.js';
 import {
   Button,
-  Input,
+  Select,
   Card,
   CardHeader,
   CardTitle,
@@ -111,6 +111,15 @@ export function ProductIntelligenceView() {
   const [suggestions, setSuggestions] = useState<WorkflowSuggestion[]>([]);
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+
+  useEffect(() => {
+    void Promise.all([
+      apiGet<Application[]>('/applications').then(setApplications).catch(() => setApplications([])),
+      apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
+    ]);
+  }, []);
 
   const feedback = (text: string, variant: 'success' | 'error') => {
     setMsg(text);
@@ -230,6 +239,35 @@ export function ProductIntelligenceView() {
     return 'danger';
   };
 
+  const applicationOptions = useMemo(
+    () => applications.map((item) => ({
+      value: item.id,
+      label: `${item.candidate.email} — ${item.vacancy.title}`,
+    })),
+    [applications],
+  );
+  const vacancyOptions = useMemo(
+    () => vacancies.map((item) => ({ value: item.id, label: item.title })),
+    [vacancies],
+  );
+  const candidateOptions = useMemo(() => {
+    const unique = new Map<string, string>();
+    applications.forEach((item) => {
+      if (!unique.has(item.candidate.id)) {
+        unique.set(item.candidate.id, item.candidate.email);
+      }
+    });
+    return [...unique.entries()].map(([value, label]) => ({ value, label }));
+  }, [applications]);
+
+  const handleApplicationSelection = (selectedApplicationId: string) => {
+    setApplicationId(selectedApplicationId);
+    const selected = applications.find((item) => item.id === selectedApplicationId);
+    if (!selected) return;
+    setVacancyId(selected.vacancy.id);
+    setCandidateId(selected.candidate.id);
+  };
+
   const rankingColumns = [
     {
       key: 'rank',
@@ -286,10 +324,12 @@ export function ProductIntelligenceView() {
             <CardDescription>Calcule o score de compatibilidade candidato-vaga.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Aplicação"
+            <Select
+              label="Aplicação"
               value={applicationId}
-              onChange={(e) => setApplicationId(e.target.value)}
+              onChange={(e) => handleApplicationSelection(e.target.value)}
+              options={applicationOptions}
+              placeholder="Selecione uma aplicação"
             />
           </CardContent>
           <CardFooter>
@@ -317,20 +357,26 @@ export function ProductIntelligenceView() {
             <CardDescription>Gere insights individuais ou compare dois candidatos.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Vaga"
+            <Select
+              label="Vaga"
               value={vacancyId}
               onChange={(e) => setVacancyId(e.target.value)}
+              options={vacancyOptions}
+              placeholder="Selecione uma vaga"
             />
-            <Input
-              label="ID do Candidato"
+            <Select
+              label="Candidato"
               value={candidateId}
               onChange={(e) => setCandidateId(e.target.value)}
+              options={candidateOptions}
+              placeholder="Selecione um candidato"
             />
-            <Input
-              label="ID do Outro Candidato (para comparação)"
+            <Select
+              label="Outro candidato (comparação)"
               value={otherCandidateId}
               onChange={(e) => setOtherCandidateId(e.target.value)}
+              options={candidateOptions.filter((item) => item.value !== candidateId)}
+              placeholder="Selecione outro candidato"
             />
           </CardContent>
           <CardFooter style={{ gap: spacing.sm, flexWrap: 'wrap' }}>

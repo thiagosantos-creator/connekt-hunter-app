@@ -77,10 +77,10 @@ export function InterviewView() {
           </CardHeader>
           <CardContent>
             <Input
-              label="Token da Sessão"
+              label="Código da entrevista"
               value={sessionToken}
               onChange={(e) => setSessionToken(e.target.value)}
-              placeholder="Token recebido por e-mail"
+              placeholder="Código recebido para iniciar"
             />
             <Button onClick={() => { void loadSession(); }}>Iniciar Entrevista</Button>
           </CardContent>

@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { apiPost } from '../services/api.js';
+import { useEffect, useState } from 'react';
+import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
+import type { Application, Vacancy } from '../services/types.js';
 import {
   Button,
   Input,
+  Select,
   Textarea,
   Card,
   CardHeader,
@@ -26,6 +28,15 @@ export function SmartInterviewView() {
   const [notes, setNotes] = useState('Aprovado para próxima etapa');
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+
+  useEffect(() => {
+    void Promise.all([
+      apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
+      apiGet<Application[]>('/applications').then(setApplications).catch(() => setApplications([])),
+    ]);
+  }, []);
 
   const feedback = (text: string, variant: 'success' | 'error') => {
     setMsg(text);
@@ -61,7 +72,7 @@ export function SmartInterviewView() {
         { applicationId },
       );
       setSessionId(session.id);
-      feedback(`Sessão criada. Token candidato: ${session.publicToken}`, 'success');
+      feedback(`Sessão criada. Código de acesso do candidato: ${session.publicToken}`, 'success');
     } catch (err) {
       feedback(String(err), 'error');
     }
@@ -99,10 +110,12 @@ export function SmartInterviewView() {
             <SectionTitle>1. Configurar Template</SectionTitle>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Vaga"
+            <Select
+              label="Vaga"
               value={vacancyId}
               onChange={(e) => setVacancyId(e.target.value)}
+              options={vacancies.map((item) => ({ value: item.id, label: item.title }))}
+              placeholder="Selecione uma vaga"
             />
           </CardContent>
           <CardFooter style={{ gap: spacing.sm }}>
@@ -125,10 +138,12 @@ export function SmartInterviewView() {
             <SectionTitle>2. Criar Sessão</SectionTitle>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Aplicação"
+            <Select
+              label="Aplicação"
               value={applicationId}
               onChange={(e) => setApplicationId(e.target.value)}
+              options={applications.map((item) => ({ value: item.id, label: `${item.candidate.email} — ${item.vacancy.title}` }))}
+              placeholder="Selecione uma aplicação"
             />
           </CardContent>
           <CardFooter>

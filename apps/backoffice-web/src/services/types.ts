@@ -17,6 +17,7 @@ export interface Vacancy {
   title: string;
   description: string;
   organizationId: string;
+  organization?: { id: string; name?: string };
 }
 
 export interface Candidate {
@@ -40,8 +41,8 @@ export interface Application {
   id: string;
   status: string;
   createdAt: string;
-  candidate: { email: string };
-  vacancy: { title: string; id?: string };
+  candidate: { id: string; email: string };
+  vacancy: { title: string; id: string; organizationId?: string };
 }
 
 export interface ShortlistItem {

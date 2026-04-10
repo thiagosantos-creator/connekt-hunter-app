@@ -10,8 +10,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
+import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 let OrganizationsController = class OrganizationsController {
     organizationsService;
     constructor(organizationsService) {
@@ -26,6 +29,7 @@ let OrganizationsController = class OrganizationsController {
 };
 __decorate([
     Post(),
+    RequirePermissions('vacancies:write'),
     __param(0, Body()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -33,12 +37,14 @@ __decorate([
 ], OrganizationsController.prototype, "create", null);
 __decorate([
     Get(),
+    RequirePermissions('vacancies:read'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], OrganizationsController.prototype, "findAll", null);
 OrganizationsController = __decorate([
     Controller('organizations'),
+    UseGuards(JwtAuthGuard, PermissionsGuard),
     __metadata("design:paramtypes", [OrganizationsService])
 ], OrganizationsController);
 export { OrganizationsController };

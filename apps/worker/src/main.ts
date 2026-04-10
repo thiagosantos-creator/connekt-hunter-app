@@ -1,22 +1,36 @@
 import { prisma } from '@connekt/db';
 
+async function safeProcess(label: string, eventId: string, fn: () => Promise<void>): Promise<boolean> {
+  try {
+    await fn();
+    return true;
+  } catch (err) {
+    console.error(`[worker] error processing ${label} event=${eventId}`, err);
+    return false;
+  }
+}
+
 export async function processResumeUploads(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({
     where: { topic: 'resume.uploaded', processed: false },
     take: 10,
   });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { resumeId: string };
-    await prisma.resumeParseResult.upsert({
-      where: { resumeId: payload.resumeId },
-      update: { status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
-      create: { resumeId: payload.resumeId, status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
+    const ok = await safeProcess('resume.uploaded', evt.id, async () => {
+      await prisma.resumeParseResult.upsert({
+        where: { resumeId: payload.resumeId },
+        update: { status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
+        create: { resumeId: payload.resumeId, status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 export async function processSmartInterviewVideoJobs(): Promise<number> {
@@ -25,27 +39,31 @@ export async function processSmartInterviewVideoJobs(): Promise<number> {
     take: 20,
   });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { answerId: string; sessionId: string };
-    await prisma.smartInterviewTranscript.upsert({
-      where: { answerId: payload.answerId },
-      update: { status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
-      create: { answerId: payload.answerId, status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
-    });
+    const ok = await safeProcess('smart-interview.video-uploaded', evt.id, async () => {
+      await prisma.smartInterviewTranscript.upsert({
+        where: { answerId: payload.answerId },
+        update: { status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
+        create: { answerId: payload.answerId, status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
+      });
 
-    await prisma.smartInterviewAnswer.update({
-      where: { id: payload.answerId },
-      data: { status: 'transcribed', processedAt: new Date() },
-    });
+      await prisma.smartInterviewAnswer.update({
+        where: { id: payload.answerId },
+        data: { status: 'transcribed', processedAt: new Date() },
+      });
 
-    await prisma.outboxEvent.create({
-      data: { topic: 'smart-interview.transcribed', payload: { sessionId: payload.sessionId, answerId: payload.answerId } },
-    });
+      await prisma.outboxEvent.create({
+        data: { topic: 'smart-interview.transcribed', payload: { sessionId: payload.sessionId, answerId: payload.answerId } },
+      });
 
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 export async function processSmartInterviewAnalysisJobs(): Promise<number> {
@@ -54,40 +72,43 @@ export async function processSmartInterviewAnalysisJobs(): Promise<number> {
     take: 20,
   });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { sessionId: string; answerId: string };
+    const ok = await safeProcess('smart-interview.transcribed', evt.id, async () => {
+      await prisma.smartInterviewAiAnalysis.upsert({
+        where: { sessionId: payload.sessionId },
+        update: {
+          status: 'completed',
+          summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
+          highlights: ['clareza', 'objetividade'],
+          risks: ['aprofundar detalhes técnicos'],
+        },
+        create: {
+          sessionId: payload.sessionId,
+          status: 'completed',
+          summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
+          highlights: ['clareza', 'objetividade'],
+          risks: ['aprofundar detalhes técnicos'],
+        },
+      });
 
-    await prisma.smartInterviewAiAnalysis.upsert({
-      where: { sessionId: payload.sessionId },
-      update: {
-        status: 'completed',
-        summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
-        highlights: ['clareza', 'objetividade'],
-        risks: ['aprofundar detalhes técnicos'],
-      },
-      create: {
-        sessionId: payload.sessionId,
-        status: 'completed',
-        summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
-        highlights: ['clareza', 'objetividade'],
-        risks: ['aprofundar detalhes técnicos'],
-      },
+      await prisma.smartInterviewAnswer.update({
+        where: { id: payload.answerId },
+        data: { status: 'analyzed', processedAt: new Date() },
+      });
+
+      await prisma.smartInterviewSession.update({
+        where: { id: payload.sessionId },
+        data: { status: 'awaiting_human_review' },
+      });
+
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-
-    await prisma.smartInterviewAnswer.update({
-      where: { id: payload.answerId },
-      data: { status: 'analyzed', processedAt: new Date() },
-    });
-
-    await prisma.smartInterviewSession.update({
-      where: { id: payload.sessionId },
-      data: { status: 'awaiting_human_review' },
-    });
-
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 
@@ -95,107 +116,131 @@ export async function processSmartInterviewAnalysisJobs(): Promise<number> {
 export async function processMatchingComputeJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'matching:compute', processed: false }, take: 20 });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { applicationId: string; candidateId: string; vacancyId: string };
-    const existing = await prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } });
-    const score = existing?.score ?? 50;
+    const ok = await safeProcess('matching:compute', evt.id, async () => {
+      const existing = await prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } });
+      const score = existing?.score ?? 50;
 
-    await prisma.matchingScore.upsert({
-      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-      update: { score, computedAt: new Date(), modelVersion: 'matching-v1-worker' },
-      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion: 'matching-v1-worker' },
+      await prisma.matchingScore.upsert({
+        where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+        update: { score, computedAt: new Date(), modelVersion: 'matching-v1-worker' },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion: 'matching-v1-worker' },
+      });
+
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 export async function processInsightsGenerateJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'insights:generate', processed: false }, take: 20 });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
-    await prisma.candidateInsight.upsert({
-      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-      update: { summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
-      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+    const ok = await safeProcess('insights:generate', evt.id, async () => {
+      await prisma.candidateInsight.upsert({
+        where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+        update: { summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 export async function processComparisonGenerateJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'comparison:generate', processed: false }, take: 20 });
 
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { vacancyId: string; leftCandidateId: string; rightCandidateId: string };
-    await prisma.candidateComparison.upsert({
-      where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId } },
-      update: { comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
-      create: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId, comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+    const ok = await safeProcess('comparison:generate', evt.id, async () => {
+      await prisma.candidateComparison.upsert({
+        where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId } },
+        update: { comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+        create: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId, comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
 
-  return events.length;
+  return processed;
 }
 
 export async function processRecommendationGenerateJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'recommendation:generate', processed: false }, take: 20 });
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
-    await prisma.candidateRecommendation.create({
-      data: {
-        candidateId: payload.candidateId,
-        vacancyId: payload.vacancyId,
-        recommendationType: 'worker-refresh',
-        title: 'Recomendação reprocessada',
-        explanation: 'Reprocessamento assistivo via worker; decisão final permanece humana.',
-        confidence: 0.65,
-        actionableInsights: ['revisar aderência com gestor'] as never,
-      },
+    const ok = await safeProcess('recommendation:generate', evt.id, async () => {
+      await prisma.candidateRecommendation.create({
+        data: {
+          candidateId: payload.candidateId,
+          vacancyId: payload.vacancyId,
+          recommendationType: 'worker-refresh',
+          title: 'Recomendação reprocessada',
+          explanation: 'Reprocessamento assistivo via worker; decisão final permanece humana.',
+          confidence: 0.65,
+          actionableInsights: ['revisar aderência com gestor'] as never,
+        },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
-  return events.length;
+  return processed;
 }
 
 export async function processRiskAnalyzeJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'risk:analyze', processed: false }, take: 20 });
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string };
-    await prisma.riskEvaluation.upsert({
-      where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-      update: { overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
-      create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+    const ok = await safeProcess('risk:analyze', evt.id, async () => {
+      await prisma.riskEvaluation.upsert({
+        where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+        update: { overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
-  return events.length;
+  return processed;
 }
 
 export async function processAutomationTriggerJobs(): Promise<number> {
   const events = await prisma.outboxEvent.findMany({ where: { topic: 'automation:trigger', processed: false }, take: 20 });
+  let processed = 0;
   for (const evt of events) {
     const payload = evt.payload as { candidateId: string; vacancyId: string; action: string };
-    await prisma.automationExecution.create({
-      data: {
-        candidateId: payload.candidateId,
-        vacancyId: payload.vacancyId,
-        action: payload.action,
-        status: 'executed_assisted',
-        inputJson: payload as never,
-        outputJson: { success: true } as never,
-        executedAt: new Date(),
-      },
+    const ok = await safeProcess('automation:trigger', evt.id, async () => {
+      await prisma.automationExecution.create({
+        data: {
+          candidateId: payload.candidateId,
+          vacancyId: payload.vacancyId,
+          action: payload.action,
+          status: 'executed_assisted',
+          inputJson: payload as never,
+          outputJson: { success: true } as never,
+          executedAt: new Date(),
+        },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
-    await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    if (ok) processed++;
   }
-  return events.length;
+  return processed;
 }
 
 async function run() {

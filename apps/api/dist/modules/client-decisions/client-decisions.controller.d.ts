@@ -1,12 +1,12 @@
 import { ClientDecisionsService } from './client-decisions.service.js';
+import type { AuthUser } from '../auth/auth.types.js';
 export declare class ClientDecisionsController {
     private readonly clientDecisionsService;
     constructor(clientDecisionsService: ClientDecisionsService);
     create(body: {
         shortlistItemId: string;
-        reviewerId: string;
         decision: string;
-    }): Promise<{
+    }, user: AuthUser): Promise<{
         id: string;
         createdAt: Date;
         decision: string;

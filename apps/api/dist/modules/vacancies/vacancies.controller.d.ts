@@ -1,4 +1,5 @@
 import { VacanciesService } from './vacancies.service.js';
+import type { AuthUser } from '../auth/auth.types.js';
 export declare class VacanciesController {
     private readonly vacanciesService;
     constructor(vacanciesService: VacanciesService);
@@ -6,16 +7,15 @@ export declare class VacanciesController {
         organizationId: string;
         title: string;
         description: string;
-        createdBy: string;
-    }): import("@prisma/client").Prisma.Prisma__VacancyClient<{
+    }, user: AuthUser): Promise<{
         id: string;
         createdAt: Date;
+        organizationId: string;
         title: string;
         description: string;
-        organizationId: string;
         createdBy: string;
-    }, never, import("@prisma/client/runtime/library").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
-    findAll(): import("@prisma/client").Prisma.PrismaPromise<({
+    }>;
+    findAll(user: AuthUser): import("@prisma/client").Prisma.PrismaPromise<({
         organization: {
             id: string;
             name: string;
@@ -24,9 +24,9 @@ export declare class VacanciesController {
     } & {
         id: string;
         createdAt: Date;
+        organizationId: string;
         title: string;
         description: string;
-        organizationId: string;
         createdBy: string;
     })[]>;
 }

@@ -4,15 +4,15 @@ export declare class VacanciesService {
         title: string;
         description: string;
         createdBy: string;
-    }): import("@prisma/client").Prisma.Prisma__VacancyClient<{
+    }): Promise<{
         id: string;
         createdAt: Date;
+        organizationId: string;
         title: string;
         description: string;
-        organizationId: string;
         createdBy: string;
-    }, never, import("@prisma/client/runtime/library").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
-    findAll(): import("@prisma/client").Prisma.PrismaPromise<({
+    }>;
+    findAll(organizationIds: string[]): import("@prisma/client").Prisma.PrismaPromise<({
         organization: {
             id: string;
             name: string;
@@ -21,9 +21,9 @@ export declare class VacanciesService {
     } & {
         id: string;
         createdAt: Date;
+        organizationId: string;
         title: string;
         description: string;
-        organizationId: string;
         createdBy: string;
     })[]>;
 }

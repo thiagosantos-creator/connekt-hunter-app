@@ -10,26 +10,33 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { EvaluationsService } from './evaluations.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
+import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
 let EvaluationsController = class EvaluationsController {
     evaluationsService;
     constructor(evaluationsService) {
         this.evaluationsService = evaluationsService;
     }
-    create(body) {
-        return this.evaluationsService.create(body.applicationId, body.evaluatorId, body.comment);
+    create(body, user) {
+        return this.evaluationsService.create(body.applicationId, user.id, body.comment);
     }
 };
 __decorate([
     Post(),
+    RequirePermissions('shortlist:write'),
     __param(0, Body()),
+    __param(1, CurrentUser()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], EvaluationsController.prototype, "create", null);
 EvaluationsController = __decorate([
     Controller('evaluations'),
+    UseGuards(JwtAuthGuard, PermissionsGuard),
     __metadata("design:paramtypes", [EvaluationsService])
 ], EvaluationsController);
 export { EvaluationsController };

@@ -10,15 +10,19 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { CandidatesService } from './candidates.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
+import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
 let CandidatesController = class CandidatesController {
     candidatesService;
     constructor(candidatesService) {
         this.candidatesService = candidatesService;
     }
-    invite(body) {
-        return this.candidatesService.invite(body.organizationId, body.email, body.vacancyId);
+    invite(body, user) {
+        return this.candidatesService.invite(body.organizationId, emailSanitize(body.email), body.vacancyId, user.id);
     }
     byToken(token) {
         return this.candidatesService.byToken(token);
@@ -26,9 +30,12 @@ let CandidatesController = class CandidatesController {
 };
 __decorate([
     Post('candidates/invite'),
+    UseGuards(JwtAuthGuard, PermissionsGuard),
+    RequirePermissions('candidates:invite'),
     __param(0, Body()),
+    __param(1, CurrentUser()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], CandidatesController.prototype, "invite", null);
 __decorate([
@@ -43,4 +50,7 @@ CandidatesController = __decorate([
     __metadata("design:paramtypes", [CandidatesService])
 ], CandidatesController);
 export { CandidatesController };
+function emailSanitize(value) {
+    return value.trim().toLowerCase();
+}
 //# sourceMappingURL=candidates.controller.js.map

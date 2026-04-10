@@ -1,10 +1,16 @@
+import { EmailGateway } from '../integrations/email.gateway.js';
 export declare class CandidatesService {
-    invite(organizationId: string, email: string, vacancyId: string): Promise<{
-        id: string;
+    private readonly emailGateway;
+    constructor(emailGateway: EmailGateway);
+    invite(organizationId: string, email: string, vacancyId: string, actorUserId: string): Promise<{
         email: string;
+        id: string;
         createdAt: Date;
-        organizationId: string;
         token: string;
+        userId: string | null;
+        organizationId: string;
+        invitedByUserId: string | null;
+        guestUpgradeAt: Date | null;
     }>;
     byToken(token: string): import("@prisma/client").Prisma.Prisma__CandidateClient<({
         profile: {
@@ -16,16 +22,27 @@ export declare class CandidatesService {
         onboarding: {
             id: string;
             candidateId: string;
+            status: string;
             basicCompleted: boolean;
             consentCompleted: boolean;
             resumeCompleted: boolean;
-            status: string;
+        } | null;
+        guestSession: {
+            id: string;
+            createdAt: Date;
+            token: string;
+            expiresAt: Date;
+            candidateId: string;
+            upgradedAt: Date | null;
         } | null;
     } & {
-        id: string;
         email: string;
+        id: string;
         createdAt: Date;
-        organizationId: string;
         token: string;
+        userId: string | null;
+        organizationId: string;
+        invitedByUserId: string | null;
+        guestUpgradeAt: Date | null;
     }) | null, null, import("@prisma/client/runtime/library").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
 }

@@ -9,10 +9,16 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 import { Controller, Get } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { IntegrationsHealthService } from '../integrations/integrations-health.service.js';
 let HealthController = class HealthController {
+    integrationsHealth;
+    constructor(integrationsHealth) {
+        this.integrationsHealth = integrationsHealth;
+    }
     async health() {
         await prisma.$queryRaw `SELECT 1`;
-        return { status: 'ok', service: 'api' };
+        const integrations = await this.integrationsHealth.health();
+        return { status: 'ok', service: 'api', ...integrations };
     }
 };
 __decorate([
@@ -22,7 +28,8 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], HealthController.prototype, "health", null);
 HealthController = __decorate([
-    Controller()
+    Controller(),
+    __metadata("design:paramtypes", [IntegrationsHealthService])
 ], HealthController);
 export { HealthController };
 //# sourceMappingURL=health.controller.js.map

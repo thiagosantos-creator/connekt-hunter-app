@@ -10,35 +10,44 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { VacanciesService } from './vacancies.service.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
+import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 let VacanciesController = class VacanciesController {
     vacanciesService;
     constructor(vacanciesService) {
         this.vacanciesService = vacanciesService;
     }
-    create(body) {
-        return this.vacanciesService.create(body);
+    create(body, user) {
+        return this.vacanciesService.create({ ...body, createdBy: user.id });
     }
-    findAll() {
-        return this.vacanciesService.findAll();
+    findAll(user) {
+        return this.vacanciesService.findAll(user.organizationIds);
     }
 };
 __decorate([
     Post(),
+    RequirePermissions('vacancies:write'),
     __param(0, Body()),
+    __param(1, CurrentUser()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], VacanciesController.prototype, "create", null);
 __decorate([
     Get(),
+    RequirePermissions('vacancies:read'),
+    __param(0, CurrentUser()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], VacanciesController.prototype, "findAll", null);
 VacanciesController = __decorate([
     Controller('vacancies'),
+    UseGuards(JwtAuthGuard, PermissionsGuard),
     __metadata("design:paramtypes", [VacanciesService])
 ], VacanciesController);
 export { VacanciesController };

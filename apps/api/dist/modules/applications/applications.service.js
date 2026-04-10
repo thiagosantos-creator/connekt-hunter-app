@@ -7,8 +7,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 import { Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 let ApplicationsService = class ApplicationsService {
-    findAll() {
-        return prisma.application.findMany({ include: { candidate: true, vacancy: true } });
+    findAll(organizationIds) {
+        return prisma.application.findMany({
+            where: { vacancy: { organizationId: { in: organizationIds } } },
+            include: {
+                candidate: true,
+                vacancy: true,
+            },
+        });
     }
 };
 ApplicationsService = __decorate([

@@ -10,26 +10,33 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ShortlistService } from './shortlist.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
+import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
 let ShortlistController = class ShortlistController {
     shortlistService;
     constructor(shortlistService) {
         this.shortlistService = shortlistService;
     }
-    add(body) {
-        return this.shortlistService.addToShortlist(body.applicationId);
+    add(body, user) {
+        return this.shortlistService.addToShortlist(body.applicationId, user.id);
     }
 };
 __decorate([
     Post(),
+    RequirePermissions('shortlist:write'),
     __param(0, Body()),
+    __param(1, CurrentUser()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], ShortlistController.prototype, "add", null);
 ShortlistController = __decorate([
     Controller('shortlist'),
+    UseGuards(JwtAuthGuard, PermissionsGuard),
     __metadata("design:paramtypes", [ShortlistService])
 ], ShortlistController);
 export { ShortlistController };

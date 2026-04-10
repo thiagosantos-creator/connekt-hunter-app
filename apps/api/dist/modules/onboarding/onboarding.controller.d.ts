@@ -18,10 +18,11 @@ export declare class OnboardingController {
         token: string;
         filename: string;
     }): Promise<{
+        upload: import("../integrations/storage.gateway.js").PresignedUpload;
         id: string;
+        provider: string;
         status: string;
         objectKey: string;
-        provider: string;
         uploadedAt: Date;
         sessionId: string;
     }>;

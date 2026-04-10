@@ -93,3 +93,9 @@ Implementado nesta fase:
 - `docs/adr/010-dev-auth-vs-real-auth.md`
 - `docs/adr/011-staging-environment-strategy.md`
 - `docs/adr/012-feature-flags-real-integrations.md`
+
+## SDDs
+- `docs/sdd/README.md`
+- `docs/sdd/001-system-context.md`
+- `docs/sdd/002-auth-session.md`
+- `docs/sdd/003-recruitment-flow.md`

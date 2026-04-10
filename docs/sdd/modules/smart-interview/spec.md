@@ -5,3 +5,7 @@
 - Transcrição enfileirada por `TranscriptionGateway`.
 - Submissão calcula análise assistiva sem decisão final automática.
 - Review humano continua obrigatório para status final.
+
+
+## Slice 09 update
+- Endpoint público de sessão (`/candidate/session/:publicToken`) validado com token cache + throttling distribuído.

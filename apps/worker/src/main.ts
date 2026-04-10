@@ -1,8 +1,9 @@
 import { prisma } from '@connekt/db';
+import { withWorkerSpan } from './telemetry.js';
 
 async function safeProcess(label: string, eventId: string, fn: () => Promise<void>): Promise<boolean> {
   try {
-    await fn();
+    await withWorkerSpan('worker.process_event', { topic: label, eventId }, fn);
     return true;
   } catch (err) {
     console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'process_event_failed', topic: label, eventId, error: String(err) }));
@@ -327,4 +328,6 @@ async function run() {
   }
 }
 
-run();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  void run();
+}

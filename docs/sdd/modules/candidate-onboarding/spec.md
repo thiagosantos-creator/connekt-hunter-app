@@ -9,3 +9,7 @@
 - Token de candidato validado via `NotFoundException` caso não exista no banco.
 - Cada etapa (basic, consent, resume) registra `auditEvent` com `candidateId` e `organizationId`.
 - Testes unitários adicionados para validar token inválido e audit trail.
+
+
+## Slice 09 update
+- Endpoints públicos de onboarding protegidos por `RateLimitGuard` distribuído + `PublicTokenGuard` com cache de token.

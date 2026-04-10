@@ -55,3 +55,8 @@ pnpm build         # Build completo
 - `vi.mock('@connekt/db')` para isolar Prisma
 - Mock de gateways (AI, Storage, Email, etc.) injetados via constructor
 - Assertions: `toThrow`, `toHaveBeenCalledWith`, `objectContaining`
+
+
+## Slice 09 — Real Stack Integration
+- `apps/api/test/slice-09.integration.test.ts`: API real (Nest app), Postgres real (Prisma) e worker real (processadores outbox).
+- Cobertura runtime para fluxo de recrutamento + geração de matching/insights/recommendation/risk.

@@ -4,6 +4,7 @@ import type { AuthSession, LoginResult, MembershipReference } from './auth.types
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
 import { CognitoAuthProvider } from './providers/cognito-auth.provider.js';
 import { IntegrationsConfigService } from '../integrations/integrations-config.service.js';
+import { PublicTokenCacheService } from './public-token-cache.service.js';
 
 @Injectable()
 export class AuthService {
@@ -11,6 +12,7 @@ export class AuthService {
     private readonly devProvider: DevAuthProvider,
     private readonly cognitoProvider: CognitoAuthProvider,
     private readonly integrationsConfig: IntegrationsConfigService,
+    private readonly tokenCache: PublicTokenCacheService,
   ) {}
 
   async login(email: string, password?: string): Promise<LoginResult> {
@@ -78,6 +80,9 @@ export class AuthService {
       update: { userId: user.id },
       create: { provider: 'candidate-passwordless', subject: email, userId: user.id, email },
     });
+
+    await prisma.guestSession.updateMany({ where: { token }, data: { upgradedAt: new Date() } });
+    await this.tokenCache.invalidate(token);
 
     await prisma.candidate.update({
       where: { id: candidate.id },

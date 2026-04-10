@@ -9,11 +9,12 @@ import { IntegrationsModule } from '../integrations/integrations.module.js';
 import { PermissionsGuard } from './rbac/permissions.guard.js';
 import { RateLimitGuard } from './rate-limit.guard.js';
 import { PublicTokenGuard } from './public-token.guard.js';
+import { PublicTokenCacheService } from './public-token-cache.service.js';
 
 @Module({
   imports: [IntegrationsModule],
   controllers: [AuthController],
-  providers: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard, DevAuthProvider, CognitoAuthProvider, Reflector],
-  exports: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard],
+  providers: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard, PublicTokenCacheService, DevAuthProvider, CognitoAuthProvider, Reflector],
+  exports: [AuthService, JwtAuthGuard, PermissionsGuard, RateLimitGuard, PublicTokenGuard, PublicTokenCacheService],
 })
 export class AuthModule {}

@@ -131,6 +131,12 @@ Implementado nesta fase:
 - `docs/sdd/002-auth-session.md`
 - `docs/sdd/003-recruitment-flow.md`
 
+## Estado de documentação (revisado em 2026-04-10)
+- ADRs `001` a `019` presentes e consistentes com a estratégia atual de slices.
+- SDDs transversais e de módulos/integrações mapeadas em `docs/sdd/README.md`.
+- Relatório de coerência e pendências de UX/UI: `docs/reports/2026-04-10-docs-ux-ui-audit.md`.
+- Relatório de validação funcional Slice 10: `docs/reports/slice-10-validation-report.md`.
+
 
 ## Vertical Slice 04
 Implementado nesta fase:

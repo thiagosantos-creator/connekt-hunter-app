@@ -5,14 +5,23 @@ const PROFILE_KEY = 'bo_user';
 const AUDIT_KEY = 'bo_audit';
 const USERS_KEY = 'bo_managed_users';
 
+function parseStoredJson<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export function saveProfile(user: AuthUser): AuthUser {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
   return user;
 }
 
 export function listManagedUsers(currentUser: AuthUser | null): ManagedUser[] {
-  const stored = localStorage.getItem(USERS_KEY);
-  if (stored) return JSON.parse(stored) as ManagedUser[];
+  const storedUsers = parseStoredJson<ManagedUser[]>(localStorage.getItem(USERS_KEY), []);
+  if (storedUsers.length > 0) return storedUsers;
 
   const seed: ManagedUser[] = [
     {
@@ -55,9 +64,7 @@ export function saveManagedUsers(users: ManagedUser[]): void {
 }
 
 export function listAuditEvents(): AuditEvent[] {
-  const stored = localStorage.getItem(AUDIT_KEY);
-  if (!stored) return [];
-  return JSON.parse(stored) as AuditEvent[];
+  return parseStoredJson<AuditEvent[]>(localStorage.getItem(AUDIT_KEY), []);
 }
 
 export function addAuditEvent(action: string, actorEmail: string, target?: string, metadata?: Record<string, string>): void {

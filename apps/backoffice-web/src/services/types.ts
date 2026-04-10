@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   name: string;
   role: string;
+  organizationIds?: string[];
   title?: string;
   company?: string;
   avatarUrl?: string;
@@ -88,6 +89,13 @@ export interface WorkflowSuggestion {
   suggestionType: string;
   explanation: string;
   status: string;
+}
+
+export interface ShortlistItemWithApplication {
+  id: string;
+  applicationId: string;
+  createdAt: string;
+  application: Application;
 }
 
 export interface ManagedUser {

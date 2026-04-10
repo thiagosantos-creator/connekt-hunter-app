@@ -13,7 +13,10 @@ export class VacanciesService {
     return prisma.vacancy.create({ data });
   }
 
-  findAll(organizationIds: string[]) {
+  findAll(organizationIds: string[], role: string) {
+    if (role === 'admin') {
+      return prisma.vacancy.findMany({ include: { organization: true } });
+    }
     return prisma.vacancy.findMany({
       where: { organizationId: { in: organizationIds } },
       include: { organization: true },

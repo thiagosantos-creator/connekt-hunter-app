@@ -8,6 +8,7 @@ export type Permission =
   | 'candidates:invite'
   | 'applications:read'
   | 'shortlist:write'
+  | 'shortlist:read'
   | 'decision:write'
   | 'decision:read'
   | 'smart-interview:configure'
@@ -22,6 +23,7 @@ const rolePermissions: Record<AppRole, Permission[]> = {
     'candidates:invite',
     'applications:read',
     'shortlist:write',
+    'shortlist:read',
     'decision:write',
     'decision:read',
     'smart-interview:configure',
@@ -35,6 +37,7 @@ const rolePermissions: Record<AppRole, Permission[]> = {
     'candidates:invite',
     'applications:read',
     'shortlist:write',
+    'shortlist:read',
     'decision:read',
     'smart-interview:configure',
     'smart-interview:review',
@@ -42,6 +45,7 @@ const rolePermissions: Record<AppRole, Permission[]> = {
   client: [
     'vacancies:read',
     'applications:read',
+    'shortlist:read',
     'decision:write',
     'decision:read',
     'smart-interview:review',

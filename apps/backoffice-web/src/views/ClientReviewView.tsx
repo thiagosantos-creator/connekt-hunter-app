@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import type { Application, Decision } from '../services/types.js';
+import type { Decision, ShortlistItemWithApplication } from '../services/types.js';
 import {
   Button,
   Badge,
@@ -16,9 +16,6 @@ import {
   EmptyState,
   TableSkeleton,
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
   SectionTitle,
   spacing,
@@ -58,7 +55,7 @@ interface CandidateContext {
 
 export function ClientReviewView() {
   const { user } = useAuth();
-  const [apps, setApps] = useState<Application[]>([]);
+  const [items, setItems] = useState<ShortlistItemWithApplication[]>([]);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
@@ -68,41 +65,43 @@ export function ClientReviewView() {
   const [contextLoading, setContextLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    void apiGet<Application[]>('/applications')
-      .then(setApps)
+    void apiGet<ShortlistItemWithApplication[]>('/shortlist/items')
+      .then(setItems)
       .finally(() => setLoading(false));
   }, []);
 
-  const loadContext = async (app: Application) => {
-    if (context[app.id] || contextLoading[app.id]) return;
-    setContextLoading((prev) => ({ ...prev, [app.id]: true }));
+  const loadContext = async (item: ShortlistItemWithApplication) => {
+    const appId = item.applicationId;
+    if (context[appId] || contextLoading[appId]) return;
+    setContextLoading((prev) => ({ ...prev, [appId]: true }));
+    const { candidate, vacancy } = item.application;
     const [matching, risk, insights] = await Promise.all([
-      apiGet<CandidateContext['matching']>(`/candidate-matching/${app.vacancy.id}/${app.candidate.id}`).catch((e) => { console.warn('matching unavailable', e); return undefined; }),
-      apiGet<CandidateContext['risk']>(`/risk-analysis?candidateId=${app.candidate.id}&vacancyId=${app.vacancy.id}`).catch((e) => { console.warn('risk unavailable', e); return undefined; }),
-      apiGet<CandidateContext['insights']>(`/candidate-insights/${app.vacancy.id}/${app.candidate.id}`).catch((e) => { console.warn('insights unavailable', e); return undefined; }),
+      apiGet<CandidateContext['matching']>(`/candidate-matching/${vacancy.id}/${candidate.id}`).catch((e) => { console.warn('matching unavailable', e); return undefined; }),
+      apiGet<CandidateContext['risk']>(`/risk-analysis?candidateId=${candidate.id}&vacancyId=${vacancy.id}`).catch((e) => { console.warn('risk unavailable', e); return undefined; }),
+      apiGet<CandidateContext['insights']>(`/candidate-insights/${vacancy.id}/${candidate.id}`).catch((e) => { console.warn('insights unavailable', e); return undefined; }),
     ]);
-    setContext((prev) => ({ ...prev, [app.id]: { matching, risk, insights } }));
-    setContextLoading((prev) => ({ ...prev, [app.id]: false }));
+    setContext((prev) => ({ ...prev, [appId]: { matching, risk, insights } }));
+    setContextLoading((prev) => ({ ...prev, [appId]: false }));
   };
 
-  const toggleExpand = (app: Application) => {
-    if (expandedId === app.id) {
+  const toggleExpand = (item: ShortlistItemWithApplication) => {
+    if (expandedId === item.applicationId) {
       setExpandedId(null);
     } else {
-      setExpandedId(app.id);
-      void loadContext(app);
+      setExpandedId(item.applicationId);
+      void loadContext(item);
     }
   };
 
-  const decide = async (appId: string, decision: string) => {
+  const decide = async (shortlistItemId: string, decision: string) => {
     if (!user) return;
     try {
       await apiPost<Decision>('/client-decisions', {
-        shortlistItemId: appId,
+        shortlistItemId,
         reviewerId: user.id,
         decision,
       });
-      setDecisions((prev) => ({ ...prev, [appId]: decision }));
+      setDecisions((prev) => ({ ...prev, [shortlistItemId]: decision }));
       setMsg(`Decisão "${decisionLabel[decision as DecisionKind] ?? decision}" registrada.`);
       setMsgVariant('success');
     } catch (err) {
@@ -115,25 +114,25 @@ export function ClientReviewView() {
     {
       key: 'candidate',
       header: 'Candidato',
-      render: (row: Application) => row.candidate.email,
-      searchValue: (row: Application) => row.candidate.email,
+      render: (row: ShortlistItemWithApplication) => row.application.candidate.email,
+      searchValue: (row: ShortlistItemWithApplication) => row.application.candidate.email,
     },
     {
       key: 'vacancy',
       header: 'Vaga',
-      render: (row: Application) => row.vacancy.title,
-      searchValue: (row: Application) => row.vacancy.title,
+      render: (row: ShortlistItemWithApplication) => row.application.vacancy.title,
+      searchValue: (row: ShortlistItemWithApplication) => row.application.vacancy.title,
     },
     {
       key: 'status',
       header: 'Status',
-      render: (row: Application) => <StatusPill status={row.status} />,
+      render: (row: ShortlistItemWithApplication) => <StatusPill status={row.application.status} />,
     },
     {
       key: 'context',
       header: 'Contexto',
-      render: (row: Application) => {
-        const ctx = context[row.id];
+      render: (row: ShortlistItemWithApplication) => {
+        const ctx = context[row.applicationId];
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
             {ctx?.matching?.overallScore !== undefined && (
@@ -145,7 +144,7 @@ export function ClientReviewView() {
               <RiskBadge level={ctx.risk.riskLevel as 'low' | 'medium' | 'high' | 'critical'} />
             )}
             <Button variant="outline" size="sm" onClick={() => toggleExpand(row)}>
-              {expandedId === row.id ? 'Fechar' : 'Detalhes'}
+              {expandedId === row.applicationId ? 'Fechar' : 'Detalhes'}
             </Button>
           </div>
         );
@@ -154,7 +153,7 @@ export function ClientReviewView() {
     {
       key: 'decision',
       header: 'Decisão',
-      render: (row: Application) => {
+      render: (row: ShortlistItemWithApplication) => {
         const d = decisions[row.id];
         if (d) {
           return (
@@ -181,9 +180,10 @@ export function ClientReviewView() {
     },
   ];
 
-  const renderExpandedPanel = (app: Application) => {
-    const ctx = context[app.id];
-    const isLoading = contextLoading[app.id];
+  const renderExpandedPanel = (item: ShortlistItemWithApplication) => {
+    const appId = item.applicationId;
+    const ctx = context[appId];
+    const isLoading = contextLoading[appId];
 
     if (isLoading) {
       return (
@@ -201,14 +201,12 @@ export function ClientReviewView() {
       <Card style={{ marginBottom: spacing.md, borderLeft: `3px solid ${colors.accent}` }}>
         <CardContent>
           <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
-            {/* Score */}
             {ctx.matching?.overallScore !== undefined && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.xs }}>
                 <ScoreGauge value={ctx.matching.overallScore} size={72} label="Matching" />
               </div>
             )}
 
-            {/* Risk */}
             {ctx.risk && (
               <div style={{ flex: 1, minWidth: 200 }}>
                 <SectionTitle>Análise de Risco</SectionTitle>
@@ -224,7 +222,6 @@ export function ClientReviewView() {
               </div>
             )}
 
-            {/* Insights */}
             {ctx.insights && (
               <div style={{ flex: 1, minWidth: 200 }}>
                 <SectionTitle>Insights IA</SectionTitle>
@@ -255,7 +252,6 @@ export function ClientReviewView() {
               </div>
             )}
 
-            {/* AI Summary */}
             {ctx.matching?.aiSummary && (
               <div style={{ width: '100%', padding: spacing.sm, background: colors.infoLight, borderRadius: radius.md, fontSize: fontSize.sm, color: colors.info }}>
                 <AiTag /> <em>{ctx.matching.aiSummary}</em>
@@ -271,7 +267,7 @@ export function ClientReviewView() {
     <PageContent>
       <PageHeader
         title="Revisão do Cliente"
-        description="Revise candidatos com score, risco e insights antes de decidir."
+        description="Candidatos shortlistados — revise com score, risco e insights antes de decidir."
       />
 
       {msg && (
@@ -282,27 +278,27 @@ export function ClientReviewView() {
 
       {loading ? (
         <TableSkeleton rows={5} columns={5} />
-      ) : apps.length === 0 ? (
+      ) : items.length === 0 ? (
         <EmptyState
-          title="Nenhuma aplicação encontrada"
-          description="Aplicações aparecerão aqui quando disponíveis para revisão."
+          title="Nenhum candidato na shortlist"
+          description="Os candidatos aparecerão aqui quando forem adicionados à shortlist pelo headhunter."
         />
       ) : (
         <>
-          <DataTable<Application>
+          <DataTable<ShortlistItemWithApplication>
             columns={columns}
-            data={apps}
+            data={items}
             rowKey={(row) => row.id}
-            emptyMessage="Nenhuma aplicação encontrada"
+            emptyMessage="Nenhum candidato na shortlist"
             searchable
             searchPlaceholder="Buscar candidato ou vaga…"
           />
 
           {expandedId && (() => {
-            const app = apps.find((a) => a.id === expandedId);
-            return app ? (
+            const item = items.find((i) => i.applicationId === expandedId);
+            return item ? (
               <div style={{ marginTop: spacing.md }}>
-                {renderExpandedPanel(app)}
+                {renderExpandedPanel(item)}
               </div>
             ) : null;
           })()}

@@ -40,4 +40,20 @@ export class ShortlistService {
 
     return item;
   }
+
+  findShortlistedApplications(organizationIds: string[], role: string) {
+    const where =
+      role === 'admin'
+        ? {}
+        : { shortlist: { vacancy: { organizationId: { in: organizationIds } } } };
+    return prisma.shortlistItem.findMany({
+      where,
+      include: {
+        application: {
+          include: { candidate: true, vacancy: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

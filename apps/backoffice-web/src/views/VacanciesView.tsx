@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { hasPermission } from '../services/rbac.js';
 import type { Vacancy } from '../services/types.js';
 import {
   Button,
   Input,
   Textarea,
+  Select,
   Card,
   CardHeader,
   CardTitle,
@@ -24,10 +26,13 @@ export function VacanciesView() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [orgId, setOrgId] = useState('org_demo');
+  const [orgId, setOrgId] = useState(() => user?.organizationIds?.[0] ?? '');
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(false);
+
+  const canWrite = hasPermission(user, 'vacancies:write');
+  const orgOptions = user?.organizationIds?.map((id: string) => ({ value: id, label: id })) ?? [];
 
   const load = async () => {
     try {
@@ -69,7 +74,7 @@ export function VacanciesView() {
     {
       key: 'organizationId',
       header: 'Organização',
-      render: (row: Vacancy) => row.organizationId,
+      render: (row: Vacancy) => row.organization?.name ?? row.organizationId,
     },
   ];
 
@@ -83,40 +88,53 @@ export function VacanciesView() {
         </InlineMessage>
       )}
 
-      <Card style={{ marginBottom: spacing.lg }}>
-        <form onSubmit={(e) => { void create(e); }}>
-          <CardHeader>
-            <CardTitle>Criar Vaga</CardTitle>
-          </CardHeader>
-          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="ID da Organização"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-            />
-            <Input
-              label="Título"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-            <Textarea
-              label="Descrição"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" loading={loading}>
-              {loading ? 'Criando…' : 'Criar'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+      {canWrite && (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <form onSubmit={(e) => { void create(e); }}>
+            <CardHeader>
+              <CardTitle>Criar Vaga</CardTitle>
+            </CardHeader>
+            <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+              {orgOptions.length > 1 ? (
+                <Select
+                  label="Organização"
+                  value={orgId}
+                  onChange={(e) => setOrgId(e.target.value)}
+                  options={orgOptions}
+                  placeholder="Selecione a organização"
+                  required
+                />
+              ) : (
+                <Input
+                  label="ID da Organização"
+                  value={orgId}
+                  onChange={(e) => setOrgId(e.target.value)}
+                />
+              )}
+              <Input
+                label="Título"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+              <Textarea
+                label="Descrição"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" loading={loading}>
+                {loading ? 'Criando…' : 'Criar'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      )}
 
       {vacancies.length === 0 ? (
-        <EmptyState title="Nenhuma vaga cadastrada" description="Crie a primeira vaga acima." />
+        <EmptyState title="Nenhuma vaga cadastrada" description={canWrite ? 'Crie a primeira vaga acima.' : 'Nenhuma vaga disponível.'} />
       ) : (
         <DataTable<Vacancy>
           columns={columns}

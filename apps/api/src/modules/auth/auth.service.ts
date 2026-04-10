@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
-import type { AuthSession, LoginResult } from './auth.types.js';
+import type { AuthSession, LoginResult, MembershipReference } from './auth.types.js';
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
 import { PlaceholderIamProvider } from './providers/placeholder-iam.provider.js';
 
@@ -44,7 +44,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           role: user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-          organizationIds: user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
+          organizationIds: user.memberships.map((membership: MembershipReference) => membership.organizationId),
         },
       };
     }

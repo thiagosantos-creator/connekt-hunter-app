@@ -1,4 +1,5 @@
 export type AppRole = 'admin' | 'headhunter' | 'client' | 'candidate';
+export type MembershipReference = { organizationId: string };
 
 export interface AuthUser {
   id: string;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
-import type { AuthProvider, AuthSession, LoginResult } from '../auth.types.js';
+import type { AuthProvider, AuthSession, LoginResult, MembershipReference } from '../auth.types.js';
 
 const SESSION_HOURS = Number(process.env.AUTH_SESSION_HOURS ?? 24);
 
@@ -39,7 +39,7 @@ export class DevAuthProvider implements AuthProvider {
         email: user.email,
         name: user.name,
         role: user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-        organizationIds: user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
+        organizationIds: user.memberships.map((membership: MembershipReference) => membership.organizationId),
       },
     };
   }
@@ -67,7 +67,7 @@ export class DevAuthProvider implements AuthProvider {
         email: session.user.email,
         name: session.user.name,
         role: session.user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
-        organizationIds: session.user.memberships.map((membership: { organizationId: string }) => membership.organizationId),
+        organizationIds: session.user.memberships.map((membership: MembershipReference) => membership.organizationId),
       },
     };
   }

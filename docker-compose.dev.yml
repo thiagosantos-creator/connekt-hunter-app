@@ -28,7 +28,7 @@ services:
     image: node:22
     working_dir: /app
     volumes: [".:/app"]
-    command: sh -c "corepack enable && pnpm install --force --frozen-lockfile && pnpm --filter @connekt/db prisma:generate && pnpm --filter api dev"
+    command: sh -c "corepack enable && CI=true pnpm install --frozen-lockfile && pnpm --filter @connekt/db prisma:generate && pnpm --filter api dev"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connekt
       PORT: 3000
@@ -41,7 +41,7 @@ services:
     image: node:22
     working_dir: /app
     volumes: [".:/app"]
-    command: sh -c "corepack enable && pnpm install --force --frozen-lockfile && pnpm --filter @connekt/db prisma:generate && pnpm --filter worker dev"
+    command: sh -c "corepack enable && CI=true pnpm install --frozen-lockfile && pnpm --filter @connekt/db prisma:generate && pnpm --filter worker dev"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connekt
     depends_on:

@@ -37,12 +37,12 @@ export function TokenEntryView() {
       <Card variant="elevated">
         <CardHeader>
           <CardTitle>Portal do Candidato</CardTitle>
-          <CardDescription>Insira o token de convite recebido por e-mail para continuar.</CardDescription>
+          <CardDescription>Insira o código de acesso recebido por e-mail para continuar.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => { void submit(e); }}>
             <Input
-              label="Token de Convite"
+              label="Código de Acesso"
               value={token}
               onChange={(e) => setToken(e.target.value)}
               required

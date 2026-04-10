@@ -34,3 +34,8 @@ Definir o comportamento esperado do fluxo operacional de recrutamento.
 ## Critérios de aceitação
 - Fluxo manual smoke deve ser executável com ambiente local.
 - Alterações no fluxo exigem atualização desta SDD + contratos de teste críticos.
+
+
+## Extensão Slice 03
+- Smart interview assíncrona adicionada para aplicações que possuem template configurado por vaga.
+- Processamento segue via outbox + worker para manter rastreabilidade.

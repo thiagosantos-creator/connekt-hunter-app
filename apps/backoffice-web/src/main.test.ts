@@ -7,11 +7,12 @@ describe('backoffice-web unit tests', () => {
   });
 
   it('route paths are defined correctly', () => {
-    const routes = ['/login', '/vacancies', '/candidates', '/applications', '/shortlist', '/client-review'];
-    expect(routes).toHaveLength(6);
+    const routes = ['/login', '/vacancies', '/candidates', '/applications', '/shortlist', '/client-review', '/smart-interview'];
+    expect(routes).toHaveLength(7);
     expect(routes).toContain('/login');
     expect(routes).toContain('/vacancies');
     expect(routes).toContain('/client-review');
+    expect(routes).toContain('/smart-interview');
   });
 
   it('decision types are valid', () => {

@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -63,6 +63,17 @@ pnpm --filter candidate-web dev
 - `POST /shortlist`
 - `POST /evaluations`
 - `POST /client-decisions`
+- `POST /smart-interview/templates`
+- `GET /smart-interview/templates?vacancyId=`
+- `POST /smart-interview/templates/:templateId/generate-questions`
+- `PUT /smart-interview/templates/:templateId/questions`
+- `POST /smart-interview/sessions`
+- `GET /smart-interview/sessions/:sessionId/review`
+- `POST /smart-interview/sessions/:sessionId/human-review`
+- `GET /smart-interview/candidate/session/:publicToken`
+- `POST /smart-interview/sessions/:sessionId/answers/presign`
+- `POST /smart-interview/sessions/:sessionId/answers/complete`
+- `POST /smart-interview/sessions/:sessionId/submit`
 
 ## Vertical Slice 02
 Implementado nesta fase:

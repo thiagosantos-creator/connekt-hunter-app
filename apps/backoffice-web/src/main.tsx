@@ -108,10 +108,10 @@ function NavBar() {
   const navigate = useNavigate();
   const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     admin: [
-      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Client Review', to: '/client-review' },
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Client Review', to: '/client-review' }, { label: 'Smart Interview', to: '/smart-interview' },
     ],
     headhunter: [
-      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' },
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Smart Interview', to: '/smart-interview' },
     ],
     client: [
       { label: 'Applications', to: '/applications' }, { label: 'Client Review', to: '/client-review' },
@@ -416,6 +416,75 @@ function ClientReviewView() {
   );
 }
 
+
+
+function SmartInterviewView() {
+  const [vacancyId, setVacancyId] = useState('');
+  const [applicationId, setApplicationId] = useState('');
+  const [templateId, setTemplateId] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [notes, setNotes] = useState('Aprovado para próxima etapa');
+  const [msg, setMsg] = useState('');
+
+  const saveTemplate = async () => {
+    try {
+      const tpl = await apiPost<{ id: string }>('/smart-interview/templates', { vacancyId, configJson: { intro: 'Entrevista assíncrona', attempts: 1 } });
+      setTemplateId(tpl.id);
+      setMsg('Template salvo.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const generateQuestions = async () => {
+    try {
+      await apiPost(`/smart-interview/templates/${templateId}/generate-questions`, {});
+      setMsg('Perguntas mock IA geradas.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const createSession = async () => {
+    try {
+      const session = await apiPost<{ id: string; publicToken: string }>('/smart-interview/sessions', { applicationId });
+      setSessionId(session.id);
+      setMsg(`Sessão criada. Token candidato: ${session.publicToken}`);
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  const approveReview = async () => {
+    try {
+      await apiPost(`/smart-interview/sessions/${sessionId}/human-review`, { decision: 'approved', notes });
+      setMsg('Review humano salvo.');
+    } catch (err) { setMsg(String(err)); }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Smart Interview</h2>
+      <p style={{ color: '#666' }}>Configuração da vaga, editor de perguntas e review humano em um fluxo único.</p>
+      <div style={{ display: 'grid', gap: 12, maxWidth: 700 }}>
+        <label>Vacancy ID
+          <input value={vacancyId} onChange={(e) => setVacancyId(e.target.value)} style={{ width: '100%', padding: 6 }} />
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { void saveTemplate(); }}>Salvar template</button>
+          <button onClick={() => { void generateQuestions(); }} disabled={!templateId}>Gerar perguntas IA mock</button>
+        </div>
+        <label>Application ID
+          <input value={applicationId} onChange={(e) => setApplicationId(e.target.value)} style={{ width: '100%', padding: 6 }} />
+        </label>
+        <button onClick={() => { void createSession(); }} disabled={!applicationId}>Criar sessão por aplicação</button>
+        <label>Session ID (review)
+          <input value={sessionId} onChange={(e) => setSessionId(e.target.value)} style={{ width: '100%', padding: 6 }} />
+        </label>
+        <label>Notas de review
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} style={{ width: '100%', padding: 6 }} rows={3} />
+        </label>
+        <button onClick={() => { void approveReview(); }} disabled={!sessionId}>Salvar review humano</button>
+      </div>
+      {msg && <p style={{ marginTop: 12, color: msg.startsWith('Error') ? 'red' : 'green' }}>{msg}</p>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // App shell
 // ---------------------------------------------------------------------------
@@ -431,6 +500,7 @@ function App() {
         <Route path="/applications" element={<ProtectedRoute><ApplicationsView /></ProtectedRoute>} />
         <Route path="/shortlist" element={<ProtectedRoute><ShortlistView /></ProtectedRoute>} />
         <Route path="/client-review" element={<ProtectedRoute><ClientReviewView /></ProtectedRoute>} />
+        <Route path="/smart-interview" element={<ProtectedRoute><SmartInterviewView /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to={user ? '/vacancies' : '/login'} replace />} />
       </Routes>
     </BrowserRouter>

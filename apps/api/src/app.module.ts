@@ -10,6 +10,7 @@ import { ShortlistModule } from './modules/shortlist/shortlist.module.js';
 import { EvaluationsModule } from './modules/evaluations/evaluations.module.js';
 import { ClientDecisionsModule } from './modules/client-decisions/client-decisions.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { SmartInterviewModule } from './modules/smart-interview/smart-interview.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
     EvaluationsModule,
     ClientDecisionsModule,
     AuditModule,
+    SmartInterviewModule,
   ],
   controllers: [HealthController],
 })

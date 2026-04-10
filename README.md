@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -168,3 +168,13 @@ Implementado nesta fase:
 - Workflow automation assistida com aprovação humana (`WorkflowSuggestion` + `AutomationExecution`).
 - Auditoria para geração de recomendações, cálculo de prioridade, análise de risco e execução assistida.
 - Worker com novos tópicos: `recommendation:generate`, `risk:analyze`, `automation:trigger`.
+
+
+## Vertical Slice 07
+Implementado nesta fase:
+- Gap analysis global comparando SDDs e implementação com classificação por severidade.
+- Hardening de Smart Interview para estados válidos, vínculo pergunta-template e revisão humana pós-submit.
+- Correção de tenant boundary em integrações de transcrição e em workflow automation.
+- Logs estruturados para seleção de providers e fallback de integrações.
+- Testes adicionais (unitários + contrato e2e) para validar guardrails críticos.
+- Relatório consolidado em `docs/reports/slice-07-gap-report.md`.

@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { AiGateway } from '../integrations/ai.gateway.js';
@@ -7,6 +14,8 @@ import { TranscriptionGateway } from '../integrations/transcription.gateway.js';
 
 @Injectable()
 export class SmartInterviewService {
+  private readonly logger = new Logger(SmartInterviewService.name);
+
   constructor(
     private readonly aiGateway: AiGateway,
     private readonly storageGateway: StorageGateway,
@@ -129,9 +138,16 @@ export class SmartInterviewService {
   async createPresignedUpload(input: { sessionId: string; questionId: string }) {
     const session = await prisma.smartInterviewSession.findUnique({
       where: { id: input.sessionId },
-      include: { application: { include: { candidate: true, vacancy: true } } },
+      include: {
+        application: { include: { vacancy: true } },
+        template: { include: { questions: true } },
+      },
     });
     if (!session) throw new NotFoundException('session_not_found');
+    if (session.status !== 'in_progress') throw new UnprocessableEntityException('session_not_accepting_answers');
+
+    const questionExists = session.template.questions.some((question) => question.id === input.questionId);
+    if (!questionExists) throw new BadRequestException('question_not_in_template');
 
     return this.storageGateway.createPresignedUpload({
       tenantId: session.application.vacancy.organizationId,
@@ -144,9 +160,16 @@ export class SmartInterviewService {
   async completeAnswer(input: { sessionId: string; questionId: string; objectKey: string; durationSec?: number }) {
     const session = await prisma.smartInterviewSession.findUnique({
       where: { id: input.sessionId },
-      include: { application: true },
+      include: {
+        application: { include: { vacancy: true } },
+        template: { include: { questions: true } },
+      },
     });
     if (!session) throw new NotFoundException('session_not_found');
+    if (session.status !== 'in_progress') throw new UnprocessableEntityException('session_not_accepting_answers');
+
+    const questionExists = session.template.questions.some((question) => question.id === input.questionId);
+    if (!questionExists) throw new BadRequestException('question_not_in_template');
 
     const answer = await prisma.smartInterviewAnswer.upsert({
       where: { sessionId_questionId: { sessionId: input.sessionId, questionId: input.questionId } },
@@ -165,12 +188,21 @@ export class SmartInterviewService {
     await this.transcriptionGateway.enqueue({
       answerId: answer.id,
       objectKey: answer.objectKey,
-      tenantId: session.application.candidateId,
+      tenantId: session.application.vacancy.organizationId,
     });
 
     await prisma.outboxEvent.create({
       data: { topic: 'smart-interview.video-uploaded', payload: { answerId: answer.id, sessionId: input.sessionId } },
     });
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'smart_interview_answer_uploaded',
+        sessionId: input.sessionId,
+        questionId: input.questionId,
+        answerId: answer.id,
+      }),
+    );
 
     return answer;
   }
@@ -181,6 +213,7 @@ export class SmartInterviewService {
       include: { answers: { include: { transcript: true } } },
     });
     if (!session) throw new NotFoundException('session_not_found');
+    if (session.status !== 'in_progress') throw new UnprocessableEntityException('session_not_submittable');
     if (!session.answers.length) throw new BadRequestException('no_answers_uploaded');
 
     const transcriptText = session.answers.map((answer) => answer.transcript?.content ?? '').join('\n').trim();
@@ -225,6 +258,8 @@ export class SmartInterviewService {
   async submitHumanReview(input: { sessionId: string; reviewerId: string; decision: string; notes: string }) {
     const session = await prisma.smartInterviewSession.findUnique({ where: { id: input.sessionId } });
     if (!session) throw new NotFoundException('session_not_found');
+    if (session.status !== 'submitted') throw new UnprocessableEntityException('session_not_ready_for_human_review');
+    if (!input.notes?.trim()) throw new BadRequestException('review_notes_required');
 
     const review = await prisma.smartInterviewHumanReview.upsert({
       where: { sessionId: input.sessionId },

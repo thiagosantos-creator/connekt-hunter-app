@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { apiPost, getToken } from '../services/api.js';
 import type { CandidateInfo } from '../services/types.js';
 import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, InlineMessage, colors, spacing, fontSize, radius } from '@connekt/ui';
@@ -10,29 +10,16 @@ export function StatusView() {
   const info: Partial<CandidateInfo> = raw ? (JSON.parse(raw) as Partial<CandidateInfo>) : {};
   const [email, setEmail] = useState(info.email ?? '');
   const [fullName, setFullName] = useState(info.profile?.fullName ?? '');
-  const [password, setPassword] = useState('');
   const [upgradeMsg, setUpgradeMsg] = useState('');
   const [upgrading, setUpgrading] = useState(false);
 
   const upgradeAccount = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password && password.length < 8) {
-      setUpgradeMsg('Falha: A senha deve conter ao menos 8 caracteres.');
-      return;
-    }
     setUpgrading(true);
     setUpgradeMsg('');
     try {
-      const result = await apiPost<{ token?: string }>('/auth/guest-upgrade', {
-        token: getToken(),
-        email,
-        fullName,
-        password: password || undefined,
-      });
-      if (result?.token) {
-        localStorage.setItem('candidate_session_token', result.token);
-      }
-      setUpgradeMsg('Conta criada com sucesso! Acesse "Minha Conta" para gerenciar sua senha.');
+      await apiPost('/auth/guest-upgrade', { token: getToken(), email, fullName });
+      setUpgradeMsg('Conta criada com sucesso. Você poderá usar login completo em breve.');
     } catch (err) {
       setUpgradeMsg(`Falha no upgrade: ${String(err)}`);
     } finally {
@@ -72,19 +59,12 @@ export function StatusView() {
       <Card style={{ marginTop: spacing.md }}>
         <CardHeader>
           <CardTitle>Opcional: Criar Conta</CardTitle>
-          <CardDescription>Faça upgrade de convidado para uma conta registrada com senha.</CardDescription>
+          <CardDescription>Faça upgrade de convidado para uma conta registrada.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={(e) => { void upgradeAccount(e); }} style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+          <form onSubmit={(e) => { void upgradeAccount(e); }}>
             <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <Input label="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            <Input
-              label="Senha (opcional)"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mín. 8 caracteres — deixe vazio para acesso por token"
-            />
             {upgradeMsg && (
               <InlineMessage variant={upgradeMsg.startsWith('Falha') ? 'error' : 'success'}>
                 {upgradeMsg}
@@ -97,10 +77,7 @@ export function StatusView() {
         </CardContent>
       </Card>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: spacing.md, marginTop: spacing.lg }}>
-        <Link to="/account" style={{ color: colors.accent, textDecoration: 'none', fontSize: fontSize.sm }}>
-          Minha Conta
-        </Link>
+      <div style={{ textAlign: 'center', marginTop: spacing.lg }}>
         <Button
           variant="ghost"
           onClick={() => { localStorage.clear(); navigate('/'); }}

@@ -19,18 +19,18 @@ export class AuthController {
   }
 
   @Post('guest-upgrade')
-  guestUpgrade(@Body() body: { token: string; email: string; fullName: string; password?: string }) {
-    return this.authService.guestUpgrade(body.token, body.email, body.fullName, body.password);
+  guestUpgrade(@Body() body: { token: string; email: string; fullName: string }) {
+    return this.authService.guestUpgrade(body.token, body.email, body.fullName);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('change-password')
-  changePassword(
-    @Body() body: { currentPassword?: string; newPassword: string },
-    @CurrentUser() user: AuthUser | undefined,
-  ) {
-    if (!user) throw new UnauthorizedException();
-    return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
+  /**
+   * Returns Cognito configuration for candidate social login.
+   * Candidates use a dedicated Cognito User Pool with Google/LinkedIn federation.
+   * No passwords are stored locally.
+   */
+  @Get('candidate-auth-config')
+  getCandidateAuthConfig() {
+    return this.authService.getCandidateAuthConfig();
   }
 
   @UseGuards(JwtAuthGuard)

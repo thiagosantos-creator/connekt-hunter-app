@@ -1,63 +1,42 @@
-import React, { useState } from 'react';
-import { apiPost, getToken } from '../services/api.js';
+import { useState, useEffect } from 'react';
+import { apiGet } from '../services/api.js';
 import {
   Button,
-  Input,
   Card,
   CardHeader,
   CardTitle,
   CardDescription,
   CardContent,
   InlineMessage,
+  Spinner,
   spacing,
   colors,
+  fontSize,
 } from '@connekt/ui';
+
+interface CandidateAuthConfig {
+  provider: string;
+  hostedUiUrl: string | null;
+  changePasswordUrl: string | null;
+  socialProviders: string[];
+}
 
 export function AccountView() {
   const raw = localStorage.getItem('candidate_info');
   const info = raw ? (JSON.parse(raw) as { email?: string; profile?: { fullName?: string } }) : {};
 
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [msg, setMsg] = useState('');
-  const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
-  const [loading, setLoading] = useState(false);
+  const [config, setConfig] = useState<CandidateAuthConfig | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const changePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMsg('');
+  useEffect(() => {
+    apiGet<CandidateAuthConfig>('/auth/candidate-auth-config')
+      .then((c) => setConfig(c))
+      .catch((err) => setError(String(err)))
+      .finally(() => setLoading(false));
+  }, []);
 
-    if (newPassword.length < 8) {
-      setMsg('A nova senha deve conter ao menos 8 caracteres.');
-      setMsgVariant('error');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setMsg('As senhas não coincidem.');
-      setMsgVariant('error');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await apiPost('/auth/change-password', {
-        currentPassword: currentPassword || undefined,
-        newPassword,
-      });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setMsg('Senha alterada com sucesso!');
-      setMsgVariant('success');
-    } catch (err) {
-      setMsg(`Erro: ${String(err)}`);
-      setMsgVariant('error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spinner /></div>;
 
   return (
     <div style={{ maxWidth: 520, margin: '40px auto', padding: `0 ${spacing.md}px` }}>
@@ -65,7 +44,7 @@ export function AccountView() {
         <CardHeader>
           <CardTitle>Minha Conta</CardTitle>
           <CardDescription>
-            {info.profile?.fullName ?? info.email ?? 'Candidato'} — gerencie sua senha e segurança.
+            {info.profile?.fullName ?? info.email ?? 'Candidato'} — gerencie seu acesso e segurança.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -78,38 +57,59 @@ export function AccountView() {
             </p>
           </div>
 
-          <h3 style={{ margin: `0 0 ${spacing.sm}px`, color: colors.text }}>Trocar Senha</h3>
-          <form onSubmit={(e) => { void changePassword(e); }} style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input
-              label="Senha atual"
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="Deixe em branco se nunca definiu uma senha"
-            />
-            <Input
-              label="Nova senha"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo de 8 caracteres"
-              required
-            />
-            <Input
-              label="Confirmar nova senha"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repita a nova senha"
-              required
-            />
+          {error && <InlineMessage variant="error">{error}</InlineMessage>}
 
-            {msg && <InlineMessage variant={msgVariant}>{msg}</InlineMessage>}
+          <h3 style={{ margin: `0 0 ${spacing.sm}px`, color: colors.text }}>Login Social</h3>
+          <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, marginBottom: spacing.md }}>
+            Autentique-se com sua conta Google ou LinkedIn. Sua senha e segurança são gerenciadas pelo provedor de identidade — nenhuma senha é armazenada localmente.
+          </p>
 
-            <Button type="submit" loading={loading}>
-              {loading ? 'Salvando…' : 'Alterar Senha'}
-            </Button>
-          </form>
+          {config?.hostedUiUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {config.socialProviders.map((provider) => (
+                <Button
+                  key={provider}
+                  variant="outline"
+                  onClick={() => {
+                    try {
+                      const url = new URL(config.hostedUiUrl!);
+                      if (!url.hostname.endsWith('.amazoncognito.com')) return;
+                      url.searchParams.set('identity_provider', provider);
+                      window.location.href = url.toString();
+                    } catch { /* invalid URL — ignore */ }
+                  }}
+                >
+                  Entrar com {provider}
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <InlineMessage variant="info">
+              Login social será habilitado quando o pool Cognito para candidatos for configurado.
+              No ambiente local, o acesso é realizado via token de convite.
+            </InlineMessage>
+          )}
+
+          {config?.changePasswordUrl && (
+            <div style={{ marginTop: spacing.lg }}>
+              <h3 style={{ margin: `0 0 ${spacing.sm}px`, color: colors.text }}>Trocar Senha</h3>
+              <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, marginBottom: spacing.sm }}>
+                A troca de senha é realizada diretamente pelo provedor de identidade (Cognito).
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  try {
+                    const url = new URL(config.changePasswordUrl!);
+                    if (!url.hostname.endsWith('.amazoncognito.com')) return;
+                    window.location.href = url.toString();
+                  } catch { /* invalid URL — ignore */ }
+                }}
+              >
+                Alterar senha no provedor
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

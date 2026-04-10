@@ -1,14 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class CandidatesService {
-  async invite(organizationId: string, email: string, vacancyId: string) {
+  async invite(organizationId: string, email: string, vacancyId: string, actorUserId: string) {
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actorUserId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+
     const candidate = await prisma.candidate.upsert({
       where: { email },
       update: {},
-      create: { email, organizationId, token: randomUUID() },
+      create: { email, organizationId, token: randomUUID(), invitedByUserId: actorUserId },
+    });
+
+    await prisma.guestSession.upsert({
+      where: { token: candidate.token },
+      update: { candidateId: candidate.id, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+      create: { candidateId: candidate.id, token: candidate.token, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
     });
 
     await prisma.candidateOnboardingSession.upsert({
@@ -28,7 +39,7 @@ export class CandidatesService {
     });
 
     await prisma.auditEvent.create({
-      data: { action: 'candidate.invited', entityType: 'candidate', entityId: candidate.id, metadata: { vacancyId } },
+      data: { action: 'candidate.invited', actorId: actorUserId, entityType: 'candidate', entityId: candidate.id, metadata: { vacancyId } },
     });
 
     return candidate;
@@ -37,7 +48,7 @@ export class CandidatesService {
   byToken(token: string) {
     return prisma.candidate.findUnique({
       where: { token },
-      include: { onboarding: true, profile: true },
+      include: { onboarding: true, profile: true, guestSession: true },
     });
   }
 }

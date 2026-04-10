@@ -17,6 +17,10 @@ model User {
   vacancies     Vacancy[]     @relation("VacancyCreator")
   evaluations   Evaluation[]
   clientReviews ClientDecision[] @relation("ClientReviewer")
+  identities    AuthIdentity[]
+  sessions      UserSession[]
+  candidates    Candidate[]
+  mfaPreference MfaPreference?
 }
 
 model Organization {
@@ -58,10 +62,16 @@ model Candidate {
   email          String                      @unique
   token          String                      @unique
   createdAt      DateTime                    @default(now())
+  invitedByUserId String?
+  userId         String?
+  guestUpgradeAt DateTime?
   organization   Organization                @relation(fields: [organizationId], references: [id])
   profile        CandidateProfile?
   applications   Application[]
   onboarding     CandidateOnboardingSession?
+  invitedBy      User?                       @relation(fields: [invitedByUserId], references: [id])
+  user           User?                       @relation(fields: [userId], references: [id])
+  guestSession   GuestSession?
 }
 
 model CandidateProfile {
@@ -192,4 +202,58 @@ model OutboxEvent {
   payload     Json
   processed   Boolean  @default(false)
   createdAt   DateTime @default(now())
+}
+
+model AuthIdentity {
+  id          String   @id @default(cuid())
+  provider    String
+  subject     String
+  email       String?
+  userId      String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([provider, subject])
+}
+
+model UserSession {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  provider   String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  metadata   Json
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model GuestSession {
+  id         String    @id @default(cuid())
+  candidateId String   @unique
+  token      String    @unique
+  expiresAt  DateTime
+  upgradedAt DateTime?
+  createdAt  DateTime  @default(now())
+  candidate  Candidate @relation(fields: [candidateId], references: [id])
+}
+
+model MfaPreference {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  enabled        Boolean  @default(false)
+  preferredMethod String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+}
+
+model FeatureFlag {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  enabled    Boolean  @default(false)
+  scope      String   @default("global")
+  metadata   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

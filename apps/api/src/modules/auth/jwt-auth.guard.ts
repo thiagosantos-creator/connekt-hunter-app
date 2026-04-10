@@ -1,17 +1,22 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { prisma } from '@connekt/db';
+import type { AuthUser } from './auth.types.js';
+import { AuthService } from './auth.service.js';
 
-/** Mock guard: accepts Bearer dev-{userId} tokens. */
+/** Accepts both legacy `Bearer dev-{userId}` and session `Bearer sess-{uuid}` tokens. */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  constructor(private readonly authService: AuthService) {}
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<{ headers: Record<string, string>; user?: unknown }>();
-    const auth = req.headers['authorization'] ?? '';
-    if (!auth.startsWith('Bearer dev-')) throw new UnauthorizedException();
-    const userId = auth.slice('Bearer dev-'.length);
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new UnauthorizedException();
-    req.user = user;
+    const req = context.switchToHttp().getRequest<{ headers: Record<string, string>; user?: AuthUser }>();
+    const authHeader = req.headers.authorization ?? req.headers.Authorization ?? '';
+    if (!authHeader.startsWith('Bearer ')) throw new UnauthorizedException();
+
+    const token = authHeader.slice('Bearer '.length);
+    const session = await this.authService.validateBearerToken(token);
+    if (!session) throw new UnauthorizedException();
+
+    req.user = session.user;
     return true;
   }
 }

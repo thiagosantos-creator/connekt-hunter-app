@@ -3,9 +3,13 @@
   "private": true,
   "packageManager": "pnpm@10.11.0",
   "scripts": {
+    "db:generate": "pnpm --filter @connekt/db prisma:generate",
     "lint": "turbo lint",
+    "pretypecheck": "pnpm db:generate",
     "typecheck": "turbo typecheck",
+    "pretest": "pnpm db:generate",
     "test": "turbo test",
+    "prebuild": "pnpm db:generate",
     "build": "turbo build"
   },
   "devDependencies": {

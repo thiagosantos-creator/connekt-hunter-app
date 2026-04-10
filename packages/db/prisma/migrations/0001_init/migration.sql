@@ -33,9 +33,10 @@ CREATE TABLE "Vacancy" (
 CREATE TABLE "Candidate" (
   "id" TEXT PRIMARY KEY,
   "organizationId" TEXT NOT NULL,
-  "email" TEXT UNIQUE NOT NULL,
+  "email" TEXT NOT NULL,
   "token" TEXT UNIQUE NOT NULL,
-  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE("organizationId","email")
 );
 
 CREATE TABLE "CandidateProfile" (
@@ -144,3 +145,10 @@ CREATE TABLE "OutboxEvent" (
   "processed" BOOLEAN NOT NULL DEFAULT false,
   "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+
+ALTER TABLE "Application"
+  ADD CONSTRAINT "Application_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+ALTER TABLE "Application"
+  ADD CONSTRAINT "Application_vacancyId_fkey" FOREIGN KEY ("vacancyId") REFERENCES "Vacancy"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

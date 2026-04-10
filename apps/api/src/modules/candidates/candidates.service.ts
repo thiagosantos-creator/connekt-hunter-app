@@ -5,11 +5,14 @@ import { randomUUID } from 'node:crypto';
 @Injectable()
 export class CandidatesService {
   async invite(organizationId: string, email: string, vacancyId: string) {
-    const candidate = await prisma.candidate.upsert({
-      where: { email },
-      update: {},
-      create: { email, organizationId, token: randomUUID() },
+    const existingCandidate = await prisma.candidate.findFirst({
+      where: { organizationId, email },
     });
+
+    const candidate = existingCandidate
+      ?? await prisma.candidate.create({
+        data: { email, organizationId, token: randomUUID() },
+      });
 
     await prisma.candidateOnboardingSession.upsert({
       where: { candidateId: candidate.id },

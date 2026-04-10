@@ -55,13 +55,15 @@ model Vacancy {
 model Candidate {
   id             String                      @id @default(cuid())
   organizationId String
-  email          String                      @unique
+  email          String
   token          String                      @unique
   createdAt      DateTime                    @default(now())
   organization   Organization                @relation(fields: [organizationId], references: [id])
   profile        CandidateProfile?
   applications   Application[]
   onboarding     CandidateOnboardingSession?
+
+  @@unique([organizationId, email])
 }
 
 model CandidateProfile {

@@ -4,6 +4,11 @@ import type { AuditEvent, AuthUser, ManagedUser } from './types.js';
 const PROFILE_KEY = 'bo_user';
 const AUDIT_KEY = 'bo_audit';
 const USERS_KEY = 'bo_managed_users';
+const DEFAULT_ORGANIZATION_ID = 'org_demo';
+
+export function resolveOrganizationId(user: AuthUser | null): string {
+  return user?.organizationIds?.[0] ?? user?.tenantId ?? DEFAULT_ORGANIZATION_ID;
+}
 
 export function saveProfile(user: AuthUser): AuthUser {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
@@ -20,7 +25,7 @@ export function listManagedUsers(currentUser: AuthUser | null): ManagedUser[] {
       email: 'admin@demo.local',
       name: 'Admin Demo',
       role: 'admin',
-      tenantId: currentUser?.tenantId ?? 'org-demo',
+      tenantId: resolveOrganizationId(currentUser),
       isActive: true,
       title: 'Administrador',
       company: 'Connekt',
@@ -30,7 +35,7 @@ export function listManagedUsers(currentUser: AuthUser | null): ManagedUser[] {
       email: 'headhunter@demo.local',
       name: 'Headhunter Demo',
       role: 'headhunter',
-      tenantId: currentUser?.tenantId ?? 'org-demo',
+      tenantId: resolveOrganizationId(currentUser),
       isActive: true,
       title: 'Talent Partner',
       company: 'Connekt',
@@ -40,7 +45,7 @@ export function listManagedUsers(currentUser: AuthUser | null): ManagedUser[] {
       email: 'client@demo.local',
       name: 'Cliente Demo',
       role: 'client',
-      tenantId: currentUser?.tenantId ?? 'org-demo',
+      tenantId: resolveOrganizationId(currentUser),
       isActive: true,
       title: 'Hiring Manager',
       company: 'Cliente XPTO',

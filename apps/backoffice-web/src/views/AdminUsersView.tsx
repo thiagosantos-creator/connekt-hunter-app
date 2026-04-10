@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { addAuditEvent, listManagedUsers, saveManagedUsers, sendCandidateInvite } from '../services/account.js';
+import {
+  addAuditEvent,
+  listManagedUsers,
+  resolveOrganizationId,
+  saveManagedUsers,
+  sendCandidateInvite,
+} from '../services/account.js';
 import type { ManagedUser } from '../services/types.js';
 import { hasPermission } from '../services/rbac.js';
 import {
@@ -89,7 +95,7 @@ export function AdminUsersView() {
       await sendCandidateInvite({
         email: inviteEmail,
         vacancyId: inviteVacancyId,
-        organizationId: user.tenantId ?? 'org-demo',
+        organizationId: resolveOrganizationId(user),
       });
       addAuditEvent('candidate.invited', user.email, inviteEmail, { vacancyId: inviteVacancyId });
       setFeedback('Convite enviado com sucesso.');

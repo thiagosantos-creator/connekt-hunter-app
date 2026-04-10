@@ -2,11 +2,13 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('@connekt/db', () => ({
   prisma: {
+    membership: { findUnique: vi.fn() },
     candidate: {
       upsert: vi.fn(),
       findUnique: vi.fn(),
     },
     candidateOnboardingSession: { upsert: vi.fn() },
+    guestSession: { upsert: vi.fn() },
     application: { upsert: vi.fn() },
     messageDispatch: { create: vi.fn() },
     auditEvent: { create: vi.fn() },
@@ -26,13 +28,15 @@ describe('CandidatesService', () => {
 
   it('invites a candidate', async () => {
     const candidate = { id: 'c1', email: 'a@b.com', token: 'tok', organizationId: 'org1' };
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
     vi.mocked(prisma.candidate.upsert).mockResolvedValue(candidate as never);
+    vi.mocked(prisma.guestSession.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.application.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.messageDispatch.create).mockResolvedValue({} as never);
     vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
 
-    const result = await service.invite('org1', 'a@b.com', 'v1');
+    const result = await service.invite('org1', 'a@b.com', 'v1', 'u1');
     expect(result).toEqual(candidate);
     expect(prisma.candidate.upsert).toHaveBeenCalledOnce();
     expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();

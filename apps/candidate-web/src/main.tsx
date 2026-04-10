@@ -242,6 +242,24 @@ function Step3ResumeView() {
 function StatusView() {
   const raw = localStorage.getItem('candidate_info');
   const info: Partial<CandidateInfo> = raw ? (JSON.parse(raw) as Partial<CandidateInfo>) : {};
+  const [email, setEmail] = useState(info.email ?? '');
+  const [fullName, setFullName] = useState(info.profile?.fullName ?? '');
+  const [upgradeMsg, setUpgradeMsg] = useState('');
+  const [upgrading, setUpgrading] = useState(false);
+
+  const upgradeAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpgrading(true);
+    setUpgradeMsg('');
+    try {
+      await apiPost('/auth/guest-upgrade', { token: getToken(), email, fullName });
+      setUpgradeMsg('Conta criada com sucesso. Você poderá usar login completo em breve.');
+    } catch (err) {
+      setUpgradeMsg(`Falha no upgrade: ${String(err)}`);
+    } finally {
+      setUpgrading(false);
+    }
+  };
 
   return (
     <div style={{ maxWidth: 480, margin: '80px auto', padding: 24, textAlign: 'center' }}>
@@ -258,6 +276,14 @@ function StatusView() {
           <li>You will be notified about the outcome.</li>
         </ol>
       </div>
+      <form onSubmit={(e) => { void upgradeAccount(e); }} style={{ marginTop: 20, textAlign: 'left', border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
+        <h3 style={{ marginTop: 0 }}>Opcional: criar conta</h3>
+        <p style={{ color: '#666', fontSize: 13 }}>Upgrade de convidado para conta registrada (Slice 02).</p>
+        <label>Email<br /><input style={{ width: '100%', padding: 6 }} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label><br /><br />
+        <label>Nome completo<br /><input style={{ width: '100%', padding: 6 }} value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label><br />
+        {upgradeMsg && <p style={{ color: upgradeMsg.startsWith('Falha') ? 'red' : 'green' }}>{upgradeMsg}</p>}
+        <button type="submit" disabled={upgrading} style={{ padding: '8px 20px' }}>{upgrading ? 'Criando…' : 'Criar conta'}</button>
+      </form>
       <button onClick={() => { localStorage.clear(); window.location.href = '/'; }}
         style={{ marginTop: 24, padding: '10px 24px' }}>Start New Application</button>
     </div>
@@ -296,4 +322,3 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
-

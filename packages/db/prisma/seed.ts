@@ -35,6 +35,18 @@ async function main() {
     });
   }
 
+  await prisma.featureFlag.upsert({
+    where: { key: 'auth.realProvider' },
+    update: {},
+    create: { key: 'auth.realProvider', enabled: false, scope: 'staging', metadata: { description: 'Enable real IAM adapter in staging' } },
+  });
+
+  await prisma.featureFlag.upsert({
+    where: { key: 'auth.socialLogin' },
+    update: {},
+    create: { key: 'auth.socialLogin', enabled: false, scope: 'staging', metadata: { description: 'Enable social login adapter' } },
+  });
+
   console.log('Seed completed', { org: org.id, admin: admin.email, headhunter: headhunter.email, client: client.email });
 }
 

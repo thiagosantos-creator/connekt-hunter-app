@@ -57,7 +57,7 @@ describe('Vertical Slice 01 e2e (contract)', () => {
       },
       clientDecision: {
         method: 'POST', path: '/client-decisions',
-        body: { shortlistItemId: 'string', reviewerId: 'string', decision: 'approved|rejected' },
+        body: { shortlistItemId: 'string', reviewerId: 'string', decision: 'approve|reject|interview|hold' },
         sideEffects: ['auditEvent(client.decision)'],
       },
     };
@@ -121,4 +121,3 @@ describe('Vertical Slice 01 e2e (contract)', () => {
     expect(emailStrategy.channel).toBe('email-mock');
   });
 });
-

@@ -106,12 +106,25 @@ function LoginView() {
 function NavBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const navByRole: Record<string, Array<{ label: string; to: string }>> = {
+    admin: [
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' }, { label: 'Client Review', to: '/client-review' },
+    ],
+    headhunter: [
+      { label: 'Vacancies', to: '/vacancies' }, { label: 'Candidates', to: '/candidates' }, { label: 'Applications', to: '/applications' }, { label: 'Shortlist', to: '/shortlist' },
+    ],
+    client: [
+      { label: 'Applications', to: '/applications' }, { label: 'Client Review', to: '/client-review' },
+    ],
+  };
+
+  const navItems = user ? navByRole[user.role] ?? [] : [];
   return (
     <nav style={{ background: '#1a1a2e', color: '#fff', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
       <strong>Connekt Hunter</strong>
-      {['Vacancies', 'Candidates', 'Applications', 'Shortlist', 'Client Review'].map(label => (
-        <Link key={label} to={`/${label.toLowerCase().replace(' ', '-')}`}
-          style={{ color: '#adf', textDecoration: 'none', fontSize: 14 }}>{label}</Link>
+      {navItems.map((item) => (
+        <Link key={item.to} to={item.to}
+          style={{ color: '#adf', textDecoration: 'none', fontSize: 14 }}>{item.label}</Link>
       ))}
       <span style={{ marginLeft: 'auto', fontSize: 13 }}>{user?.name} ({user?.role})</span>
       <button style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => { logout(); navigate('/login'); }}>Logout</button>
@@ -144,7 +157,7 @@ function VacanciesView() {
     if (!user) return;
     setLoading(true);
     try {
-      await apiPost('/vacancies', { organizationId: orgId, title, description, createdBy: user.id });
+      await apiPost('/vacancies', { organizationId: orgId, title, description });
       setTitle(''); setDescription('');
       setMsg('Vacancy created!');
       await load();
@@ -427,4 +440,3 @@ function App() {
 createRoot(document.getElementById('root')!).render(
   <AuthProvider><App /></AuthProvider>
 );
-

@@ -36,4 +36,11 @@ describe('VacanciesService', () => {
     const result = await service.findAll(['org1'], 'headhunter');
     expect(result).toEqual([]);
   });
+
+  it('generates assistive content with human review flag', () => {
+    const result = service.generateAssistiveContent({ title: 'Backend Engineer', seniority: 'senior', sector: 'tecnologia', workModel: 'remote', location: 'São Paulo' });
+    expect(result.generatedByAI).toBe(true);
+    expect(result.requiresHumanReview).toBe(true);
+    expect(result.keywords).toContain('Backend Engineer');
+  });
 });

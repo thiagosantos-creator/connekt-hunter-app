@@ -21,6 +21,9 @@ import { WorkflowAutomationModule } from './modules/workflow-automation/workflow
 import { RiskAnalysisModule } from './modules/risk-analysis/risk-analysis.module.js';
 import { TenantPoliciesModule } from './modules/tenant-policies/tenant-policies.module.js';
 import { NotificationPreferencesModule } from './modules/notification-preferences/notification-preferences.module.js';
+import { VacancyTemplatesModule } from './modules/vacancy-templates/vacancy-templates.module.js';
+import { InviteFollowUpModule } from './modules/invite-follow-up/invite-follow-up.module.js';
+import { HeadhunterInboxModule } from './modules/headhunter-inbox/headhunter-inbox.module.js';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { NotificationPreferencesModule } from './modules/notification-preference
     RiskAnalysisModule,
     TenantPoliciesModule,
     NotificationPreferencesModule,
+    VacancyTemplatesModule,
+    InviteFollowUpModule,
+    HeadhunterInboxModule,
   ],
   controllers: [HealthController],
 })

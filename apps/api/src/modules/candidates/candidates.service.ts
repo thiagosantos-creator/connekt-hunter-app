@@ -2,10 +2,14 @@ import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/com
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { EmailGateway } from '../integrations/email.gateway.js';
+import { InviteFollowUpService } from '../invite-follow-up/invite-follow-up.service.js';
 
 @Injectable()
 export class CandidatesService {
-  constructor(private readonly emailGateway: EmailGateway) {}
+  constructor(
+    private readonly emailGateway: EmailGateway,
+    private readonly inviteFollowUpService: InviteFollowUpService,
+  ) {}
 
   async invite(input: {
     organizationId: string;
@@ -81,6 +85,12 @@ export class CandidatesService {
         entityId: candidate.id,
         metadata: { vacancyId: input.vacancyId, channel: input.channel, destination: input.destination, consent: input.consent },
       },
+    });
+
+    await this.inviteFollowUpService.configure(input.actorUserId, {
+      organizationId: input.organizationId,
+      vacancyId: input.vacancyId,
+      candidateId: candidate.id,
     });
 
     return candidate;

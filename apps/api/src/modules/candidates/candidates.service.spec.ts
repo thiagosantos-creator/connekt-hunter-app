@@ -21,9 +21,10 @@ import { prisma } from '@connekt/db';
 describe('CandidatesService', () => {
   let service: CandidatesService;
   const emailGateway = { sendTemplated: vi.fn() };
+  const inviteFollowUpService = { configure: vi.fn() };
 
   beforeEach(() => {
-    service = new CandidatesService(emailGateway as never);
+    service = new CandidatesService(emailGateway as never, inviteFollowUpService as never);
     vi.clearAllMocks();
   });
 
@@ -48,6 +49,7 @@ describe('CandidatesService', () => {
     expect(prisma.candidate.upsert).toHaveBeenCalledOnce();
     expect(emailGateway.sendTemplated).toHaveBeenCalledOnce();
     expect(prisma.auditEvent.create).toHaveBeenCalledOnce();
+    expect(inviteFollowUpService.configure).toHaveBeenCalledOnce();
   });
 
   it('looks up candidate by token', async () => {

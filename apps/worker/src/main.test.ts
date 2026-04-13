@@ -13,12 +13,13 @@ describe('worker queues', () => {
   });
 
   it('supports product intelligence reprocessing topics', () => {
-    const topics = ['matching:compute', 'insights:generate', 'comparison:generate', 'recommendation:generate', 'risk:analyze', 'automation:trigger'];
+    const topics = ['matching:compute', 'insights:generate', 'comparison:generate', 'recommendation:generate', 'risk:analyze', 'automation:trigger', 'invite-followup:send'];
     expect(topics).toContain('matching:compute');
     expect(topics).toContain('insights:generate');
     expect(topics).toContain('comparison:generate');
     expect(topics).toContain('recommendation:generate');
     expect(topics).toContain('risk:analyze');
     expect(topics).toContain('automation:trigger');
+    expect(topics).toContain('invite-followup:send');
   });
 });

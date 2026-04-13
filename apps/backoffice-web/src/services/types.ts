@@ -38,6 +38,46 @@ export interface Vacancy {
   organization?: { id: string; name?: string };
 }
 
+export interface VacancyTemplate {
+  id: string;
+  organizationId: string;
+  name: string;
+  sector: string;
+  role: string;
+  version: number;
+  status: 'draft' | 'active' | 'archived';
+  isFavorite: boolean;
+  usageCount: number;
+  defaultFields: Partial<Vacancy>;
+}
+
+export interface VacancyAssistSuggestion {
+  summary: string;
+  responsibilities: string[];
+  requiredSkills: string[];
+  desiredSkills: string[];
+  keywords: string[];
+  generatedByAI: boolean;
+  requiresHumanReview: boolean;
+  provider: string;
+  generatedAt: string;
+}
+
+export interface HeadhunterInboxItem {
+  id: string;
+  type: string;
+  applicationId: string;
+  candidateId: string;
+  candidateEmail: string;
+  vacancyId: string;
+  vacancyTitle: string;
+  status: string;
+  score: number;
+  priority: 'high' | 'medium' | 'low';
+  ageHours: number;
+  quickActions: string[];
+}
+
 export interface Organization {
   id: string;
   name: string;

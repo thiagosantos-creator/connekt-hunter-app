@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { EmailGateway } from '../integrations/email.gateway.js';
@@ -7,6 +7,8 @@ import { NotificationDispatchService } from '../notification-preferences/notific
 
 @Injectable()
 export class CandidatesService {
+  private readonly logger = new Logger(CandidatesService.name);
+
   constructor(
     @Inject(EmailGateway) private readonly emailGateway: EmailGateway,
     @Inject(InviteFollowUpService) private readonly inviteFollowUpService: InviteFollowUpService,
@@ -16,7 +18,7 @@ export class CandidatesService {
   async invite(input: {
     organizationId: string;
     vacancyId: string;
-    channel: 'email' | 'phone';
+    channel: 'email' | 'phone' | 'link';
     destination: string;
     consent: boolean;
     actorUserId: string;
@@ -41,7 +43,11 @@ export class CandidatesService {
     });
     if (!membership) throw new ForbiddenException('user_not_member_of_org');
 
-    const email = input.channel === 'email' ? input.destination : `phone-${input.destination.replace(/[^\d+]/g, '')}@placeholder.local`;
+    const email = input.channel === 'email'
+      ? input.destination
+      : input.channel === 'phone'
+        ? `phone-${input.destination.replace(/[^\d+]/g, '')}@placeholder.local`
+        : `link-${randomUUID()}@placeholder.local`;
     const phone = input.channel === 'phone' ? input.destination : undefined;
     const candidate = await prisma.candidate.upsert({
       where: { email },
@@ -68,30 +74,40 @@ export class CandidatesService {
     });
 
     let dispatchId: string | undefined;
-    let inviteStatus = 'queued';
+    let inviteStatus = 'link_generated';
 
     if (input.channel === 'email') {
-      const dispatch = await this.emailGateway.sendTemplated({
-        tenantId: input.organizationId,
-        to: email,
-        templateKey: 'candidate-invite',
-        templateVersion: 'v1',
-        payload: { token: candidate.token, vacancyId: input.vacancyId },
-        correlationId: candidate.id,
-      });
-      dispatchId = dispatch.dispatchId;
-      inviteStatus = 'sent';
-    } else {
-      const phoneDispatch = await prisma.messageDispatch.create({
-        data: {
-          channel: 'phone-gateway',
-          destination: input.destination,
-          content: JSON.stringify({ type: 'candidate-invite', token: candidate.token, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
-          status: 'sent',
-        },
-      });
-      dispatchId = phoneDispatch.id;
-      inviteStatus = 'sent';
+      try {
+        const dispatch = await this.emailGateway.sendTemplated({
+          tenantId: input.organizationId,
+          to: email,
+          templateKey: 'candidate-invite',
+          templateVersion: 'v1',
+          payload: { token: candidate.token, vacancyId: input.vacancyId },
+          correlationId: candidate.id,
+        });
+        dispatchId = dispatch.dispatchId;
+        inviteStatus = 'sent';
+      } catch (err) {
+        this.logger.warn(`Email dispatch failed for invite, link still generated: ${String(err)}`);
+        inviteStatus = 'link_generated';
+      }
+    } else if (input.channel === 'phone') {
+      try {
+        const phoneDispatch = await prisma.messageDispatch.create({
+          data: {
+            channel: 'phone-gateway',
+            destination: input.destination,
+            content: JSON.stringify({ type: 'candidate-invite', token: candidate.token, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
+            status: 'sent',
+          },
+        });
+        dispatchId = phoneDispatch.id;
+        inviteStatus = 'sent';
+      } catch (err) {
+        this.logger.warn(`Phone dispatch failed for invite, link still generated: ${String(err)}`);
+        inviteStatus = 'link_generated';
+      }
     }
 
     const invite = await prisma.candidateInvite.create({
@@ -100,7 +116,7 @@ export class CandidatesService {
         vacancyId: input.vacancyId,
         candidateId: candidate.id,
         channel: input.channel,
-        destination: input.destination,
+        destination: input.channel === 'link' ? 'manual' : input.destination,
         status: inviteStatus,
         dispatchId,
         invitedByUserId: input.actorUserId,

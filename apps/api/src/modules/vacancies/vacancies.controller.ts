@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { VacanciesService } from './vacancies.service.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -39,6 +39,39 @@ export class VacanciesController {
   @RequirePermissions('vacancies:read')
   findAll(@CurrentUser() user: AuthUser) {
     return this.vacanciesService.findAll(user.organizationIds, user.role);
+  }
+
+  @Get(':vacancyId')
+  @RequirePermissions('vacancies:read')
+  findOne(@Param('vacancyId') vacancyId: string, @CurrentUser() user: AuthUser) {
+    return this.vacanciesService.findById(vacancyId, user.organizationIds, user.role);
+  }
+
+  @Patch(':vacancyId')
+  @RequirePermissions('vacancies:write')
+  update(
+    @Param('vacancyId') vacancyId: string,
+    @Body() body: {
+      title?: string;
+      description?: string;
+      location?: string;
+      workModel?: string;
+      seniority?: string;
+      sector?: string;
+      experienceYearsMin?: number;
+      experienceYearsMax?: number;
+      employmentType?: string;
+      publicationType?: string;
+      status?: string;
+      department?: string;
+      requiredSkills?: string[];
+      desiredSkills?: string[];
+      salaryMin?: number;
+      salaryMax?: number;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.vacanciesService.update(vacancyId, body, user.organizationIds, user.role, user.id);
   }
 
   @Post('assist-content')

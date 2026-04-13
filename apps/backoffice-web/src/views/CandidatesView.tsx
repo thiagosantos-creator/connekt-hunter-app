@@ -29,7 +29,7 @@ const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://local
 
 export function CandidatesView() {
   const { user } = useAuth();
-  const [channel, setChannel] = useState<'email' | 'phone'>('email');
+  const [channel, setChannel] = useState<'email' | 'phone' | 'link'>('link');
   const [destination, setDestination] = useState('');
   const [consent, setConsent] = useState(false);
   const [vacancyId, setVacancyId] = useState('');
@@ -112,7 +112,7 @@ export function CandidatesView() {
       const invited = await apiPost<Candidate>('/candidates/invite', {
         organizationId: orgId,
         channel,
-        destination,
+        destination: channel === 'link' ? undefined : destination,
         consent,
         vacancyId,
       });
@@ -188,16 +188,18 @@ export function CandidatesView() {
             <Select
               label="Canal"
               value={channel}
-              onChange={(e) => setChannel(e.target.value as 'email' | 'phone')}
-              options={[{ value: 'email', label: 'E-mail' }, { value: 'phone', label: 'Telefone (SMS/WhatsApp)' }]}
+              onChange={(e) => setChannel(e.target.value as 'email' | 'phone' | 'link')}
+              options={[{ value: 'link', label: 'Apenas link (entrega manual)' }, { value: 'email', label: 'E-mail' }, { value: 'phone', label: 'Telefone (SMS/WhatsApp)' }]}
             />
-            <Input
-              label={channel === 'email' ? 'E-mail do candidato' : 'Telefone do candidato'}
-              type={channel === 'email' ? 'email' : 'tel'}
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              required
-            />
+            {channel !== 'link' && (
+              <Input
+                label={channel === 'email' ? 'E-mail do candidato' : 'Telefone do candidato'}
+                type={channel === 'email' ? 'email' : 'tel'}
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                required
+              />
+            )}
             <Select
               label="Vaga"
               value={vacancyId}

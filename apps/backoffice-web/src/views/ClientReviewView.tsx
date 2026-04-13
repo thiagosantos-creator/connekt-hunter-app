@@ -65,9 +65,18 @@ export function ClientReviewView() {
   const [contextLoading, setContextLoading] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    void apiGet<ShortlistItemWithApplication[]>('/shortlist/items')
-      .then(setItems)
-      .finally(() => setLoading(false));
+    void Promise.all([
+      apiGet<ShortlistItemWithApplication[]>('/shortlist/items').then(setItems),
+      apiGet<Array<{ id: string; shortlistItemId: string; decision: string }>>('/client-decisions')
+        .then((decisionList) => {
+          const map: Record<string, string> = {};
+          for (const d of decisionList) {
+            map[d.shortlistItemId] = d.decision;
+          }
+          setDecisions(map);
+        })
+        .catch(() => undefined),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const loadContext = async (item: ShortlistItemWithApplication) => {

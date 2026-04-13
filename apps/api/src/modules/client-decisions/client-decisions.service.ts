@@ -3,6 +3,25 @@ import { prisma } from '@connekt/db';
 
 @Injectable()
 export class ClientDecisionsService {
+  async findAll(organizationIds: string[], role: string) {
+    const where = role === 'admin'
+      ? {}
+      : { shortlistItem: { shortlist: { vacancy: { organizationId: { in: organizationIds } } } } };
+    return prisma.clientDecision.findMany({
+      where,
+      include: {
+        shortlistItem: {
+          include: {
+            application: {
+              include: { candidate: true, vacancy: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async create(shortlistItemId: string, reviewerId: string, decision: string) {
     const shortlistItem = await prisma.shortlistItem.findUnique({
       where: { id: shortlistItemId },

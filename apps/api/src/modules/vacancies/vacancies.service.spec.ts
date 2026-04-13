@@ -8,7 +8,9 @@ vi.mock('@connekt/db', () => ({
       create: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
+    auditEvent: { create: vi.fn() },
   },
 }));
 
@@ -104,5 +106,105 @@ describe('VacanciesService', () => {
         contactEmail: 'talentos@acme.com',
       }),
     }));
+  });
+
+  it('finds a vacancy by id for authorized users', async () => {
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({
+      id: 'v1',
+      organizationId: 'org1',
+      title: 'Engineer',
+      description: 'Test',
+      location: null,
+      workModel: null,
+      seniority: null,
+      sector: null,
+      experienceYearsMin: null,
+      experienceYearsMax: null,
+      employmentType: null,
+      publicationType: 'draft',
+      status: 'active',
+      department: null,
+      requiredSkills: [],
+      desiredSkills: [],
+      salaryMin: null,
+      salaryMax: null,
+      publishedAt: null,
+      createdBy: 'u1',
+      organization: { id: 'org1', name: 'Acme' },
+    } as never);
+
+    const result = await service.findById('v1', ['org1'], 'headhunter');
+    expect(result).toEqual(expect.objectContaining({ id: 'v1', title: 'Engineer' }));
+  });
+
+  it('throws ForbiddenException when user is not member of vacancy org', async () => {
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({
+      id: 'v1',
+      organizationId: 'org2',
+      title: 'Engineer',
+      description: 'Test',
+      location: null,
+      workModel: null,
+      seniority: null,
+      sector: null,
+      experienceYearsMin: null,
+      experienceYearsMax: null,
+      employmentType: null,
+      publicationType: 'draft',
+      status: 'active',
+      department: null,
+      requiredSkills: [],
+      desiredSkills: [],
+      salaryMin: null,
+      salaryMax: null,
+      publishedAt: null,
+      createdBy: 'u1',
+      organization: { id: 'org2', name: 'Other' },
+    } as never);
+
+    await expect(service.findById('v1', ['org1'], 'headhunter')).rejects.toThrow('user_not_member_of_org');
+  });
+
+  it('updates a vacancy and publishes it', async () => {
+    const existing = {
+      id: 'v1',
+      organizationId: 'org1',
+      title: 'Engineer',
+      description: 'Test',
+      location: 'SP',
+      workModel: 'remote',
+      seniority: 'senior',
+      sector: 'Tech',
+      experienceYearsMin: 2,
+      experienceYearsMax: 5,
+      employmentType: 'clt',
+      publicationType: 'draft',
+      status: 'active',
+      department: 'Eng',
+      requiredSkills: ['Node'],
+      desiredSkills: [],
+      salaryMin: 10000,
+      salaryMax: 20000,
+      publishedAt: null,
+      createdBy: 'u1',
+    };
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue(existing as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
+    vi.mocked(prisma.vacancy.update).mockResolvedValue({
+      ...existing,
+      publicationType: 'public',
+      publishedAt: new Date(),
+      organization: { id: 'org1', name: 'Acme' },
+    } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+
+    const result = await service.update('v1', { publicationType: 'public' }, ['org1'], 'headhunter', 'u1');
+    expect(result).toEqual(expect.objectContaining({ publicationType: 'public' }));
+    expect(prisma.vacancy.update).toHaveBeenCalledOnce();
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'vacancy.published' }),
+      }),
+    );
   });
 });

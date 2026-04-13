@@ -31,7 +31,7 @@ export function AccessPoliciesView() {
       <PageHeader title="Políticas por Tenant" />
       {msg && <InlineMessage variant="success" onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
       <Card>
-        <CardHeader><CardTitle>Controle de acesso (MVP)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Controle de acesso</CardTitle></CardHeader>
         <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
           <Select label="Tenant" value={orgId} onChange={(e) => setOrgId(e.target.value)} options={(user?.organizationIds ?? []).map((id) => ({ value: id, label: id }))} />
           {([
@@ -39,8 +39,8 @@ export function AccessPoliciesView() {
             ['canApproveDecisions', 'Pode aprovar'],
             ['canAuditEvents', 'Pode auditar'],
             ['canAdministrateTenant', 'Pode administrar'],
-          ] as const).map(([k, label]) => (
-            <label key={k}><input type="checkbox" checked={policy[k]} onChange={(e) => setPolicy({ ...policy, [k]: e.target.checked })} /> {label}</label>
+          ] as const).map(([key, label]) => (
+            <label key={key}><input type="checkbox" checked={policy[key]} onChange={(e) => setPolicy({ ...policy, [key]: e.target.checked })} /> {label}</label>
           ))}
           <Button onClick={() => { void save(); }}>Salvar políticas</Button>
         </CardContent>

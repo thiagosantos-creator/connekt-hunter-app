@@ -71,6 +71,7 @@ pnpm --filter candidate-web dev
 - `POST /vacancy-templates/:id/apply`
 - `GET /organizations`
 - `POST /organizations`
+- `PUT /organizations/:organizationId`
 - `POST /candidates/invite`
 - `GET /candidates/invites?organizationId=`
 - `GET /candidate/token/:token`
@@ -107,6 +108,7 @@ pnpm --filter candidate-web dev
 - `POST /decision-engine/priority/calculate`
 - `POST /workflow-automation/suggest`
 - `POST /workflow-automation/execute`
+- `GET /public/vacancies/:vacancyId`
 - `GET /tenant-policies/:organizationId`
 - `PUT /tenant-policies/:organizationId`
 - `GET /notification-preferences/me`
@@ -133,6 +135,12 @@ pnpm --filter candidate-web dev
 - `GET /enterprise/executive-dashboard/:organizationId`
 - `GET /enterprise/executive-dashboard/:organizationId/export.csv`
 - `GET /audit`
+
+### Operational UX Review (2026-04-13)
+- `Organizations` agora permite edicao apos criacao com branding operacional: `publicName`, `contactEmail`, `logoUrl`, `bannerUrl`, `primaryColor`, `secondaryColor`, `communicationDomain`
+- `Vacancies` no backoffice agora usam selecao de empresa, skills em tags e listagem/edicao/aplicacao de templates sem exigir CSV ou `organizationId` manual
+- `Candidates` agora exibem link direto de entrada no portal (`candidate-web /?token=`) apos o convite
+- `candidate-web` agora aceita token via query string e expõe pagina publica para vagas publicas em `/vacancies/:vacancyId`
 
 ### Vacancy publicÃ¡vel completa
 `Vacancy` agora suporta publicaÃ§Ã£o com validaÃ§Ã£o de completude para:

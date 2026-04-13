@@ -155,7 +155,23 @@ export class CandidatesService {
   byToken(token: string) {
     return prisma.candidate.findUnique({
       where: { token },
-      include: { onboarding: true, profile: true, guestSession: true },
+      include: {
+        onboarding: true,
+        profile: true,
+        guestSession: true,
+        applications: {
+          include: {
+            vacancy: {
+              select: {
+                id: true,
+                title: true,
+                publicationType: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
   }
 

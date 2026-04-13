@@ -163,6 +163,7 @@ model TenantSettings {
   secondaryColor          String?
   publicName              String?
   communicationDomain     String?
+  contactEmail            String?
   dataRetentionDays       Int      @default(365)
   auditRetentionDays      Int      @default(365)
   mfaRequiredRoles        String[]

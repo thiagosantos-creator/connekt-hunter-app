@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
 import { listCandidateInvites, listManagedUsers, sendCandidateInvite, updateManagedUser } from '../services/account.js';
-import type { CandidateInvite, ManagedUser } from '../services/types.js';
+import { apiGet } from '../services/api.js';
+import type { CandidateInvite, ManagedUser, Organization, Vacancy } from '../services/types.js';
 import { hasPermission } from '../services/rbac.js';
 import {
-  PageContent,
-  PageHeader,
-  DataTable,
   Button,
-  Input,
-  InlineMessage,
   Card,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
+  DataTable,
+  InlineMessage,
+  Input,
+  PageContent,
+  PageHeader,
+  Select,
   spacing,
 } from '@connekt/ui';
 
@@ -24,10 +26,42 @@ export function AdminUsersView() {
   const [feedback, setFeedback] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteVacancyId, setInviteVacancyId] = useState('');
+  const [organizationId, setOrganizationId] = useState('');
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
 
   const canManage = hasPermission(user, 'users:manage');
   const canInvite = hasPermission(user, 'candidates:invite');
-  const organizationId = user?.organizationIds?.[0] ?? user?.tenantId ?? '';
+
+  const orgOptions = useMemo(() => {
+    if (organizations.length > 0) {
+      return organizations.map((item) => ({
+        value: item.id,
+        label: item.tenantSettings?.publicName || item.name,
+      }));
+    }
+    return (user?.organizationIds ?? []).map((id) => ({ value: id, label: id }));
+  }, [organizations, user?.organizationIds]);
+
+  const vacancyOptions = useMemo(
+    () => vacancies
+      .filter((item) => item.organizationId === organizationId)
+      .map((item) => ({ value: item.id, label: item.title })),
+    [organizationId, vacancies],
+  );
+
+  useEffect(() => {
+    void Promise.all([
+      apiGet<Organization[]>('/organizations').then(setOrganizations).catch(() => setOrganizations([])),
+      apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
+    ]);
+  }, []);
+
+  useEffect(() => {
+    if (!organizationId && orgOptions.length > 0) {
+      setOrganizationId(orgOptions[0].value);
+    }
+  }, [organizationId, orgOptions]);
 
   useEffect(() => {
     if (!organizationId) return;
@@ -41,17 +75,19 @@ export function AdminUsersView() {
       { key: 'email', header: 'E-mail', render: (row: ManagedUser) => row.email, sortValue: (row: ManagedUser) => row.email },
       {
         key: 'role',
-        header: 'Role',
+        header: 'Perfil',
         render: (row: ManagedUser) =>
           canManage ? (
             <select
               value={row.role}
               onChange={(e) => {
                 const role = e.target.value as ManagedUser['role'];
-                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, role }).then((updated) => {
-                  setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-                  setFeedback('Role atualizada.');
-                }).catch((error) => setFeedback(String(error)));
+                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, role })
+                  .then((updated) => {
+                    setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                    setFeedback('Perfil atualizado.');
+                  })
+                  .catch((error) => setFeedback(String(error)));
               }}
             >
               <option value="admin">admin</option>
@@ -62,7 +98,7 @@ export function AdminUsersView() {
             row.role
           ),
       },
-      { key: 'tenantId', header: 'Tenant', render: (row: ManagedUser) => row.tenantId },
+      { key: 'tenantId', header: 'Empresa', render: (row: ManagedUser) => row.tenantId },
       {
         key: 'status',
         header: 'Status',
@@ -72,10 +108,12 @@ export function AdminUsersView() {
               size="sm"
               variant="outline"
               onClick={() => {
-                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, isActive: !row.isActive }).then((updated) => {
-                  setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-                  setFeedback('Status do usuÃ¡rio atualizado.');
-                }).catch((error) => setFeedback(String(error)));
+                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, isActive: !row.isActive })
+                  .then((updated) => {
+                    setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                    setFeedback('Status do usuário atualizado.');
+                  })
+                  .catch((error) => setFeedback(String(error)));
               }}
             >
               {row.isActive ? 'Desativar' : 'Ativar'}
@@ -110,11 +148,20 @@ export function AdminUsersView() {
 
   return (
     <PageContent>
-      <PageHeader title="GestÃ£o de UsuÃ¡rios" description="AdministraÃ§Ã£o persistida de usuÃ¡rios, permissÃµes e governanÃ§a de convites." />
-      {feedback && <InlineMessage variant="info">{feedback}</InlineMessage>}
+      <PageHeader title="Gestão de Usuários" description="Administração persistida de usuários, permissões e governança de convites." />
+      {feedback && <InlineMessage variant="info" onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
+
+      <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
+        <CardHeader>
+          <CardTitle>Empresa administrada</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select label="Empresa" value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={orgOptions} />
+        </CardContent>
+      </Card>
 
       {canInvite && (
-        <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
+        <Card style={{ marginBottom: spacing.md }}>
           <CardHeader>
             <CardTitle>Convidar candidato por e-mail</CardTitle>
           </CardHeader>
@@ -125,14 +172,17 @@ export function AdminUsersView() {
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="candidato@email.com"
             />
-            <Input
-              label="Vacancy ID"
+            <Select
+              label="Vaga"
               value={inviteVacancyId}
               onChange={(e) => setInviteVacancyId(e.target.value)}
-              placeholder="vacancy-id"
+              options={[
+                { value: '', label: vacancyOptions.length > 0 ? 'Selecione uma vaga' : 'Nenhuma vaga disponível' },
+                ...vacancyOptions,
+              ]}
             />
             <div style={{ display: 'flex', alignItems: 'end' }}>
-              <Button onClick={() => void invite()} disabled={!inviteEmail || !inviteVacancyId}>Enviar</Button>
+              <Button onClick={() => { void invite(); }} disabled={!inviteEmail || !inviteVacancyId || !organizationId}>Enviar</Button>
             </div>
           </CardContent>
         </Card>
@@ -141,7 +191,7 @@ export function AdminUsersView() {
       {inviteRows.length > 0 && (
         <Card style={{ marginBottom: spacing.md }}>
           <CardHeader>
-            <CardTitle>GovernanÃ§a de convites</CardTitle>
+            <CardTitle>Governança de convites</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
@@ -164,7 +214,7 @@ export function AdminUsersView() {
         data={rows}
         rowKey={(row) => row.id}
         searchable
-        searchPlaceholder="Buscar usuÃ¡rio por nome ou e-mail"
+        searchPlaceholder="Buscar usuário por nome ou e-mail"
         pageSize={10}
       />
     </PageContent>

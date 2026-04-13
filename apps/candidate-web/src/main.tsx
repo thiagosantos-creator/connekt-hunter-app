@@ -9,6 +9,7 @@ import { Step3ResumeView } from './views/Step3ResumeView.js';
 import { StatusView } from './views/StatusView.js';
 import { InterviewView } from './views/InterviewView.js';
 import { AccountView } from './views/AccountView.js';
+import { VacancyLandingView } from './views/VacancyLandingView.js';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       <main>
         <Routes>
           <Route path="/" element={<TokenEntryView />} />
+          <Route path="/vacancies/:vacancyId" element={<VacancyLandingView />} />
           <Route path="/onboarding/basic" element={<RequiresToken><Step1BasicView /></RequiresToken>} />
           <Route path="/onboarding/consent" element={<RequiresToken><Step2ConsentView /></RequiresToken>} />
           <Route path="/onboarding/resume" element={<RequiresToken><Step3ResumeView /></RequiresToken>} />

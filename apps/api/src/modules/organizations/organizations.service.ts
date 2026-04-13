@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
+type OrganizationBrandingPayload = {
+  logoUrl?: string;
+  bannerUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  publicName?: string;
+  communicationDomain?: string;
+  contactEmail?: string;
+};
+
 @Injectable()
 export class OrganizationsService {
   async create(data: { name: string; status?: string; ownerAdminUserId?: string }, actorUserId: string) {
@@ -43,8 +53,111 @@ export class OrganizationsService {
     });
   }
 
+  async update(
+    organizationId: string,
+    data: {
+      name?: string;
+      status?: string;
+      ownerAdminUserId?: string;
+      branding?: OrganizationBrandingPayload;
+    },
+    actorUserId: string,
+  ) {
+    const existing = await prisma.organization.findUniqueOrThrow({
+      where: { id: organizationId },
+      include: { tenantPolicy: true, tenantSettings: true },
+    });
+
+    const nextOwnerAdminUserId = data.ownerAdminUserId?.trim() || existing.ownerAdminUserId || undefined;
+
+    const org = await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        name: data.name ?? existing.name,
+        status: data.status ?? existing.status,
+        ownerAdminUserId: nextOwnerAdminUserId,
+      },
+    });
+
+    if (nextOwnerAdminUserId) {
+      await prisma.membership.upsert({
+        where: { organizationId_userId: { organizationId, userId: nextOwnerAdminUserId } },
+        update: { role: 'admin' },
+        create: { organizationId, userId: nextOwnerAdminUserId, role: 'admin' },
+      });
+    }
+
+    const branding = data.branding;
+    if (branding) {
+      await prisma.tenantSettings.upsert({
+        where: { organizationId },
+        create: {
+          organizationId,
+          planSegment: existing.tenantSettings?.planSegment ?? 'standard',
+          timezone: existing.tenantSettings?.timezone ?? 'America/Sao_Paulo',
+          operationalCalendar: existing.tenantSettings?.operationalCalendar ?? 'business-days',
+          logoUrl: branding.logoUrl,
+          bannerUrl: branding.bannerUrl,
+          primaryColor: branding.primaryColor,
+          secondaryColor: branding.secondaryColor,
+          publicName: branding.publicName,
+          communicationDomain: branding.communicationDomain,
+          contactEmail: branding.contactEmail,
+        },
+        update: {
+          logoUrl: branding.logoUrl,
+          bannerUrl: branding.bannerUrl,
+          primaryColor: branding.primaryColor,
+          secondaryColor: branding.secondaryColor,
+          publicName: branding.publicName,
+          communicationDomain: branding.communicationDomain,
+          contactEmail: branding.contactEmail,
+        },
+      });
+    }
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: actorUserId,
+        action: 'organization.updated',
+        entityType: 'organization',
+        entityId: org.id,
+        metadata: {
+          before: {
+            name: existing.name,
+            status: existing.status,
+            ownerAdminUserId: existing.ownerAdminUserId,
+            branding: existing.tenantSettings
+              ? {
+                  logoUrl: existing.tenantSettings.logoUrl,
+                  bannerUrl: existing.tenantSettings.bannerUrl,
+                  primaryColor: existing.tenantSettings.primaryColor,
+                  secondaryColor: existing.tenantSettings.secondaryColor,
+                  publicName: existing.tenantSettings.publicName,
+                  communicationDomain: existing.tenantSettings.communicationDomain,
+                  contactEmail: existing.tenantSettings.contactEmail,
+                }
+              : null,
+          },
+          after: {
+            name: data.name ?? existing.name,
+            status: data.status ?? existing.status,
+            ownerAdminUserId: nextOwnerAdminUserId,
+            branding: branding ?? null,
+          },
+        } as never,
+      },
+    });
+
+    return prisma.organization.findUniqueOrThrow({
+      where: { id: org.id },
+      include: { tenantPolicy: true, tenantSettings: true },
+    });
+  }
+
   findAll() {
     return prisma.organization.findMany({
+      orderBy: { name: 'asc' },
       include: {
         tenantPolicy: true,
         tenantSettings: true,

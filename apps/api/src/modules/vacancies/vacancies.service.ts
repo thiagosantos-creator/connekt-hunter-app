@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
 type VacancyPayload = {
@@ -85,6 +85,74 @@ export class VacanciesService {
         publicationMissingFields,
       };
     });
+  }
+
+  async findPublicById(vacancyId: string) {
+    const vacancy = await prisma.vacancy.findUnique({
+      where: { id: vacancyId },
+      include: {
+        organization: {
+          include: {
+            tenantSettings: true,
+          },
+        },
+      },
+    });
+
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+
+    const publicationMissingFields = this.getPublicationMissingFields({
+      organizationId: vacancy.organizationId,
+      title: vacancy.title,
+      description: vacancy.description,
+      location: vacancy.location ?? undefined,
+      workModel: vacancy.workModel ?? undefined,
+      seniority: vacancy.seniority ?? undefined,
+      sector: vacancy.sector ?? undefined,
+      experienceYearsMin: vacancy.experienceYearsMin ?? undefined,
+      experienceYearsMax: vacancy.experienceYearsMax ?? undefined,
+      employmentType: vacancy.employmentType ?? undefined,
+      publicationType: vacancy.publicationType,
+      status: vacancy.status,
+      department: vacancy.department ?? undefined,
+      requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills.map(String) : [],
+      desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills.map(String) : [],
+      salaryMin: vacancy.salaryMin ?? undefined,
+      salaryMax: vacancy.salaryMax ?? undefined,
+      createdBy: vacancy.createdBy,
+    });
+
+    if (vacancy.publicationType !== 'public' || vacancy.status !== 'active' || publicationMissingFields.length > 0) {
+      throw new NotFoundException('vacancy_not_public');
+    }
+
+    return {
+      id: vacancy.id,
+      title: vacancy.title,
+      description: vacancy.description,
+      location: vacancy.location,
+      workModel: vacancy.workModel,
+      seniority: vacancy.seniority,
+      sector: vacancy.sector ?? vacancy.department,
+      experienceYearsMin: vacancy.experienceYearsMin,
+      experienceYearsMax: vacancy.experienceYearsMax,
+      employmentType: vacancy.employmentType,
+      publicationType: vacancy.publicationType,
+      requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills.map(String) : [],
+      desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills.map(String) : [],
+      salaryMin: vacancy.salaryMin,
+      salaryMax: vacancy.salaryMax,
+      publishedAt: vacancy.publishedAt,
+      organization: {
+        id: vacancy.organization.id,
+        name: vacancy.organization.tenantSettings?.publicName || vacancy.organization.name,
+        logoUrl: vacancy.organization.tenantSettings?.logoUrl,
+        bannerUrl: vacancy.organization.tenantSettings?.bannerUrl,
+        primaryColor: vacancy.organization.tenantSettings?.primaryColor,
+        secondaryColor: vacancy.organization.tenantSettings?.secondaryColor,
+        contactEmail: vacancy.organization.tenantSettings?.contactEmail,
+      },
+    };
   }
 
   generateAssistiveContent(input: {

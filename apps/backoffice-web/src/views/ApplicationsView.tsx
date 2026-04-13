@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { Application } from '../services/types.js';
 import {
   Button,
-  StatusPill,
   DataTable,
-  PageHeader,
-  PageContent,
   EmptyState,
+  PageContent,
+  PageHeader,
+  StatusPill,
   TableSkeleton,
 } from '@connekt/ui';
 
@@ -63,11 +63,11 @@ export function ApplicationsView() {
     <PageContent>
       <PageHeader
         title="Aplicações"
-        actions={
+        actions={(
           <Button variant="outline" size="sm" onClick={load}>
             Atualizar
           </Button>
-        }
+        )}
       />
 
       {loading ? (
@@ -84,7 +84,7 @@ export function ApplicationsView() {
           rowKey={(row) => row.id}
           emptyMessage="Nenhuma aplicação encontrada"
           searchable
-          searchPlaceholder="Buscar por candidato, vaga ou status…"
+          searchPlaceholder="Buscar por candidato, vaga ou status..."
           pageSize={10}
         />
       )}

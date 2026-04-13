@@ -42,6 +42,7 @@ export interface Vacancy {
   organization?: { id: string; name?: string };
   publicationReady?: boolean;
   publicationMissingFields?: string[];
+  publicUrl?: string;
 }
 
 export interface VacancyTemplate {
@@ -99,6 +100,13 @@ export interface Organization {
     planSegment: string;
     timezone: string;
     tenantStatus: string;
+    logoUrl?: string;
+    bannerUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    publicName?: string;
+    communicationDomain?: string;
+    contactEmail?: string;
   };
 }
 

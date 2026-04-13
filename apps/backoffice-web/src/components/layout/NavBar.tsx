@@ -1,13 +1,10 @@
 import React from 'react';
-import { Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { colors, fontSize, fontWeight, spacing } from '@connekt/ui';
+import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';
 
-/* -------------------------------------------------------------------------- */
-/*  Nav items per role                                                        */
-/* -------------------------------------------------------------------------- */
 const navByRole: Record<string, Array<{ label: string; to: string }>> = {
   admin: [
     { label: 'Vagas', to: '/vacancies' },
@@ -47,9 +44,6 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
   ],
 };
 
-/* -------------------------------------------------------------------------- */
-/*  NavBar                                                                    */
-/* -------------------------------------------------------------------------- */
 export function NavBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -122,9 +116,6 @@ export function NavBar() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Auth wrappers                                                             */
-/* -------------------------------------------------------------------------- */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return user ? <>{children}</> : <Navigate to="/login" replace />;

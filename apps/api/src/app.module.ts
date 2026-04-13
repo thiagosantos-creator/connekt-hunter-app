@@ -19,6 +19,8 @@ import { RecommendationEngineModule } from './modules/recommendation-engine/reco
 import { DecisionEngineModule } from './modules/decision-engine/decision-engine.module.js';
 import { WorkflowAutomationModule } from './modules/workflow-automation/workflow-automation.module.js';
 import { RiskAnalysisModule } from './modules/risk-analysis/risk-analysis.module.js';
+import { TenantPoliciesModule } from './modules/tenant-policies/tenant-policies.module.js';
+import { NotificationPreferencesModule } from './modules/notification-preferences/notification-preferences.module.js';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { RiskAnalysisModule } from './modules/risk-analysis/risk-analysis.module
     DecisionEngineModule,
     WorkflowAutomationModule,
     RiskAnalysisModule,
+    TenantPoliciesModule,
+    NotificationPreferencesModule,
   ],
   controllers: [HealthController],
 })

@@ -26,7 +26,9 @@ import {
 
 export function CandidatesView() {
   const { user } = useAuth();
-  const [email, setEmail] = useState('');
+  const [channel, setChannel] = useState<'email' | 'phone'>('email');
+  const [destination, setDestination] = useState('');
+  const [consent, setConsent] = useState(false);
   const [vacancyId, setVacancyId] = useState('');
   const [orgId, setOrgId] = useState(() => user?.organizationIds?.[0] ?? '');
   const orgOptions = user?.organizationIds?.map((id: string) => ({ value: id, label: id })) ?? [];
@@ -79,7 +81,9 @@ export function CandidatesView() {
     try {
       const c = await apiPost<Candidate>('/candidates/invite', {
         organizationId: orgId,
-        email,
+        channel,
+        destination,
+        consent,
         vacancyId,
       });
       setResult(c);
@@ -147,13 +151,23 @@ export function CandidatesView() {
                 onChange={(e) => setOrgId(e.target.value)}
               />
             )}
+            <Select
+              label="Canal"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as 'email' | 'phone')}
+              options={[{ value: 'email', label: 'E-mail' }, { value: 'phone', label: 'Telefone (SMS/WhatsApp)' }]}
+            />
             <Input
-              label="E-mail do Candidato"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              label={channel === 'email' ? 'E-mail do Candidato' : 'Telefone do Candidato'}
+              type={channel === 'email' ? 'email' : 'tel'}
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
               required
             />
+            <label style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              Consentimento de contato/compliance confirmado
+            </label>
             <Select
               label="Vaga"
               value={vacancyId}

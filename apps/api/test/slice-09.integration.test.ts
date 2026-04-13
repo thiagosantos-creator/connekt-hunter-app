@@ -27,12 +27,12 @@ describe.skipIf(!hasDatabase)('Slice 09 integration (real runtime stack)', () =>
     const organization = await prisma.organization.create({ data: { name: `Org ${Date.now()}` } });
     const recruiter = await prisma.user.create({ data: { email: `recruiter-${Date.now()}@example.com`, name: 'Recruiter', role: 'headhunter' } });
     await prisma.membership.create({ data: { organizationId: organization.id, userId: recruiter.id, role: 'admin' } });
-    const vacancy = await prisma.vacancy.create({ data: { organizationId: organization.id, title: 'Backend Engineer', description: 'Node' } });
+    const vacancy = await prisma.vacancy.create({ data: { organizationId: organization.id, title: 'Backend Engineer', description: 'Node', createdBy: recruiter.id } });
 
     const inviteRes = await fetch(`${baseUrl}/candidates/invite`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer dev-${recruiter.id}` },
-      body: JSON.stringify({ organizationId: organization.id, email, vacancyId: vacancy.id }),
+      body: JSON.stringify({ organizationId: organization.id, vacancyId: vacancy.id, channel: 'email', destination: email, consent: true }),
     });
     expect(inviteRes.status).toBe(201);
     const invited = await inviteRes.json() as { token: string };

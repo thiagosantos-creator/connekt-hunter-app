@@ -43,6 +43,9 @@ pnpm --filter candidate-web dev
 - `/account` gestão de perfil + segurança (senha/MFA) + UX por tipo de usuário
 - `/admin/users` gestão administrativa de usuários (role/status/tenant)
 - `/audit` trilha de auditoria para administradores
+- `/admin/organizations` gestão de empresas/tenants (listar/criar com owner e status)
+- `/admin/access-policies` políticas básicas por tenant (convidar, aprovar, auditar, administrar)
+- `/notifications` centro de preferências de notificação por usuário
 
 ## API — endpoints principais
 ### Health
@@ -59,6 +62,8 @@ pnpm --filter candidate-web dev
 ### Fluxo recrutamento
 - `POST /vacancies`
 - `GET /vacancies`
+- `GET /organizations`
+- `POST /organizations`
 - `POST /candidates/invite`
 - `GET /candidate/token/:token`
 - `POST /candidate/onboarding/basic`
@@ -94,6 +99,10 @@ pnpm --filter candidate-web dev
 - `POST /decision-engine/priority/calculate`
 - `POST /workflow-automation/suggest`
 - `POST /workflow-automation/execute`
+- `GET /tenant-policies/:organizationId`
+- `PUT /tenant-policies/:organizationId`
+- `GET /notification-preferences/me`
+- `PUT /notification-preferences/me`
 
 ## Vertical Slice 02
 Implementado nesta fase:

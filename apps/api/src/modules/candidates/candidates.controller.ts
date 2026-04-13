@@ -16,8 +16,24 @@ export class CandidatesController {
   @Post('candidates/invite')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('candidates:invite')
-  invite(@Body() body: { organizationId: string; email: string; vacancyId: string }, @CurrentUser() user: AuthUser) {
-    return this.candidatesService.invite(body.organizationId, emailSanitize(body.email), body.vacancyId, user.id);
+  invite(
+    @Body() body: {
+      organizationId: string;
+      vacancyId: string;
+      channel: 'email' | 'phone';
+      destination: string;
+      consent: boolean;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.candidatesService.invite({
+      organizationId: body.organizationId,
+      vacancyId: body.vacancyId,
+      channel: body.channel,
+      destination: sanitizeDestination(body.channel, body.destination),
+      consent: body.consent,
+      actorUserId: user.id,
+    });
   }
 
   @Get('candidate/token/:token')
@@ -28,6 +44,8 @@ export class CandidatesController {
   }
 }
 
-function emailSanitize(value: string): string {
-  return value.trim().toLowerCase();
+function sanitizeDestination(channel: 'email' | 'phone', value: string): string {
+  const normalized = value.trim();
+  if (channel === 'email') return normalized.toLowerCase();
+  return normalized.replace(/\s+/g, '');
 }

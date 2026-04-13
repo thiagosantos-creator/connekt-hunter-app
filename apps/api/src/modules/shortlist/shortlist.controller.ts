@@ -1,15 +1,15 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { ShortlistService } from './shortlist.service.js';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { ShortlistService } from './shortlist.service.js';
 
 @Controller('shortlist')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ShortlistController {
-  constructor(private readonly shortlistService: ShortlistService) {}
+  constructor(@Inject(ShortlistService) private readonly shortlistService: ShortlistService) {}
 
   @Post()
   @RequirePermissions('shortlist:write')

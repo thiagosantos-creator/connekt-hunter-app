@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { IntegrationsConfigService } from './integrations-config.service.js';
@@ -14,7 +14,7 @@ export interface PresignedUpload {
 
 @Injectable()
 export class StorageGateway {
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   async createPresignedUpload(input: { tenantId: string; namespace: string; filename: string; metadata?: Record<string, unknown> }): Promise<PresignedUpload> {
     const provider = this.config.isIntegrationEnabled('storage') ? 'aws-s3' : 'minio';

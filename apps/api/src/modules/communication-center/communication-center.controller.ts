@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -9,7 +9,7 @@ import { CommunicationCenterService } from './communication-center.service.js';
 @Controller('enterprise/communications')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CommunicationCenterController {
-  constructor(private readonly service: CommunicationCenterService) {}
+  constructor(@Inject(CommunicationCenterService) private readonly service: CommunicationCenterService) {}
 
   @Get(':organizationId/templates')
   @RequirePermissions('communications:manage')

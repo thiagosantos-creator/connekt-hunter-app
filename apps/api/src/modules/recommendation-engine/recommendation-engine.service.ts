@@ -1,10 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
 
 @Injectable()
 export class RecommendationEngineService {
-  constructor(private readonly aiGateway: AiGateway) {}
+  constructor(@Inject(AiGateway) private readonly aiGateway: AiGateway) {}
 
   private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
     if (!actorId) return;

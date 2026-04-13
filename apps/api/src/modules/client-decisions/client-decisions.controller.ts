@@ -1,15 +1,15 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { ClientDecisionsService } from './client-decisions.service.js';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { ClientDecisionsService } from './client-decisions.service.js';
 
 @Controller('client-decisions')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClientDecisionsController {
-  constructor(private readonly clientDecisionsService: ClientDecisionsService) {}
+  constructor(@Inject(ClientDecisionsService) private readonly clientDecisionsService: ClientDecisionsService) {}
 
   @Get()
   @RequirePermissions('decision:read')

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { IntegrationKey, IntegrationProvider } from './integrations.types.js';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
@@ -6,7 +6,7 @@ import { IntegrationsConfigService } from './integrations-config.service.js';
 export class ProviderRegistryService {
   private readonly logger = new Logger(ProviderRegistryService.name);
 
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   resolvePreferredProvider<T extends IntegrationProvider>(
     integration: IntegrationKey,

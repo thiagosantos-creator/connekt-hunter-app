@@ -79,6 +79,7 @@ pnpm --filter candidate-web dev
 - `POST /candidate/onboarding/consent`
 - `POST /candidate/onboarding/resume`
 - `GET /applications`
+- `GET /applications/:applicationId`
 - `POST /shortlist`
 - `POST /evaluations`
 - `POST /client-decisions`
@@ -141,6 +142,7 @@ pnpm --filter candidate-web dev
 - `Vacancies` no backoffice agora usam selecao de empresa, skills em tags e listagem/edicao/aplicacao de templates sem exigir CSV ou `organizationId` manual
 - `Candidates` agora exibem link direto de entrada no portal (`candidate-web /?token=`) apos o convite
 - `candidate-web` agora aceita token via query string e expõe pagina publica para vagas publicas em `/vacancies/:vacancyId`
+- `Applications` e `Client Review` agora abrem um dossiê visual do candidato, consolidando onboarding, currículo parseado, avaliações humanas e sinais de IA a partir de `GET /applications/:applicationId`
 
 ### Vacancy publicÃ¡vel completa
 `Vacancy` agora suporta publicaÃ§Ã£o com validaÃ§Ã£o de completude para:

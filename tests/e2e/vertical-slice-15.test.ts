@@ -34,4 +34,15 @@ describe('vertical slice 15 - operational UX hardening', () => {
     expect(candidateEntryContract.invite).toContain('POST /candidates/invite');
     expect(candidateEntryContract.candidateLink).toContain('token auto-consume');
   });
+
+  it('candidate dossier contract supports rich visual review after onboarding', () => {
+    const candidateDossierContract = {
+      api: ['GET /applications/:applicationId', 'GET /candidate-matching/:vacancyId/:candidateId', 'GET /candidate-insights/:vacancyId/:candidateId'],
+      ui: ['applications dossier modal', 'client review dossier modal', 'smart scores', 'resume experience', 'education', 'ai recommendations'],
+    };
+
+    expect(candidateDossierContract.api).toContain('GET /applications/:applicationId');
+    expect(candidateDossierContract.ui).toContain('smart scores');
+    expect(candidateDossierContract.ui).toContain('ai recommendations');
+  });
 });

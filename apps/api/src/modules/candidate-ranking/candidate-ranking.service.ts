@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
 
 @Injectable()
 export class CandidateRankingService {
-  constructor(private readonly aiGateway: AiGateway) {}
+  constructor(@Inject(AiGateway) private readonly aiGateway: AiGateway) {}
 
   async generate(vacancyId: string, actorId?: string) {
     const scores = await prisma.matchingScore.findMany({

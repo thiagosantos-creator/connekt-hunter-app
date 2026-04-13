@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
 import { RecommendationEngineService } from './recommendation-engine.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -8,7 +8,7 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 @Controller('recommendation-engine')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RecommendationEngineController {
-  constructor(private readonly service: RecommendationEngineService) {}
+  constructor(@Inject(RecommendationEngineService) private readonly service: RecommendationEngineService) {}
 
   @Post('generate')
   @RequirePermissions('applications:read')

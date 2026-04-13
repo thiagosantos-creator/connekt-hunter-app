@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
 @Injectable()
 export class EmailGateway {
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   async sendTemplated(input: {
     tenantId: string;

@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, UseGuards } from '@nestjs/common';
 import { ApplicationsService } from './applications.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -9,11 +9,17 @@ import type { AuthUser } from '../auth/auth.types.js';
 @Controller('applications')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ApplicationsController {
-  constructor(private readonly applicationsService: ApplicationsService) {}
+  constructor(@Inject(ApplicationsService) private readonly applicationsService: ApplicationsService) {}
 
   @Get()
   @RequirePermissions('applications:read')
   findAll(@CurrentUser() user: AuthUser) {
-    return this.applicationsService.findAll(user.organizationIds, user.role);
+    return this.applicationsService.findAll(user.organizationIds ?? [], user.role);
+  }
+
+  @Get(':applicationId')
+  @RequirePermissions('applications:read')
+  findById(@Param('applicationId') applicationId: string, @CurrentUser() user: AuthUser) {
+    return this.applicationsService.findById(applicationId, user.organizationIds ?? [], user.role);
   }
 }

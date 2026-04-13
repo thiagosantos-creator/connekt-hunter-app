@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
 @Injectable()
 export class CvParserGateway {
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   async parseResume(input: { resumeId: string; objectKey: string; candidateId: string }) {
     const provider = this.config.isIntegrationEnabled('cv-parser') ? 'cv-parser-real' : 'cv-parser-mock';

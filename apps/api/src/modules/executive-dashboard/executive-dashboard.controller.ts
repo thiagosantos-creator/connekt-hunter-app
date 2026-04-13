@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -9,7 +9,7 @@ import { ExecutiveDashboardService } from './executive-dashboard.service.js';
 @Controller('enterprise/executive-dashboard')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ExecutiveDashboardController {
-  constructor(private readonly service: ExecutiveDashboardService) {}
+  constructor(@Inject(ExecutiveDashboardService) private readonly service: ExecutiveDashboardService) {}
 
   @Get(':organizationId')
   @RequirePermissions('executive-dashboard:read')

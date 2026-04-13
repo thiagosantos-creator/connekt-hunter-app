@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
 @Injectable()
 export class TranscriptionGateway {
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   async enqueue(input: { answerId: string; objectKey: string; tenantId: string }) {
     const provider = this.config.isIntegrationEnabled('transcription') ? 'transcription-real' : 'transcription-mock';

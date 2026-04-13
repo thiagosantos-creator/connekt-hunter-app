@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
 @Injectable()
 export class AiGateway {
-  constructor(private readonly config: IntegrationsConfigService) {}
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
 
   async generateInterviewQuestions(input: { templateId: string; context: Record<string, unknown> }) {
     const provider = this.config.isIntegrationEnabled('ai') ? 'ai-real' : 'ai-mock';

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -9,7 +9,7 @@ import { AccessControlService, type PermissionRuleInput } from './access-control
 @Controller('enterprise/access-control')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AccessControlController {
-  constructor(private readonly service: AccessControlService) {}
+  constructor(@Inject(AccessControlService) private readonly service: AccessControlService) {}
 
   @Get(':organizationId/policies')
   @RequirePermissions('access-control:manage')

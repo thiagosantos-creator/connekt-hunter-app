@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react';
-import { apiGet } from '../services/api.js';
-import { useAuth } from '../hooks/useAuth.js';
-import type { Application } from '../services/types.js';
 import {
   Button,
   DataTable,
@@ -11,11 +8,16 @@ import {
   StatusPill,
   TableSkeleton,
 } from '@connekt/ui';
+import { CandidateProfileModal } from '../components/candidate/CandidateProfileModal.js';
+import { useAuth } from '../hooks/useAuth.js';
+import { apiGet } from '../services/api.js';
+import type { Application } from '../services/types.js';
 
 export function ApplicationsView() {
-  useAuth();
+  const { user } = useAuth();
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -33,9 +35,9 @@ export function ApplicationsView() {
     {
       key: 'candidate',
       header: 'Candidato',
-      render: (row: Application) => row.candidate.email,
-      searchValue: (row: Application) => row.candidate.email,
-      sortValue: (row: Application) => row.candidate.email,
+      render: (row: Application) => row.candidate.profile?.fullName || row.candidate.email,
+      searchValue: (row: Application) => `${row.candidate.profile?.fullName ?? ''} ${row.candidate.email}`,
+      sortValue: (row: Application) => row.candidate.profile?.fullName || row.candidate.email,
     },
     {
       key: 'vacancy',
@@ -57,12 +59,22 @@ export function ApplicationsView() {
       render: (row: Application) => new Date(row.createdAt).toLocaleDateString('pt-BR'),
       sortValue: (row: Application) => new Date(row.createdAt).getTime(),
     },
+    {
+      key: 'profile',
+      header: 'Dossiê',
+      render: (row: Application) => (
+        <Button variant="outline" size="sm" onClick={() => setSelectedApplicationId(row.id)}>
+          Abrir perfil
+        </Button>
+      ),
+    },
   ];
 
   return (
     <PageContent>
       <PageHeader
         title="Aplicações"
+        description="Abra o dossiê visual do candidato para uma avaliação mais rica após o onboarding."
         actions={(
           <Button variant="outline" size="sm" onClick={load}>
             Atualizar
@@ -71,7 +83,7 @@ export function ApplicationsView() {
       />
 
       {loading ? (
-        <TableSkeleton rows={5} columns={4} />
+        <TableSkeleton rows={5} columns={5} />
       ) : apps.length === 0 ? (
         <EmptyState
           title="Nenhuma aplicação encontrada"
@@ -88,6 +100,13 @@ export function ApplicationsView() {
           pageSize={10}
         />
       )}
+
+      <CandidateProfileModal
+        applicationId={selectedApplicationId}
+        open={Boolean(selectedApplicationId)}
+        onClose={() => setSelectedApplicationId(null)}
+        viewerRole={(user?.role as 'admin' | 'headhunter' | 'client') ?? 'headhunter'}
+      />
     </PageContent>
   );
 }

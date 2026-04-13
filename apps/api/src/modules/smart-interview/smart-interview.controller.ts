@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { SmartInterviewService } from './smart-interview.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -11,7 +11,7 @@ import { RateLimit } from '../auth/rate-limit.decorator.js';
 
 @Controller('smart-interview')
 export class SmartInterviewController {
-  constructor(private readonly smartInterviewService: SmartInterviewService) {}
+  constructor(@Inject(SmartInterviewService) private readonly smartInterviewService: SmartInterviewService) {}
 
   @Post('templates')
   @UseGuards(JwtAuthGuard, PermissionsGuard)

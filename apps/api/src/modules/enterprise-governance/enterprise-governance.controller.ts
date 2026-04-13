@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -9,7 +9,7 @@ import { EnterpriseGovernanceService, type TenantSettingsPayload } from './enter
 @Controller('enterprise/tenant-admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class EnterpriseGovernanceController {
-  constructor(private readonly service: EnterpriseGovernanceService) {}
+  constructor(@Inject(EnterpriseGovernanceService) private readonly service: EnterpriseGovernanceService) {}
 
   @Get(':organizationId')
   @RequirePermissions('tenant-admin:manage')

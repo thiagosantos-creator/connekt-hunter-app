@@ -4,6 +4,7 @@ vi.mock('@connekt/db', () => ({
   prisma: {
     application: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -27,5 +28,25 @@ describe('ApplicationsService', () => {
       where: { vacancy: { organizationId: { in: ['org_demo'] } } },
       include: { candidate: true, vacancy: true },
     });
+  });
+
+  it('returns rich application dossier for authorized users', async () => {
+    vi.mocked(prisma.application.findFirst).mockResolvedValue({ id: 'app_1' } as never);
+
+    const result = await service.findById('app_1', ['org_demo'], 'headhunter');
+
+    expect(result).toEqual({ id: 'app_1' });
+    expect(prisma.application.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'app_1', vacancy: { organizationId: { in: ['org_demo'] } } },
+        include: expect.objectContaining({
+          candidate: expect.any(Object),
+          vacancy: expect.any(Object),
+          evaluations: expect.any(Object),
+          shortlistItems: expect.any(Object),
+          smartInterviewSessions: expect.any(Object),
+        }),
+      }),
+    );
   });
 });

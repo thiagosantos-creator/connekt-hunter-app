@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { InviteFollowUpService } from './invite-follow-up.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -9,7 +9,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 @Controller('invite-follow-up-cadences')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InviteFollowUpController {
-  constructor(private readonly service: InviteFollowUpService) {}
+  constructor(@Inject(InviteFollowUpService) private readonly service: InviteFollowUpService) {}
 
   @Post()
   @RequirePermissions('candidates:invite')

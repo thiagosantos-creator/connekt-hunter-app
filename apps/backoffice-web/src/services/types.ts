@@ -129,15 +129,178 @@ export interface CandidateRecommendation {
   title: string;
   explanation: string;
   confidence: number;
-  actionableInsights?: string;
+  actionableInsights?: string[] | string;
 }
 
 export interface Application {
   id: string;
   status: string;
   createdAt: string;
-  candidate: { id: string; email: string };
-  vacancy: { title: string; id: string; organizationId?: string };
+  candidate: {
+    id: string;
+    email: string;
+    phone?: string;
+    token?: string;
+    profile?: {
+      fullName?: string;
+      phone?: string;
+    };
+  };
+  vacancy: {
+    title: string;
+    id: string;
+    organizationId?: string;
+    location?: string;
+    workModel?: string;
+    seniority?: string;
+    requiredSkills?: string[];
+    desiredSkills?: string[];
+    organization?: {
+      id: string;
+      name: string;
+      tenantSettings?: {
+        logoUrl?: string;
+        bannerUrl?: string;
+        primaryColor?: string;
+        secondaryColor?: string;
+        publicName?: string;
+        contactEmail?: string;
+      };
+    };
+  };
+}
+
+export interface ResumeParsedExperience {
+  company?: string;
+  role?: string;
+  period?: string;
+  summary?: string;
+  techStack?: string[] | string;
+  confidence?: number;
+}
+
+export interface ResumeParsedEducation {
+  institution?: string;
+  degree?: string;
+  period?: string;
+  confidence?: number;
+}
+
+export interface ResumeParsedSkill {
+  name?: string;
+  confidence?: number;
+}
+
+export interface ResumeParsedLanguage {
+  name?: string;
+  level?: string;
+  confidence?: number;
+}
+
+export interface ResumeParsedPayload {
+  summary?: string;
+  experience?: ResumeParsedExperience[];
+  education?: ResumeParsedEducation[];
+  skills?: Array<ResumeParsedSkill | string>;
+  languages?: Array<ResumeParsedLanguage | string>;
+  location?: {
+    city?: string;
+    confidence?: number;
+  } | string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ApplicationDetail extends Application {
+  candidate: Application['candidate'] & {
+    invites?: Array<{
+      id: string;
+      channel: string;
+      destination: string;
+      status: string;
+      createdAt: string;
+      sentAt?: string;
+    }>;
+    onboarding?: {
+      id: string;
+      status: string;
+      basicCompleted: boolean;
+      consentCompleted: boolean;
+      resumeCompleted: boolean;
+      consents?: Array<{
+        id: string;
+        type: string;
+        accepted: boolean;
+        acceptedAt: string;
+      }>;
+      resumes?: Array<{
+        id: string;
+        objectKey: string;
+        provider: string;
+        status: string;
+        uploadedAt: string;
+        parseResult?: {
+          id: string;
+          status: string;
+          parsedJson: ResumeParsedPayload;
+        };
+        parseMetadata?: {
+          id: string;
+          provider: string;
+          status: string;
+          confidenceJson?: Record<string, unknown>;
+        };
+      }>;
+    };
+  };
+  evaluations?: Array<{
+    id: string;
+    comment: string;
+    createdAt: string;
+    evaluator?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>;
+  shortlistItems?: Array<{
+    id: string;
+    createdAt: string;
+    decisions?: Array<{
+      id: string;
+      decision: string;
+      createdAt: string;
+      reviewer?: {
+        id: string;
+        name: string;
+        email: string;
+      };
+    }>;
+  }>;
+  smartInterviewSessions?: Array<{
+    id: string;
+    status: string;
+    startedAt?: string;
+    submittedAt?: string;
+    reviewedAt?: string;
+    aiAnalysis?: {
+      id: string;
+      status: string;
+      summary: string;
+      highlights?: string[] | Record<string, unknown>;
+      risks?: string[] | Record<string, unknown>;
+    };
+    humanReview?: {
+      id: string;
+      decision: string;
+      notes: string;
+      createdAt: string;
+      reviewer?: {
+        id: string;
+        name: string;
+        email: string;
+      };
+    };
+  }>;
 }
 
 export interface ShortlistItem {
@@ -177,6 +340,7 @@ export interface WorkflowSuggestion {
   suggestionType: string;
   explanation: string;
   status: string;
+  payload?: Record<string, unknown>;
 }
 
 export interface ShortlistItemWithApplication {
@@ -184,6 +348,48 @@ export interface ShortlistItemWithApplication {
   applicationId: string;
   createdAt: string;
   application: Application;
+}
+
+export interface CandidateMatchingRecord {
+  id: string;
+  score: number;
+  status: string;
+  computedAt?: string;
+  breakdowns?: Array<{
+    id?: string;
+    dimension: string;
+    score: number;
+    weight: number;
+    reasoning: string;
+  }>;
+  explanations?: Array<{
+    id?: string;
+    context: string;
+    explanation: string;
+    generatedBy: string;
+  }>;
+}
+
+export interface CandidateRiskRecord {
+  id: string;
+  overallRisk: string;
+  riskScore: number;
+  explanation: string;
+  requiresReview: boolean;
+  findings?: Array<{
+    type?: string;
+    severity?: string;
+    score?: number;
+    detail?: string;
+  }>;
+}
+
+export interface CandidateInsightRecord {
+  id: string;
+  summary: string;
+  strengths?: string[];
+  risks?: string[];
+  recommendations?: string[];
 }
 
 export interface ManagedUser {

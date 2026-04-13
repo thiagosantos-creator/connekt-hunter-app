@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { WorkflowAutomationService } from './workflow-automation.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -8,7 +8,7 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 @Controller('workflow-automation')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class WorkflowAutomationController {
-  constructor(private readonly service: WorkflowAutomationService) {}
+  constructor(@Inject(WorkflowAutomationService) private readonly service: WorkflowAutomationService) {}
 
   @Post('suggest')
   @RequirePermissions('applications:read')

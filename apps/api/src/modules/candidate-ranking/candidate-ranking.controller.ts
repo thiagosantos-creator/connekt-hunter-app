@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
 import { CandidateRankingService } from './candidate-ranking.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -8,7 +8,7 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 @Controller('candidate-ranking')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class CandidateRankingController {
-  constructor(private readonly service: CandidateRankingService) {}
+  constructor(@Inject(CandidateRankingService) private readonly service: CandidateRankingService) {}
 
   @Post('generate')
   @RequirePermissions('applications:read')

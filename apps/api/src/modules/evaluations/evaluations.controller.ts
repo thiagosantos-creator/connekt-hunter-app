@@ -1,15 +1,15 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { EvaluationsService } from './evaluations.service.js';
+import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { EvaluationsService } from './evaluations.service.js';
 
 @Controller('evaluations')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class EvaluationsController {
-  constructor(private readonly evaluationsService: EvaluationsService) {}
+  constructor(@Inject(EvaluationsService) private readonly evaluationsService: EvaluationsService) {}
 
   @Post()
   @RequirePermissions('shortlist:write')

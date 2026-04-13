@@ -25,6 +25,7 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     { label: 'Políticas', to: '/admin/access-policies' },
     { label: 'Notificações', to: '/notifications' },
     { label: 'Auditoria', to: '/audit' },
+    { label: 'Enterprise', to: '/enterprise-governance' },
   ],
   headhunter: [
     { label: 'Vagas', to: '/vacancies' },
@@ -37,6 +38,7 @@ const navByRole: Record<string, Array<{ label: string; to: string }>> = {
     { label: 'Inteligência', to: '/product-intelligence' },
     { label: 'Conta', to: '/account' },
     { label: 'Notificações', to: '/notifications' },
+    { label: 'Enterprise', to: '/enterprise-governance' },
   ],
   client: [
     { label: 'Aplicações', to: '/applications' },

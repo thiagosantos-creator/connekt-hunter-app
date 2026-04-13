@@ -24,6 +24,10 @@ import { NotificationPreferencesModule } from './modules/notification-preference
 import { VacancyTemplatesModule } from './modules/vacancy-templates/vacancy-templates.module.js';
 import { InviteFollowUpModule } from './modules/invite-follow-up/invite-follow-up.module.js';
 import { HeadhunterInboxModule } from './modules/headhunter-inbox/headhunter-inbox.module.js';
+import { EnterpriseGovernanceModule } from './modules/enterprise-governance/enterprise-governance.module.js';
+import { AccessControlModule } from './modules/access-control/access-control.module.js';
+import { CommunicationCenterModule } from './modules/communication-center/communication-center.module.js';
+import { ExecutiveDashboardModule } from './modules/executive-dashboard/executive-dashboard.module.js';
 
 @Module({
   imports: [
@@ -51,6 +55,10 @@ import { HeadhunterInboxModule } from './modules/headhunter-inbox/headhunter-inb
     VacancyTemplatesModule,
     InviteFollowUpModule,
     HeadhunterInboxModule,
+    EnterpriseGovernanceModule,
+    AccessControlModule,
+    CommunicationCenterModule,
+    ExecutiveDashboardModule,
   ],
   controllers: [HealthController],
 })

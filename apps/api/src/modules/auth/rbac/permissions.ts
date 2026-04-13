@@ -12,12 +12,16 @@ export type Permission =
   | 'smart-interview:configure'
   | 'smart-interview:review'
   | 'users:manage'
-  | 'audit:read';
+  | 'audit:read'
+  | 'tenant-admin:manage'
+  | 'access-control:manage'
+  | 'communications:manage'
+  | 'executive-dashboard:read';
 
 const rolePermissions: Record<AppRole, Permission[]> = {
-  admin: ['vacancies:write', 'vacancies:read', 'candidates:invite', 'applications:read', 'shortlist:write', 'shortlist:read', 'decision:write', 'decision:read', 'smart-interview:configure', 'smart-interview:review', 'users:manage', 'audit:read'],
-  headhunter: ['vacancies:write', 'vacancies:read', 'candidates:invite', 'applications:read', 'shortlist:write', 'shortlist:read', 'decision:read', 'smart-interview:configure', 'smart-interview:review'],
-  client: ['vacancies:read', 'applications:read', 'shortlist:read', 'decision:write', 'decision:read', 'smart-interview:review'],
+  admin: ['vacancies:write', 'vacancies:read', 'candidates:invite', 'applications:read', 'shortlist:write', 'shortlist:read', 'decision:write', 'decision:read', 'smart-interview:configure', 'smart-interview:review', 'users:manage', 'audit:read', 'tenant-admin:manage', 'access-control:manage', 'communications:manage', 'executive-dashboard:read'],
+  headhunter: ['vacancies:write', 'vacancies:read', 'candidates:invite', 'applications:read', 'shortlist:write', 'shortlist:read', 'decision:read', 'smart-interview:configure', 'smart-interview:review', 'communications:manage', 'executive-dashboard:read'],
+  client: ['vacancies:read', 'applications:read', 'shortlist:read', 'decision:write', 'decision:read', 'smart-interview:review', 'executive-dashboard:read'],
   candidate: [],
 };
 

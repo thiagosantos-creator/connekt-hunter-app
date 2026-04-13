@@ -47,6 +47,7 @@ pnpm --filter candidate-web dev
 - `/admin/access-policies` políticas básicas por tenant (convidar, aprovar, auditar, administrar)
 - `/notifications` centro de preferências de notificação por usuário
 - `/inbox` fila operacional priorizada para headhunter (ações rápidas)
+- `/enterprise-governance` centro enterprise com tenant admin, access control, communication center e executive dashboard
 
 ## API — endpoints principais
 ### Health
@@ -113,6 +114,20 @@ pnpm --filter candidate-web dev
 - `GET /invite-follow-up-cadences?organizationId=`
 - `PATCH /invite-follow-up-cadences/:cadenceId/:action`
 - `GET /headhunter-inbox?organizationId=&priority=`
+- `GET /enterprise/tenant-admin/:organizationId`
+- `PUT /enterprise/tenant-admin/:organizationId`
+- `GET /enterprise/tenant-admin/:organizationId/history`
+- `GET /enterprise/access-control/:organizationId/policies`
+- `POST /enterprise/access-control/:organizationId/policies`
+- `POST /enterprise/access-control/:organizationId/grants`
+- `POST /enterprise/access-control/:organizationId/simulate`
+- `GET /enterprise/communications/:organizationId/templates`
+- `POST /enterprise/communications/:organizationId/templates`
+- `PUT /enterprise/communications/:organizationId/templates/:templateId/publish`
+- `POST /enterprise/communications/:organizationId/dispatch`
+- `GET /enterprise/communications/:organizationId/dispatch-audit`
+- `GET /enterprise/executive-dashboard/:organizationId`
+- `GET /enterprise/executive-dashboard/:organizationId/export.csv`
 
 ## Vertical Slice 02
 Implementado nesta fase:

@@ -296,6 +296,48 @@ export async function processAutomationTriggerJobs(): Promise<number> {
   return processed;
 }
 
+export async function processInviteFollowupJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({ where: { topic: 'invite-followup:send', processed: false }, take: 30 });
+  let processed = 0;
+  for (const evt of events) {
+    const payload = evt.payload as { cadenceId: string; stepKey: string; scheduledAt: string };
+    const ok = await safeProcess('invite-followup:send', evt.id, async () => {
+      if (new Date(payload.scheduledAt).getTime() > Date.now()) return;
+
+      const attempt = await prisma.inviteFollowUpAttempt.findUnique({
+        where: { cadenceId_stepKey: { cadenceId: payload.cadenceId, stepKey: payload.stepKey } },
+      });
+      if (!attempt || attempt.status === 'sent') {
+        await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+        return;
+      }
+
+      const cadence = await prisma.inviteFollowUpCadence.findUnique({ where: { id: payload.cadenceId } });
+      if (!cadence || cadence.status !== 'active') {
+        await prisma.inviteFollowUpAttempt.update({ where: { id: attempt.id }, data: { status: 'cancelled' } });
+        await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+        return;
+      }
+
+      await prisma.messageDispatch.create({
+        data: {
+          channel: attempt.channel,
+          destination: cadence.candidateId,
+          content: JSON.stringify({ type: 'invite-followup', cadenceId: cadence.id, stepKey: attempt.stepKey }),
+          status: 'sent',
+        },
+      });
+      await prisma.inviteFollowUpAttempt.update({
+        where: { id: attempt.id },
+        data: { status: 'sent', sentAt: new Date() },
+      });
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    });
+    if (ok) processed++;
+  }
+  return processed;
+}
+
 async function run() {
   console.log('[worker] starting');
 
@@ -319,7 +361,8 @@ async function run() {
     const processedRecommendation = await processRecommendationGenerateJobs();
     const processedRisk = await processRiskAnalyzeJobs();
     const processedAutomation = await processAutomationTriggerJobs();
-    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation}`);
+    const processedInviteFollowup = await processInviteFollowupJobs();
+    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation} inviteFollowup=${processedInviteFollowup}`);
   } catch (err) {
     console.error('[worker] error', err);
     process.exitCode = 1;

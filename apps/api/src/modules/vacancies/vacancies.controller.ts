@@ -37,4 +37,16 @@ export class VacanciesController {
   findAll(@CurrentUser() user: AuthUser) {
     return this.vacanciesService.findAll(user.organizationIds, user.role);
   }
+
+  @Post('assist-content')
+  @RequirePermissions('vacancies:write')
+  assist(@Body() body: {
+    title: string;
+    seniority: string;
+    sector: string;
+    workModel?: string;
+    location?: string;
+  }) {
+    return this.vacanciesService.generateAssistiveContent(body);
+  }
 }

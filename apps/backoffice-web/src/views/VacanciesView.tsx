@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../services/rbac.js';
-import type { Vacancy } from '../services/types.js';
+import type { Vacancy, VacancyAssistSuggestion, VacancyTemplate } from '../services/types.js';
 import {
   Button,
   Input,
@@ -18,12 +18,16 @@ import {
   PageContent,
   InlineMessage,
   EmptyState,
+  Badge,
   spacing,
 } from '@connekt/ui';
 
 export function VacanciesView() {
   const { user } = useAuth();
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [templates, setTemplates] = useState<VacancyTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [suggestion, setSuggestion] = useState<VacancyAssistSuggestion | null>(null);
   const [orgId, setOrgId] = useState(() => user?.organizationIds?.[0] ?? '');
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
@@ -49,7 +53,12 @@ export function VacanciesView() {
 
   const load = async () => {
     try {
-      setVacancies(await apiGet<Vacancy[]>('/vacancies'));
+      const [vacanciesData, templatesData] = await Promise.all([
+        apiGet<Vacancy[]>('/vacancies'),
+        apiGet<VacancyTemplate[]>('/vacancy-templates'),
+      ]);
+      setVacancies(vacanciesData);
+      setTemplates(templatesData);
     } catch {
       /* ignored */
     }
@@ -73,6 +82,7 @@ export function VacanciesView() {
         salaryMax: form.salaryMax ? Number(form.salaryMax) : undefined,
       });
       setForm({ ...form, title: '', description: '', location: '', department: '', requiredSkills: '', desiredSkills: '', salaryMin: '', salaryMax: '' });
+      setSuggestion(null);
       setMsg('Vaga criada com sucesso!');
       setMsgVariant('success');
       await load();
@@ -82,6 +92,55 @@ export function VacanciesView() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const applyTemplate = async () => {
+    if (!selectedTemplateId) return;
+    try {
+      const defaults = await apiPost<Partial<Vacancy>>(`/vacancy-templates/${selectedTemplateId}/apply`, {});
+      setForm((prev) => ({
+        ...prev,
+        title: String(defaults.title ?? prev.title),
+        description: String(defaults.description ?? prev.description),
+        location: String(defaults.location ?? prev.location),
+        workModel: String(defaults.workModel ?? prev.workModel),
+        seniority: String(defaults.seniority ?? prev.seniority),
+        employmentType: String(defaults.employmentType ?? prev.employmentType),
+        publicationType: String(defaults.publicationType ?? prev.publicationType),
+        status: String(defaults.status ?? prev.status),
+        department: String(defaults.department ?? prev.department),
+        requiredSkills: Array.isArray(defaults.requiredSkills) ? defaults.requiredSkills.join(', ') : prev.requiredSkills,
+        desiredSkills: Array.isArray(defaults.desiredSkills) ? defaults.desiredSkills.join(', ') : prev.desiredSkills,
+      }));
+      setMsg('Template aplicado em 1 clique. Você pode ajustar antes de publicar.');
+      setMsgVariant('success');
+    } catch (err) {
+      setMsg(String(err));
+      setMsgVariant('error');
+    }
+  };
+
+  const generateSuggestion = async () => {
+    try {
+      const ai = await apiPost<VacancyAssistSuggestion>('/vacancies/assist-content', {
+        title: form.title,
+        seniority: form.seniority,
+        sector: form.department || 'geral',
+        workModel: form.workModel,
+        location: form.location,
+      });
+      setSuggestion(ai);
+    } catch (err) {
+      setMsg(String(err));
+      setMsgVariant('error');
+    }
+  };
+
+  const acceptSuggestionSection = (section: 'summary' | 'requiredSkills' | 'desiredSkills') => {
+    if (!suggestion) return;
+    if (section === 'summary') setForm((prev) => ({ ...prev, description: suggestion.summary }));
+    if (section === 'requiredSkills') setForm((prev) => ({ ...prev, requiredSkills: suggestion.requiredSkills.join(', ') }));
+    if (section === 'desiredSkills') setForm((prev) => ({ ...prev, desiredSkills: suggestion.desiredSkills.join(', ') }));
   };
 
   const columns = [
@@ -104,6 +163,10 @@ export function VacanciesView() {
             <CardHeader><CardTitle>Criar Vaga Publicável</CardTitle></CardHeader>
             <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
               {orgOptions.length > 1 ? <Select label="Organização" value={orgId} onChange={(e) => setOrgId(e.target.value)} options={orgOptions} required /> : <Input label="ID da Organização" value={orgId} onChange={(e) => setOrgId(e.target.value)} />}
+
+              <Select label="Template de vaga" value={selectedTemplateId} onChange={(e) => setSelectedTemplateId(e.target.value)} options={[{ value: '', label: 'Selecione um template' }, ...templates.filter((t) => t.organizationId === orgId).map((t) => ({ value: t.id, label: `${t.name} (${t.role})` }))]} />
+              <Button type="button" variant="secondary" onClick={() => { void applyTemplate(); }} disabled={!selectedTemplateId}>Aplicar template</Button>
+
               <Input label="Título" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
               <Textarea label="Descrição" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
               <Input label="Localização" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
@@ -115,10 +178,36 @@ export function VacanciesView() {
               <Input label="Setor/Área" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
               <Input label="Skills obrigatórias (csv)" value={form.requiredSkills} onChange={(e) => setForm({ ...form, requiredSkills: e.target.value })} />
               <Input label="Skills desejáveis (csv)" value={form.desiredSkills} onChange={(e) => setForm({ ...form, desiredSkills: e.target.value })} />
+
+              <Button type="button" variant="secondary" onClick={() => { void generateSuggestion(); }}>
+                Sugerir conteúdo com IA
+              </Button>
+
+              {suggestion && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Preview IA (diff)</CardTitle>
+                    <Badge variant="warning">Revisão humana obrigatória</Badge>
+                  </CardHeader>
+                  <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                    <p><strong>Resumo:</strong> {suggestion.summary}</p>
+                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('summary')}>Aceitar seção: resumo</Button>
+                    <p><strong>Obrigatórios:</strong> {suggestion.requiredSkills.join(', ')}</p>
+                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('requiredSkills')}>Aceitar seção: obrigatórios</Button>
+                    <p><strong>Desejáveis:</strong> {suggestion.desiredSkills.join(', ')}</p>
+                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('desiredSkills')}>Aceitar seção: desejáveis</Button>
+                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                      <Button type="button" onClick={() => { acceptSuggestionSection('summary'); acceptSuggestionSection('requiredSkills'); acceptSuggestionSection('desiredSkills'); }}>Aceitar tudo</Button>
+                      <Button type="button" variant="secondary" onClick={() => setSuggestion(null)}>Descartar</Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <Input label="Faixa salarial mínima" type="number" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} />
               <Input label="Faixa salarial máxima" type="number" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: e.target.value })} />
             </CardContent>
-            <CardFooter><Button type="submit" loading={loading}>{loading ? 'Criando…' : 'Criar'}</Button></CardFooter>
+            <CardFooter><Button type="submit" loading={loading}>{loading ? 'Criando…' : 'Criar (confirmação humana final)'}</Button></CardFooter>
           </form>
         </Card>
       )}

@@ -1,6 +1,6 @@
 # Connekt Hunter App Monorepo
 
-Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening) + **Vertical Slice 08** (segurança defensiva, tenant isolation e e2e integrado) + **Vertical Slice 09** (rate limiting distribuído, token cache Redis, integração real e tracing) + **Vertical Slice 10** (Identity, Access e UX por perfil de usuário no backoffice).
+Baseline técnica com **Vertical Slice 01** estabilizado + **Vertical Slice 02** (Auth real-ready + RBAC end-to-end + staging prep) + **Vertical Slice 03** (Smart Interview mock end-to-end) + **Vertical Slice 04** (integrações reais com fallback e observabilidade básica) + **Vertical Slice 05** (inteligência de produto assistiva) + **Vertical Slice 06** (automação inteligente e recomendações assistidas) + **Vertical Slice 07** (validação global, gap analysis e hardening) + **Vertical Slice 08** (segurança defensiva, tenant isolation e e2e integrado) + **Vertical Slice 09** (rate limiting distribuído, token cache Redis, integração real e tracing) + **Vertical Slice 10** (Identity, Access e UX por perfil de usuário no backoffice) + **Vertical Slice 12** (otimização de conversão com templates, IA assistiva, cadência e inbox operacional).
 
 ## Stack
 - pnpm workspaces + Turbo
@@ -46,6 +46,7 @@ pnpm --filter candidate-web dev
 - `/admin/organizations` gestão de empresas/tenants (listar/criar com owner e status)
 - `/admin/access-policies` políticas básicas por tenant (convidar, aprovar, auditar, administrar)
 - `/notifications` centro de preferências de notificação por usuário
+- `/inbox` fila operacional priorizada para headhunter (ações rápidas)
 
 ## API — endpoints principais
 ### Health
@@ -62,6 +63,11 @@ pnpm --filter candidate-web dev
 ### Fluxo recrutamento
 - `POST /vacancies`
 - `GET /vacancies`
+- `POST /vacancies/assist-content`
+- `POST /vacancy-templates`
+- `GET /vacancy-templates`
+- `PATCH /vacancy-templates/:id`
+- `POST /vacancy-templates/:id/apply`
 - `GET /organizations`
 - `POST /organizations`
 - `POST /candidates/invite`
@@ -103,6 +109,10 @@ pnpm --filter candidate-web dev
 - `PUT /tenant-policies/:organizationId`
 - `GET /notification-preferences/me`
 - `PUT /notification-preferences/me`
+- `POST /invite-follow-up-cadences`
+- `GET /invite-follow-up-cadences?organizationId=`
+- `PATCH /invite-follow-up-cadences/:cadenceId/:action`
+- `GET /headhunter-inbox?organizationId=&priority=`
 
 ## Vertical Slice 02
 Implementado nesta fase:

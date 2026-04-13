@@ -18,6 +18,7 @@ import { OrganizationsView } from './views/OrganizationsView.js';
 import { AccessPoliciesView } from './views/AccessPoliciesView.js';
 import { NotificationPreferencesView } from './views/NotificationPreferencesView.js';
 import { InboxView } from './views/InboxView.js';
+import { EnterpriseGovernanceView } from './views/EnterpriseGovernanceView.js';
 
 function App() {
   const { user } = useAuth();
@@ -48,6 +49,7 @@ function App() {
         <Route path="/notifications" element={<ProtectedRoute><NotificationPreferencesView /></ProtectedRoute>} />
         <Route path="/inbox" element={<PermissionRoute permission="applications:read"><InboxView /></PermissionRoute>} />
         <Route path="/audit" element={<PermissionRoute permission="audit:read"><AuditTrailView /></PermissionRoute>} />
+        <Route path="/enterprise-governance" element={<PermissionRoute permission="executive-dashboard:read"><EnterpriseGovernanceView /></PermissionRoute>} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </BrowserRouter>

@@ -14,7 +14,11 @@ export type Permission =
   | 'smart-interview:configure'
   | 'smart-interview:review'
   | 'users:manage'
-  | 'audit:read';
+  | 'audit:read'
+  | 'tenant-admin:manage'
+  | 'access-control:manage'
+  | 'communications:manage'
+  | 'executive-dashboard:read';
 
 const rolePermissions: Record<AppRole, Permission[]> = {
   admin: [
@@ -30,6 +34,10 @@ const rolePermissions: Record<AppRole, Permission[]> = {
     'smart-interview:review',
     'users:manage',
     'audit:read',
+    'tenant-admin:manage',
+    'access-control:manage',
+    'communications:manage',
+    'executive-dashboard:read',
   ],
   headhunter: [
     'vacancies:write',
@@ -41,6 +49,8 @@ const rolePermissions: Record<AppRole, Permission[]> = {
     'decision:read',
     'smart-interview:configure',
     'smart-interview:review',
+    'communications:manage',
+    'executive-dashboard:read',
   ],
   client: [
     'vacancies:read',
@@ -49,6 +59,7 @@ const rolePermissions: Record<AppRole, Permission[]> = {
     'decision:write',
     'decision:read',
     'smart-interview:review',
+    'executive-dashboard:read',
   ],
 };
 

@@ -35,6 +35,13 @@ model Organization {
   vacancies   Vacancy[]
   candidates  Candidate[]
   tenantPolicy TenantPolicy?
+  tenantSettings TenantSettings?
+  tenantPolicyVersions TenantPolicyVersion[]
+  rolePolicies RolePolicy[]
+  permissionGrants PermissionGrant[]
+  communicationTemplates CommunicationTemplate[]
+  communicationDispatchAudits CommunicationDispatchAudit[]
+  tenantKpiSnapshots TenantKpiSnapshot[]
 }
 
 model Membership {
@@ -127,6 +134,149 @@ model TenantPolicy {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
   organization          Organization @relation(fields: [organizationId], references: [id])
+}
+
+model TenantSettings {
+  id                      String   @id @default(cuid())
+  organizationId          String   @unique
+  planSegment             String
+  slaResponseHours        Int      @default(24)
+  slaClosureHours         Int      @default(336)
+  timezone                String
+  operationalCalendar     String
+  tenantStatus            String   @default("trial")
+  logoUrl                 String?
+  bannerUrl               String?
+  primaryColor            String?
+  secondaryColor          String?
+  publicName              String?
+  communicationDomain     String?
+  dataRetentionDays       Int      @default(365)
+  auditRetentionDays      Int      @default(365)
+  mfaRequiredRoles        String[]
+  maxSessionMinutes       Int      @default(480)
+  communicationWindowStart String @default("08:00")
+  communicationWindowEnd   String @default("20:00")
+  frequencyLimitPerDay    Int      @default(5)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  organization            Organization @relation(fields: [organizationId], references: [id])
+  policyVersions          TenantPolicyVersion[]
+}
+
+model TenantPolicyVersion {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  tenantSettingsId   String?
+  version            Int
+  policyJson         Json
+  previousPolicyJson Json?
+  changedBy          String
+  createdAt          DateTime @default(now())
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  tenantSettings     TenantSettings? @relation(fields: [tenantSettingsId], references: [id])
+
+  @@unique([organizationId, version])
+}
+
+model RolePolicy {
+  id             String   @id @default(cuid())
+  organizationId String
+  roleKey        String
+  resource       String
+  action         String
+  scope          String
+  allowed        Boolean  @default(true)
+  updatedBy      String
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, roleKey, resource, action, scope])
+}
+
+model PermissionGrant {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  grantedBy      String
+  resource       String
+  action         String
+  scope          String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, userId, expiresAt])
+}
+
+model CommunicationTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  type           String
+  channel        String
+  placeholders   String[]
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  versions       CommunicationTemplateVersion[]
+  dispatchAudits CommunicationDispatchAudit[]
+}
+
+model CommunicationTemplateVersion {
+  id          String   @id @default(cuid())
+  templateId  String
+  version     Int
+  status      String
+  content     String
+  createdBy   String
+  createdAt   DateTime @default(now())
+  template    CommunicationTemplate @relation(fields: [templateId], references: [id])
+  dispatchAudits CommunicationDispatchAudit[]
+
+  @@unique([templateId, version])
+}
+
+model CommunicationDispatchAudit {
+  id                String   @id @default(cuid())
+  organizationId    String
+  templateId        String
+  templateVersionId String
+  recipient         String
+  eventKey          String
+  channel           String
+  status            String
+  failureReason     String?
+  idempotencyKey    String   @unique
+  requestedBy       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  template          CommunicationTemplate @relation(fields: [templateId], references: [id])
+  templateVersion   CommunicationTemplateVersion @relation(fields: [templateVersionId], references: [id])
+}
+
+model TenantKpiSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  period         String
+  capturedAt     DateTime
+  invites        Int      @default(0)
+  responses      Int      @default(0)
+  shortlisted    Int      @default(0)
+  approved       Int      @default(0)
+  onboarded      Int      @default(0)
+  avgTimeToPublishHours Float @default(0)
+  avgInviteToOnboardingHours Float @default(0)
+  avgDecisionTimeHours Float @default(0)
+  throughputPerHeadhunter Float @default(0)
+  slaMet         Int      @default(0)
+  slaBreached    Int      @default(0)
+  metadata       Json?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, period, capturedAt])
 }
 
 model UserNotificationPreference {

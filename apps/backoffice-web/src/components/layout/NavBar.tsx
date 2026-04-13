@@ -4,7 +4,6 @@ import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { colors, fontSize, fontWeight, spacing } from '@connekt/ui';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';
-import { addAuditEvent } from '../../services/account.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Nav items per role                                                        */
@@ -102,7 +101,6 @@ export function NavBar() {
             void apiPost('/auth/logout', {})
               .catch(() => null)
               .finally(() => {
-                if (user) addAuditEvent('logout', user.email, user.id);
                 logout();
                 navigate('/login');
               });

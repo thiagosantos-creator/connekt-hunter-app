@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { addAuditEvent, listManagedUsers, saveManagedUsers, sendCandidateInvite } from '../services/account.js';
-import type { ManagedUser } from '../services/types.js';
+import { listCandidateInvites, listManagedUsers, sendCandidateInvite, updateManagedUser } from '../services/account.js';
+import type { CandidateInvite, ManagedUser } from '../services/types.js';
 import { hasPermission } from '../services/rbac.js';
 import {
   PageContent,
@@ -19,13 +19,21 @@ import {
 
 export function AdminUsersView() {
   const { user } = useAuth();
-  const [rows, setRows] = useState<ManagedUser[]>(() => listManagedUsers(user));
+  const [rows, setRows] = useState<ManagedUser[]>([]);
+  const [inviteRows, setInviteRows] = useState<CandidateInvite[]>([]);
   const [feedback, setFeedback] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteVacancyId, setInviteVacancyId] = useState('');
 
   const canManage = hasPermission(user, 'users:manage');
   const canInvite = hasPermission(user, 'candidates:invite');
+  const organizationId = user?.organizationIds?.[0] ?? user?.tenantId ?? '';
+
+  useEffect(() => {
+    if (!organizationId) return;
+    void listManagedUsers(organizationId).then(setRows).catch((error) => setFeedback(String(error)));
+    void listCandidateInvites(organizationId).then(setInviteRows).catch(() => setInviteRows([]));
+  }, [organizationId]);
 
   const cols = useMemo(
     () => [
@@ -40,11 +48,10 @@ export function AdminUsersView() {
               value={row.role}
               onChange={(e) => {
                 const role = e.target.value as ManagedUser['role'];
-                const next = rows.map((r) => (r.id === row.id ? { ...r, role } : r));
-                setRows(next);
-                saveManagedUsers(next);
-                if (user) addAuditEvent('role.changed', user.email, row.id, { role });
-                setFeedback('Role atualizada.');
+                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, role }).then((updated) => {
+                  setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                  setFeedback('Role atualizada.');
+                }).catch((error) => setFeedback(String(error)));
               }}
             >
               <option value="admin">admin</option>
@@ -65,11 +72,10 @@ export function AdminUsersView() {
               size="sm"
               variant="outline"
               onClick={() => {
-                const next = rows.map((r) => (r.id === row.id ? { ...r, isActive: !r.isActive } : r));
-                setRows(next);
-                saveManagedUsers(next);
-                if (user) addAuditEvent('user.toggled', user.email, row.id, { isActive: String(!row.isActive) });
-                setFeedback('Status do usuário atualizado.');
+                void updateManagedUser({ organizationId: row.tenantId, userId: row.id, isActive: !row.isActive }).then((updated) => {
+                  setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                  setFeedback('Status do usuÃ¡rio atualizado.');
+                }).catch((error) => setFeedback(String(error)));
               }}
             >
               {row.isActive ? 'Desativar' : 'Ativar'}
@@ -79,7 +85,7 @@ export function AdminUsersView() {
           ),
       },
     ],
-    [canManage, rows, user],
+    [canManage],
   );
 
   if (!user) return null;
@@ -91,12 +97,12 @@ export function AdminUsersView() {
         destination: inviteEmail,
         consent: true,
         vacancyId: inviteVacancyId,
-        organizationId: user.tenantId ?? 'org-demo',
+        organizationId,
       });
-      addAuditEvent('candidate.invited', user.email, inviteEmail, { vacancyId: inviteVacancyId });
       setFeedback('Convite enviado com sucesso.');
       setInviteEmail('');
       setInviteVacancyId('');
+      setInviteRows(await listCandidateInvites(organizationId));
     } catch (error) {
       setFeedback(`Erro ao enviar convite: ${String(error)}`);
     }
@@ -104,7 +110,7 @@ export function AdminUsersView() {
 
   return (
     <PageContent>
-      <PageHeader title="Gestão de Usuários" description="Administração de usuários, permissões e convites." />
+      <PageHeader title="GestÃ£o de UsuÃ¡rios" description="AdministraÃ§Ã£o persistida de usuÃ¡rios, permissÃµes e governanÃ§a de convites." />
       {feedback && <InlineMessage variant="info">{feedback}</InlineMessage>}
 
       {canInvite && (
@@ -132,12 +138,33 @@ export function AdminUsersView() {
         </Card>
       )}
 
+      {inviteRows.length > 0 && (
+        <Card style={{ marginBottom: spacing.md }}>
+          <CardHeader>
+            <CardTitle>GovernanÃ§a de convites</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              columns={[
+                { key: 'candidate', header: 'Candidato', render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination },
+                { key: 'vacancy', header: 'Vaga', render: (row: CandidateInvite) => row.vacancy.title },
+                { key: 'channel', header: 'Canal', render: (row: CandidateInvite) => row.channel },
+                { key: 'status', header: 'Status', render: (row: CandidateInvite) => row.status },
+              ]}
+              data={inviteRows}
+              rowKey={(row) => row.id}
+              pageSize={5}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <DataTable
         columns={cols}
         data={rows}
         rowKey={(row) => row.id}
         searchable
-        searchPlaceholder="Buscar usuário por nome ou e-mail"
+        searchPlaceholder="Buscar usuÃ¡rio por nome ou e-mail"
         pageSize={10}
       />
     </PageContent>

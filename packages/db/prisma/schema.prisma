@@ -12,6 +12,7 @@ model User {
   email         String        @unique
   name          String
   role          String
+  isActive      Boolean       @default(true)
   createdAt     DateTime      @default(now())
   memberships   Membership[]
   vacancies     Vacancy[]     @relation("VacancyCreator")
@@ -21,7 +22,10 @@ model User {
   sessions      UserSession[]
   candidates    Candidate[]    @relation("CandidateUser")
   invitedCandidates Candidate[] @relation("CandidateInviter")
+  candidateInvitesSent CandidateInvite[] @relation("CandidateInviteActor")
   mfaPreference MfaPreference?
+  notificationPreference UserNotificationPreference?
+  notificationDispatches NotificationDispatch[]
   smartInterviewReviews SmartInterviewHumanReview[] @relation("SmartInterviewReviewer")
 }
 
@@ -41,6 +45,8 @@ model Organization {
   permissionGrants PermissionGrant[]
   communicationTemplates CommunicationTemplate[]
   communicationDispatchAudits CommunicationDispatchAudit[]
+  candidateInvites CandidateInvite[]
+  notificationDispatches NotificationDispatch[]
   tenantKpiSnapshots TenantKpiSnapshot[]
 }
 
@@ -63,9 +69,13 @@ model Vacancy {
   location       String?
   workModel      String?
   seniority      String?
+  sector         String?
+  experienceYearsMin Int?
+  experienceYearsMax Int?
   employmentType String?
   publicationType String       @default("draft")
   status         String        @default("active")
+  publishedAt    DateTime?
   department     String?
   requiredSkills Json?
   desiredSkills  Json?
@@ -88,6 +98,7 @@ model Vacancy {
   riskSignals     RiskSignal[]
   riskEvaluations RiskEvaluation[]
   templates       VacancyTemplate[]
+  candidateInvites CandidateInvite[]
 }
 
 model Candidate {
@@ -122,6 +133,7 @@ model Candidate {
   invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
+  invites        CandidateInvite[]
 }
 
 model TenantPolicy {
@@ -283,13 +295,63 @@ model UserNotificationPreference {
   id                    String   @id @default(cuid())
   userId                String   @unique
   emailEnabled          Boolean  @default(true)
+  phoneEnabled          Boolean  @default(false)
+  inAppEnabled          Boolean  @default(true)
   eventNewInvite        Boolean  @default(true)
   eventStepCompleted    Boolean  @default(true)
   eventDecision         Boolean  @default(true)
   eventReminder         Boolean  @default(true)
+  eventAccessChange     Boolean  @default(true)
+  eventCriticalAudit    Boolean  @default(true)
   frequency             String   @default("immediate")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id])
+}
+
+model CandidateInvite {
+  id             String       @id @default(cuid())
+  organizationId String
+  vacancyId      String
+  candidateId    String
+  channel        String
+  destination    String
+  status         String       @default("queued")
+  dispatchId     String?
+  invitedByUserId String
+  failureReason  String?
+  metadata       Json?
+  sentAt         DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  vacancy        Vacancy      @relation(fields: [vacancyId], references: [id])
+  candidate      Candidate    @relation(fields: [candidateId], references: [id])
+  invitedBy      User         @relation("CandidateInviteActor", fields: [invitedByUserId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([vacancyId, status])
+  @@index([candidateId, createdAt])
+}
+
+model NotificationDispatch {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  channel        String
+  eventKey       String
+  destination    String
+  status         String       @default("queued")
+  frequency      String       @default("immediate")
+  failureReason  String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([organizationId, eventKey, createdAt])
 }
 
 model CandidateProfile {

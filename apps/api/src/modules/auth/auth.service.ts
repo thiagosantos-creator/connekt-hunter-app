@@ -22,13 +22,33 @@ export class AuthService {
 
     if (preferRealProvider) {
       const fromCognito = await this.cognitoProvider.login({ email, password });
-      if (fromCognito) return fromCognito;
+      if (fromCognito) {
+        await prisma.auditEvent.create({
+          data: {
+            actorId: fromCognito.user.id,
+            action: 'auth.login',
+            entityType: 'user-session',
+            entityId: fromCognito.token,
+            metadata: { provider: fromCognito.provider } as never,
+          },
+        });
+        return fromCognito;
+      }
     }
 
     const fromDev = await this.devProvider.login({ email, password });
     if (!fromDev) {
       throw new UnauthorizedException('user_not_found');
     }
+    await prisma.auditEvent.create({
+      data: {
+        actorId: fromDev.user.id,
+        action: 'auth.login',
+        entityType: 'user-session',
+        entityId: fromDev.token,
+        metadata: { provider: fromDev.provider } as never,
+      },
+    });
     return fromDev;
   }
 

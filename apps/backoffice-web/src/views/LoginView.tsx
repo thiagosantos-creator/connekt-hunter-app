@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { AuthUser } from '../services/types.js';
-import { addAuditEvent } from '../services/account.js';
 import {
   Button,
   Input,
@@ -53,7 +52,6 @@ export function LoginView() {
       }
       localStorage.setItem('bo_token', data.token);
       localStorage.setItem('bo_user', JSON.stringify(data.user));
-      addAuditEvent('login.success', data.user.email, data.user.id);
       refreshAuth();
       navigate(getHomeRoute(data.user.role));
     } catch (err) {

@@ -1,48 +1,89 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+
+type VacancyPayload = {
+  organizationId: string;
+  title: string;
+  description: string;
+  location?: string;
+  workModel?: string;
+  seniority?: string;
+  sector?: string;
+  experienceYearsMin?: number;
+  experienceYearsMax?: number;
+  employmentType?: string;
+  publicationType?: string;
+  status?: string;
+  department?: string;
+  requiredSkills?: string[];
+  desiredSkills?: string[];
+  salaryMin?: number;
+  salaryMax?: number;
+  createdBy: string;
+};
 
 @Injectable()
 export class VacanciesService {
-  async create(data: {
-    organizationId: string;
-    title: string;
-    description: string;
-    location?: string;
-    workModel?: string;
-    seniority?: string;
-    employmentType?: string;
-    publicationType?: string;
-    status?: string;
-    department?: string;
-    requiredSkills?: string[];
-    desiredSkills?: string[];
-    salaryMin?: number;
-    salaryMax?: number;
-    createdBy: string;
-  }) {
+  async create(data: VacancyPayload) {
     const membership = await prisma.membership.findUnique({
       where: { organizationId_userId: { organizationId: data.organizationId, userId: data.createdBy } },
     });
 
     if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    const publicationType = data.publicationType ?? 'draft';
+    const missingFields = this.getPublicationMissingFields({ ...data, publicationType });
+    if (publicationType !== 'draft' && missingFields.length > 0) {
+      throw new BadRequestException(`vacancy_incomplete:${missingFields.join(',')}`);
+    }
+
     return prisma.vacancy.create({
       data: {
         ...data,
-        publicationType: data.publicationType ?? 'draft',
+        publicationType,
         status: data.status ?? 'active',
+        sector: data.sector ?? data.department,
         requiredSkills: data.requiredSkills ?? [],
         desiredSkills: data.desiredSkills ?? [],
+        publishedAt: publicationType !== 'draft' ? new Date() : undefined,
       },
     });
   }
 
-  findAll(organizationIds: string[], role: string) {
-    if (role === 'admin') {
-      return prisma.vacancy.findMany({ include: { organization: true } });
-    }
-    return prisma.vacancy.findMany({
-      where: { organizationId: { in: organizationIds } },
-      include: { organization: true },
+  async findAll(organizationIds: string[], role: string) {
+    const rows = role === 'admin'
+      ? await prisma.vacancy.findMany({ include: { organization: true } })
+      : await prisma.vacancy.findMany({
+          where: { organizationId: { in: organizationIds } },
+          include: { organization: true },
+        });
+
+    return rows.map((vacancy) => {
+      const publicationMissingFields = this.getPublicationMissingFields({
+        organizationId: vacancy.organizationId,
+        title: vacancy.title,
+        description: vacancy.description,
+        location: vacancy.location ?? undefined,
+        workModel: vacancy.workModel ?? undefined,
+        seniority: vacancy.seniority ?? undefined,
+        sector: vacancy.sector ?? undefined,
+        experienceYearsMin: vacancy.experienceYearsMin ?? undefined,
+        experienceYearsMax: vacancy.experienceYearsMax ?? undefined,
+        employmentType: vacancy.employmentType ?? undefined,
+        publicationType: vacancy.publicationType,
+        status: vacancy.status,
+        department: vacancy.department ?? undefined,
+        requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills.map(String) : [],
+        desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills.map(String) : [],
+        salaryMin: vacancy.salaryMin ?? undefined,
+        salaryMax: vacancy.salaryMax ?? undefined,
+        createdBy: vacancy.createdBy,
+      });
+
+      return {
+        ...vacancy,
+        publicationReady: publicationMissingFields.length === 0,
+        publicationMissingFields,
+      };
     });
   }
 
@@ -79,5 +120,24 @@ export class VacanciesService {
       provider: 'mock-assistive-v1',
       generatedAt: new Date().toISOString(),
     };
+  }
+
+  private getPublicationMissingFields(data: VacancyPayload) {
+    const missingFields: string[] = [];
+    if (!data.title?.trim()) missingFields.push('title');
+    if (!data.description?.trim()) missingFields.push('description');
+    if (data.publicationType === 'draft') return missingFields;
+
+    if (!data.location?.trim()) missingFields.push('location');
+    if (!data.workModel?.trim()) missingFields.push('workModel');
+    if (!data.seniority?.trim()) missingFields.push('seniority');
+    if (!(data.sector ?? data.department)?.trim()) missingFields.push('sector');
+    if (!data.employmentType?.trim()) missingFields.push('employmentType');
+    if (!data.requiredSkills?.length) missingFields.push('requiredSkills');
+    if (data.experienceYearsMin != null && data.experienceYearsMax != null && data.experienceYearsMin > data.experienceYearsMax) {
+      missingFields.push('experienceRange');
+    }
+
+    return missingFields;
   }
 }

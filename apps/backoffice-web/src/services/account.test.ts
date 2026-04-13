@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { listAuditEvents, listManagedUsers } from './account.js';
+import { generateMockMfaQr, saveProfile } from './account.js';
 
 const storage = new Map<string, string>();
 
@@ -27,7 +27,7 @@ function buildStorage(): Storage {
   };
 }
 
-describe('account storage helpers', () => {
+describe('account helpers', () => {
   beforeEach(() => {
     storage.clear();
     Object.defineProperty(globalThis, 'localStorage', {
@@ -36,24 +36,18 @@ describe('account storage helpers', () => {
     });
   });
 
-  it('returns empty audit list when stored json is malformed', () => {
-    localStorage.setItem('bo_audit', '{ malformed');
-
-    expect(listAuditEvents()).toEqual([]);
-  });
-
-  it('falls back to seeded managed users when json is malformed', () => {
-    localStorage.setItem('bo_managed_users', '{ malformed');
-
-    const users = listManagedUsers({
-      id: 'user-1',
+  it('stores the profile using the expected key', () => {
+    saveProfile({
+      id: 'u1',
       email: 'admin@demo.local',
       name: 'Admin',
       role: 'admin',
-      tenantId: 'org-1',
     });
 
-    expect(users).toHaveLength(3);
-    expect(users.every((user) => user.tenantId === 'org-1')).toBe(true);
+    expect(localStorage.getItem('bo_user')).toContain('admin@demo.local');
+  });
+
+  it('generates a deterministic mock MFA QR url', () => {
+    expect(generateMockMfaQr('admin@demo.local')).toContain('otpauth://totp/Connekt:admin@demo.local');
   });
 });

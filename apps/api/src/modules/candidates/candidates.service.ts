@@ -1,14 +1,16 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { EmailGateway } from '../integrations/email.gateway.js';
 import { InviteFollowUpService } from '../invite-follow-up/invite-follow-up.service.js';
+import { NotificationDispatchService } from '../notification-preferences/notification-dispatch.service.js';
 
 @Injectable()
 export class CandidatesService {
   constructor(
-    private readonly emailGateway: EmailGateway,
-    private readonly inviteFollowUpService: InviteFollowUpService,
+    @Inject(EmailGateway) private readonly emailGateway: EmailGateway,
+    @Inject(InviteFollowUpService) private readonly inviteFollowUpService: InviteFollowUpService,
+    @Inject(NotificationDispatchService) private readonly notificationDispatchService: NotificationDispatchService,
   ) {}
 
   async invite(input: {
@@ -26,6 +28,14 @@ export class CandidatesService {
     if (input.channel === 'phone' && !/^\+?[1-9]\d{7,14}$/.test(input.destination.replace(/[^\d+]/g, ''))) {
       throw new BadRequestException('invalid_phone');
     }
+    const vacancy = await prisma.vacancy.findUnique({
+      where: { id: input.vacancyId },
+      select: { id: true, organizationId: true, title: true },
+    });
+    if (!vacancy || vacancy.organizationId !== input.organizationId) {
+      throw new BadRequestException('vacancy_not_found_for_organization');
+    }
+
     const membership = await prisma.membership.findUnique({
       where: { organizationId_userId: { organizationId: input.organizationId, userId: input.actorUserId } },
     });
@@ -51,14 +61,17 @@ export class CandidatesService {
       create: { candidateId: candidate.id },
     });
 
-    await prisma.application.upsert({
+    const application = await prisma.application.upsert({
       where: { candidateId_vacancyId: { candidateId: candidate.id, vacancyId: input.vacancyId } },
       update: {},
       create: { candidateId: candidate.id, vacancyId: input.vacancyId },
     });
 
+    let dispatchId: string | undefined;
+    let inviteStatus = 'queued';
+
     if (input.channel === 'email') {
-      await this.emailGateway.sendTemplated({
+      const dispatch = await this.emailGateway.sendTemplated({
         tenantId: input.organizationId,
         to: email,
         templateKey: 'candidate-invite',
@@ -66,8 +79,10 @@ export class CandidatesService {
         payload: { token: candidate.token, vacancyId: input.vacancyId },
         correlationId: candidate.id,
       });
+      dispatchId = dispatch.dispatchId;
+      inviteStatus = 'sent';
     } else {
-      await prisma.messageDispatch.create({
+      const phoneDispatch = await prisma.messageDispatch.create({
         data: {
           channel: 'phone-gateway',
           destination: input.destination,
@@ -75,15 +90,50 @@ export class CandidatesService {
           status: 'sent',
         },
       });
+      dispatchId = phoneDispatch.id;
+      inviteStatus = 'sent';
     }
+
+    const invite = await prisma.candidateInvite.create({
+      data: {
+        organizationId: input.organizationId,
+        vacancyId: input.vacancyId,
+        candidateId: candidate.id,
+        channel: input.channel,
+        destination: input.destination,
+        status: inviteStatus,
+        dispatchId,
+        invitedByUserId: input.actorUserId,
+        sentAt: inviteStatus === 'sent' ? new Date() : undefined,
+        metadata: { applicationId: application.id, vacancyTitle: vacancy.title } as never,
+      },
+    });
 
     await prisma.auditEvent.create({
       data: {
         action: 'candidate.invited',
         actorId: input.actorUserId,
-        entityType: 'candidate',
-        entityId: candidate.id,
-        metadata: { vacancyId: input.vacancyId, channel: input.channel, destination: input.destination, consent: input.consent },
+        entityType: 'candidate-invite',
+        entityId: invite.id,
+        metadata: { candidateId: candidate.id, vacancyId: input.vacancyId, channel: input.channel, destination: input.destination, consent: input.consent } as never,
+      },
+    });
+
+    const recipients = await prisma.membership.findMany({
+      where: { organizationId: input.organizationId, role: { in: ['admin', 'headhunter'] } },
+      select: { userId: true },
+    });
+
+    await this.notificationDispatchService.dispatchToUsers({
+      organizationId: input.organizationId,
+      userIds: recipients.map((item) => item.userId),
+      actorId: input.actorUserId,
+      eventKey: 'candidate.invited',
+      metadata: {
+        inviteId: invite.id,
+        candidateId: candidate.id,
+        vacancyId: input.vacancyId,
+        channel: input.channel,
       },
     });
 
@@ -93,13 +143,38 @@ export class CandidatesService {
       candidateId: candidate.id,
     });
 
-    return candidate;
+    return {
+      ...candidate,
+      inviteId: invite.id,
+      inviteStatus: invite.status,
+      inviteChannel: invite.channel,
+      inviteDestination: invite.destination,
+    };
   }
 
   byToken(token: string) {
     return prisma.candidate.findUnique({
       where: { token },
       include: { onboarding: true, profile: true, guestSession: true },
+    });
+  }
+
+  async listInvites(organizationId: string, actorUserId: string, role: string) {
+    if (role !== 'admin') {
+      const membership = await prisma.membership.findUnique({
+        where: { organizationId_userId: { organizationId, userId: actorUserId } },
+      });
+      if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    }
+
+    return prisma.candidateInvite.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        candidate: { select: { id: true, email: true, phone: true, token: true } },
+        vacancy: { select: { id: true, title: true } },
+      },
     });
   }
 }

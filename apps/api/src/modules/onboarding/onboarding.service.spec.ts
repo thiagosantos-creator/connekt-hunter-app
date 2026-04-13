@@ -39,11 +39,15 @@ const mockCvParserGateway = {
   parseResume: vi.fn().mockResolvedValue({ summary: 'parsed resume' }),
 };
 
+const mockNotificationDispatchService = {
+  dispatchToUsers: vi.fn().mockResolvedValue([]),
+};
+
 import { OnboardingService } from './onboarding.service.js';
 import { prisma } from '@connekt/db';
 
 describe('OnboardingService', () => {
-  const service = new OnboardingService(mockStorageGateway as never, mockCvParserGateway as never);
+  const service = new OnboardingService(mockStorageGateway as never, mockCvParserGateway as never, mockNotificationDispatchService as never);
 
   it('should throw NotFoundException when candidate token is invalid for basic', async () => {
     vi.mocked(prisma.candidate.findUnique).mockResolvedValue(null);

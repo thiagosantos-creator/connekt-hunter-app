@@ -72,6 +72,7 @@ pnpm --filter candidate-web dev
 - `GET /organizations`
 - `POST /organizations`
 - `POST /candidates/invite`
+- `GET /candidates/invites?organizationId=`
 - `GET /candidate/token/:token`
 - `POST /candidate/onboarding/basic`
 - `POST /candidate/onboarding/consent`
@@ -109,7 +110,10 @@ pnpm --filter candidate-web dev
 - `GET /tenant-policies/:organizationId`
 - `PUT /tenant-policies/:organizationId`
 - `GET /notification-preferences/me`
+- `GET /notification-preferences/me/dispatches`
 - `PUT /notification-preferences/me`
+- `GET /admin/users?organizationId=`
+- `PUT /admin/users/:userId`
 - `POST /invite-follow-up-cadences`
 - `GET /invite-follow-up-cadences?organizationId=`
 - `PATCH /invite-follow-up-cadences/:cadenceId/:action`
@@ -128,6 +132,26 @@ pnpm --filter candidate-web dev
 - `GET /enterprise/communications/:organizationId/dispatch-audit`
 - `GET /enterprise/executive-dashboard/:organizationId`
 - `GET /enterprise/executive-dashboard/:organizationId/export.csv`
+- `GET /audit`
+
+### Vacancy publicÃ¡vel completa
+`Vacancy` agora suporta publicaÃ§Ã£o com validaÃ§Ã£o de completude para:
+- localizaÃ§Ã£o
+- modalidade de trabalho
+- senioridade
+- setor
+- experiÃªncia mÃ­n/mÃ¡x em anos
+- tipo de contrataÃ§Ã£o
+- skills obrigatÃ³rias e desejÃ¡veis
+- faixa salarial opcional
+
+Quando `publicationType !== draft`, a API retorna erro de completude se os campos mÃ­nimos nÃ£o estiverem preenchidos.
+
+### GovernanÃ§a e notificaÃ§Ãµes
+- gestÃ£o de usuÃ¡rios do backoffice agora Ã© persistida na API (`/admin/users`) em vez de depender de `localStorage`
+- convites multicanal ficam registrados em `CandidateInvite` com status auditÃ¡vel
+- preferÃªncias por usuÃ¡rio incluem canais (`email`, `phone`, `in_app`) e histÃ³rico de dispatch
+- onboarding, convites e mudanÃ§as de acesso passam a gerar dispatches rastreÃ¡veis e eventos de auditoria
 
 ## Vertical Slice 02
 Implementado nesta fase:

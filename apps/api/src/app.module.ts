@@ -28,6 +28,7 @@ import { EnterpriseGovernanceModule } from './modules/enterprise-governance/ente
 import { AccessControlModule } from './modules/access-control/access-control.module.js';
 import { CommunicationCenterModule } from './modules/communication-center/communication-center.module.js';
 import { ExecutiveDashboardModule } from './modules/executive-dashboard/executive-dashboard.module.js';
+import { UserManagementModule } from './modules/user-management/user-management.module.js';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ExecutiveDashboardModule } from './modules/executive-dashboard/executiv
     AccessControlModule,
     CommunicationCenterModule,
     ExecutiveDashboardModule,
+    UserManagementModule,
   ],
   controllers: [HealthController],
 })

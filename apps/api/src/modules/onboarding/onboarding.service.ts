@@ -1,15 +1,17 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { StorageGateway } from '../integrations/storage.gateway.js';
 import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
+import { NotificationDispatchService } from '../notification-preferences/notification-dispatch.service.js';
 
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
 
   constructor(
-    private readonly storageGateway: StorageGateway,
-    private readonly cvParserGateway: CvParserGateway,
+    @Inject(StorageGateway) private readonly storageGateway: StorageGateway,
+    @Inject(CvParserGateway) private readonly cvParserGateway: CvParserGateway,
+    @Inject(NotificationDispatchService) private readonly notificationDispatchService: NotificationDispatchService,
   ) {}
 
   async basic(token: string, fullName: string, phone: string) {
@@ -37,6 +39,7 @@ export class OnboardingService {
     });
 
     this.logger.log(JSON.stringify({ event: 'onboarding_basic_completed', candidateId: candidate.id }));
+    await this.notifyInviter(candidate.organizationId, candidate.invitedByUserId, candidate.id, 'basic');
 
     return { ok: true };
   }
@@ -72,6 +75,7 @@ export class OnboardingService {
     });
 
     this.logger.log(JSON.stringify({ event: 'onboarding_consent_completed', candidateId: candidate.id }));
+    await this.notifyInviter(candidate.organizationId, candidate.invitedByUserId, candidate.id, 'consent');
 
     return { ok: true };
   }
@@ -133,7 +137,18 @@ export class OnboardingService {
     });
 
     this.logger.log(JSON.stringify({ event: 'onboarding_resume_completed', candidateId: candidate.id, resumeId: resume.id }));
+    await this.notifyInviter(candidate.organizationId, candidate.invitedByUserId, candidate.id, 'resume');
 
     return { ...resume, upload };
+  }
+
+  private async notifyInviter(organizationId: string, invitedByUserId: string | null, candidateId: string, step: string) {
+    if (!invitedByUserId) return;
+    await this.notificationDispatchService.dispatchToUsers({
+      organizationId,
+      userIds: [invitedByUserId],
+      eventKey: 'candidate.step-completed',
+      metadata: { candidateId, step },
+    });
   }
 }

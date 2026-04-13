@@ -1,4 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BadRequestException } from '@nestjs/common';
 
 vi.mock('@connekt/db', () => ({
   prisma: {
@@ -29,6 +30,18 @@ describe('VacanciesService', () => {
     const result = await service.create({ organizationId: 'org1', title: 'Engineer', description: 'Test', createdBy: 'u1' });
     expect(result).toEqual(vacancy);
     expect(prisma.vacancy.create).toHaveBeenCalledOnce();
+  });
+
+  it('rejects publishing when required fields are missing', async () => {
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
+
+    await expect(service.create({
+      organizationId: 'org1',
+      title: 'Engineer',
+      description: 'Test',
+      createdBy: 'u1',
+      publicationType: 'public',
+    })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('lists vacancies', async () => {

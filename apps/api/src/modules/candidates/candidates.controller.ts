@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CandidatesService } from './candidates.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -11,7 +11,7 @@ import { PublicTokenGuard } from '../auth/public-token.guard.js';
 
 @Controller()
 export class CandidatesController {
-  constructor(private readonly candidatesService: CandidatesService) {}
+  constructor(@Inject(CandidatesService) private readonly candidatesService: CandidatesService) {}
 
   @Post('candidates/invite')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -34,6 +34,13 @@ export class CandidatesController {
       consent: body.consent,
       actorUserId: user.id,
     });
+  }
+
+  @Get('candidates/invites')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('candidates:invite')
+  invites(@Query('organizationId') organizationId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.listInvites(organizationId, user.id, user.role);
   }
 
   @Get('candidate/token/:token')

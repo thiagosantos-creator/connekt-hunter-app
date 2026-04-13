@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Logger, HttpException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, Logger, HttpException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { redisIncrWithExpire } from '../infra/redis.client.js';
 import { RATE_LIMIT_CONFIG_KEY, type RateLimitConfig } from './rate-limit.decorator.js';
@@ -13,7 +13,7 @@ export class RateLimitGuard implements CanActivate {
   };
   private readonly fallbackStore = new Map<string, { count: number; resetAt: number }>();
 
-  constructor(private readonly reflector: Reflector) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<{ ip?: string; headers: Record<string, string | string[]>; route?: { path?: string } }>();

@@ -27,15 +27,21 @@ export interface Vacancy {
   location?: string;
   workModel?: string;
   seniority?: string;
+  sector?: string;
+  experienceYearsMin?: number;
+  experienceYearsMax?: number;
   employmentType?: string;
   publicationType?: string;
   status?: string;
+  publishedAt?: string;
   department?: string;
   requiredSkills?: string[];
   desiredSkills?: string[];
   salaryMin?: number;
   salaryMax?: number;
   organization?: { id: string; name?: string };
+  publicationReady?: boolean;
+  publicationMissingFields?: string[];
 }
 
 export interface VacancyTemplate {
@@ -83,12 +89,28 @@ export interface Organization {
   name: string;
   status: string;
   ownerAdminUserId?: string;
+  tenantPolicy?: {
+    canInviteCandidates: boolean;
+    canApproveDecisions: boolean;
+    canAuditEvents: boolean;
+    canAdministrateTenant: boolean;
+  };
+  tenantSettings?: {
+    planSegment: string;
+    timezone: string;
+    tenantStatus: string;
+  };
 }
 
 export interface Candidate {
   id: string;
   email: string;
   token: string;
+  phone?: string;
+  inviteId?: string;
+  inviteStatus?: string;
+  inviteChannel?: string;
+  inviteDestination?: string;
 }
 
 export interface CandidateRecommendation {
@@ -166,6 +188,7 @@ export interface ManagedUser {
   company?: string;
   avatarUrl?: string;
   isActive: boolean;
+  notificationPreference?: NotificationPreference;
 }
 
 export interface AuditEvent {
@@ -175,4 +198,47 @@ export interface AuditEvent {
   target?: string;
   createdAt: string;
   metadata?: Record<string, string>;
+}
+
+export interface NotificationPreference {
+  emailEnabled: boolean;
+  phoneEnabled: boolean;
+  inAppEnabled: boolean;
+  eventNewInvite: boolean;
+  eventStepCompleted: boolean;
+  eventDecision: boolean;
+  eventReminder: boolean;
+  eventAccessChange: boolean;
+  eventCriticalAudit: boolean;
+  frequency: string;
+}
+
+export interface NotificationDispatch {
+  id: string;
+  channel: string;
+  eventKey: string;
+  destination: string;
+  status: string;
+  failureReason?: string;
+  frequency: string;
+  createdAt: string;
+}
+
+export interface CandidateInvite {
+  id: string;
+  channel: string;
+  destination: string;
+  status: string;
+  failureReason?: string;
+  createdAt: string;
+  candidate: {
+    id: string;
+    email: string;
+    phone?: string;
+    token: string;
+  };
+  vacancy: {
+    id: string;
+    title: string;
+  };
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -9,16 +9,16 @@ import type { AuthUser } from '../auth/auth.types.js';
 @Controller('organizations')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrganizationsController {
-  constructor(private readonly organizationsService: OrganizationsService) {}
+  constructor(@Inject(OrganizationsService) private readonly organizationsService: OrganizationsService) {}
 
   @Post()
-  @RequirePermissions('vacancies:write')
+  @RequirePermissions('users:manage')
   create(@Body() body: { name: string; status?: string; ownerAdminUserId?: string }, @CurrentUser() user: AuthUser) {
     return this.organizationsService.create(body, user.id);
   }
 
   @Get()
-  @RequirePermissions('vacancies:read')
+  @RequirePermissions('users:manage')
   findAll() {
     return this.organizationsService.findAll();
   }

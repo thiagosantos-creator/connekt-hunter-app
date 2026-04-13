@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
 import { VacanciesService } from './vacancies.service.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.types.js';
@@ -9,7 +9,7 @@ import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
 @Controller('vacancies')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class VacanciesController {
-  constructor(private readonly vacanciesService: VacanciesService) {}
+  constructor(@Inject(VacanciesService) private readonly vacanciesService: VacanciesService) {}
 
   @Post()
   @RequirePermissions('vacancies:write')
@@ -20,6 +20,9 @@ export class VacanciesController {
     location?: string;
     workModel?: string;
     seniority?: string;
+    sector?: string;
+    experienceYearsMin?: number;
+    experienceYearsMax?: number;
     employmentType?: string;
     publicationType?: string;
     status?: string;

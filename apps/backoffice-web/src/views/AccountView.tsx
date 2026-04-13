@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { addAuditEvent, generateMockMfaQr, saveProfile } from '../services/account.js';
+import { generateMockMfaQr, saveProfile } from '../services/account.js';
 import {
   PageContent,
   PageHeader,
@@ -47,7 +47,6 @@ export function AccountView() {
 
   const save = () => {
     saveProfile({ ...user, name, title, company, avatarUrl });
-    addAuditEvent('profile.updated', user.email, user.id);
     refreshAuth();
     setFeedback('Perfil atualizado com sucesso.');
     setFeedbackVariant('success');
@@ -56,7 +55,6 @@ export function AccountView() {
   const toggleMfa = () => {
     const next = !mfaEnabled;
     setMfaEnabled(next);
-    addAuditEvent(next ? 'mfa.enabled' : 'mfa.disabled', user.email, user.id);
     setFeedback(next ? 'MFA ativado.' : 'MFA desativado.');
     setFeedbackVariant('success');
   };

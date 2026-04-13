@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PageContent, PageHeader, DataTable, EmptyState } from '@connekt/ui';
 import { listAuditEvents } from '../services/account.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -7,7 +7,11 @@ import type { AuditEvent } from '../services/types.js';
 
 export function AuditTrailView() {
   const { user } = useAuth();
-  const events = listAuditEvents();
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+
+  useEffect(() => {
+    void listAuditEvents().then(setEvents).catch(() => setEvents([]));
+  }, []);
 
   const columns = useMemo(
     () => [

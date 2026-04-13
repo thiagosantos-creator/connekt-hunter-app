@@ -45,6 +45,8 @@ export function OrganizationsView() {
         { key: 'name', header: 'Empresa', render: (row: Organization) => row.name },
         { key: 'status', header: 'Status', render: (row: Organization) => row.status },
         { key: 'ownerAdminUserId', header: 'Owner/Admin', render: (row: Organization) => row.ownerAdminUserId ?? '-' },
+        { key: 'planSegment', header: 'Plano', render: (row: Organization) => row.tenantSettings?.planSegment ?? '-' },
+        { key: 'timezone', header: 'Timezone', render: (row: Organization) => row.tenantSettings?.timezone ?? '-' },
       ]}
       />
     </PageContent>

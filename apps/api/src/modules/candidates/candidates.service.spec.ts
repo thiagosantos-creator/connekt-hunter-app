@@ -69,6 +69,33 @@ describe('CandidatesService', () => {
     expect(result).toBeNull();
   });
 
+  it('supports phone invites with phone gateway fallback', async () => {
+    const candidate = { id: 'c2', email: 'phone-+5511999999999@placeholder.local', token: 'tok-phone', organizationId: 'org1' };
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
+    vi.mocked(prisma.membership.findMany).mockResolvedValue([{ userId: 'u1' }] as never);
+    vi.mocked(prisma.candidate.upsert).mockResolvedValue(candidate as never);
+    vi.mocked(prisma.guestSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.application.upsert).mockResolvedValue({ id: 'app2' } as never);
+    vi.mocked(prisma.messageDispatch.create).mockResolvedValue({ id: 'dispatch-phone' } as never);
+    vi.mocked(prisma.candidateInvite.create).mockResolvedValue({ id: 'invite-phone', status: 'sent', channel: 'phone', destination: '+5511999999999' } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+    notificationDispatchService.dispatchToUsers.mockResolvedValue([]);
+
+    const result = await service.invite({
+      organizationId: 'org1',
+      vacancyId: 'v1',
+      channel: 'phone',
+      destination: '+5511999999999',
+      consent: true,
+      actorUserId: 'u1',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ inviteChannel: 'phone', inviteStatus: 'sent' }));
+    expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();
+  });
+
   it('supports link-only invites without email/phone dispatch', async () => {
     const candidate = { id: 'c3', email: 'link-uuid@placeholder.local', token: 'tok-link', organizationId: 'org1' };
     vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);

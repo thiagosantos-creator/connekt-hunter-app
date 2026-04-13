@@ -13,7 +13,22 @@ export class VacanciesController {
 
   @Post()
   @RequirePermissions('vacancies:write')
-  create(@Body() body: { organizationId: string; title: string; description: string }, @CurrentUser() user: AuthUser) {
+  create(@Body() body: {
+    organizationId: string;
+    title: string;
+    description: string;
+    location?: string;
+    workModel?: string;
+    seniority?: string;
+    employmentType?: string;
+    publicationType?: string;
+    status?: string;
+    department?: string;
+    requiredSkills?: string[];
+    desiredSkills?: string[];
+    salaryMin?: number;
+    salaryMax?: number;
+  }, @CurrentUser() user: AuthUser) {
     return this.vacanciesService.create({ ...body, createdBy: user.id });
   }
 

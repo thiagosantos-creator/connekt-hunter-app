@@ -24,7 +24,25 @@ export interface Vacancy {
   title: string;
   description: string;
   organizationId: string;
+  location?: string;
+  workModel?: string;
+  seniority?: string;
+  employmentType?: string;
+  publicationType?: string;
+  status?: string;
+  department?: string;
+  requiredSkills?: string[];
+  desiredSkills?: string[];
+  salaryMin?: number;
+  salaryMax?: number;
   organization?: { id: string; name?: string };
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  status: string;
+  ownerAdminUserId?: string;
 }
 
 export interface Candidate {

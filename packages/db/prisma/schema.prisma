@@ -28,10 +28,13 @@ model User {
 model Organization {
   id          String       @id @default(cuid())
   name        String
+  status      String       @default("active")
+  ownerAdminUserId String?
   createdAt   DateTime     @default(now())
   memberships Membership[]
   vacancies   Vacancy[]
   candidates  Candidate[]
+  tenantPolicy TenantPolicy?
 }
 
 model Membership {
@@ -50,6 +53,17 @@ model Vacancy {
   organizationId String
   title          String
   description    String
+  location       String?
+  workModel      String?
+  seniority      String?
+  employmentType String?
+  publicationType String       @default("draft")
+  status         String        @default("active")
+  department     String?
+  requiredSkills Json?
+  desiredSkills  Json?
+  salaryMin      Int?
+  salaryMax      Int?
   createdBy      String
   createdAt      DateTime      @default(now())
   organization   Organization  @relation(fields: [organizationId], references: [id])
@@ -72,6 +86,7 @@ model Candidate {
   id             String                      @id @default(cuid())
   organizationId String
   email          String                      @unique
+  phone          String?                     @unique
   token          String                      @unique
   createdAt      DateTime                    @default(now())
   invitedByUserId String?
@@ -99,6 +114,31 @@ model Candidate {
   invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
+}
+
+model TenantPolicy {
+  id                    String       @id @default(cuid())
+  organizationId        String       @unique
+  canInviteCandidates   Boolean      @default(true)
+  canApproveDecisions   Boolean      @default(true)
+  canAuditEvents        Boolean      @default(true)
+  canAdministrateTenant Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id])
+}
+
+model UserNotificationPreference {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  emailEnabled          Boolean  @default(true)
+  eventNewInvite        Boolean  @default(true)
+  eventStepCompleted    Boolean  @default(true)
+  eventDecision         Boolean  @default(true)
+  eventReminder         Boolean  @default(true)
+  frequency             String   @default("immediate")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model CandidateProfile {

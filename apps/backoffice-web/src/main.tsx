@@ -14,6 +14,9 @@ import { ProductIntelligenceView } from './views/ProductIntelligenceView.js';
 import { AccountView } from './views/AccountView.js';
 import { AdminUsersView } from './views/AdminUsersView.js';
 import { AuditTrailView } from './views/AuditTrailView.js';
+import { OrganizationsView } from './views/OrganizationsView.js';
+import { AccessPoliciesView } from './views/AccessPoliciesView.js';
+import { NotificationPreferencesView } from './views/NotificationPreferencesView.js';
 
 function App() {
   const { user } = useAuth();
@@ -39,6 +42,9 @@ function App() {
         <Route path="/product-intelligence" element={<PermissionRoute permission="smart-interview:configure"><ProductIntelligenceView /></PermissionRoute>} />
         <Route path="/account" element={<ProtectedRoute><AccountView /></ProtectedRoute>} />
         <Route path="/admin/users" element={<PermissionRoute permission="users:manage"><AdminUsersView /></PermissionRoute>} />
+        <Route path="/admin/organizations" element={<PermissionRoute permission="users:manage"><OrganizationsView /></PermissionRoute>} />
+        <Route path="/admin/access-policies" element={<PermissionRoute permission="users:manage"><AccessPoliciesView /></PermissionRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationPreferencesView /></ProtectedRoute>} />
         <Route path="/audit" element={<PermissionRoute permission="audit:read"><AuditTrailView /></PermissionRoute>} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>

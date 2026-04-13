@@ -87,7 +87,9 @@ export function AdminUsersView() {
   const invite = async () => {
     try {
       await sendCandidateInvite({
-        email: inviteEmail,
+        channel: 'email',
+        destination: inviteEmail,
+        consent: true,
         vacancyId: inviteVacancyId,
         organizationId: user.tenantId ?? 'org-demo',
       });

@@ -11,6 +11,7 @@ vi.mock('@connekt/db', () => ({
     guestSession: { upsert: vi.fn() },
     application: { upsert: vi.fn() },
     auditEvent: { create: vi.fn() },
+    messageDispatch: { create: vi.fn() },
   },
 }));
 
@@ -35,7 +36,14 @@ describe('CandidatesService', () => {
     vi.mocked(prisma.application.upsert).mockResolvedValue({} as never);
     vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
 
-    const result = await service.invite('org1', 'a@b.com', 'v1', 'u1');
+    const result = await service.invite({
+      organizationId: 'org1',
+      vacancyId: 'v1',
+      channel: 'email',
+      destination: 'a@b.com',
+      consent: true,
+      actorUserId: 'u1',
+    });
     expect(result).toEqual(candidate);
     expect(prisma.candidate.upsert).toHaveBeenCalledOnce();
     expect(emailGateway.sendTemplated).toHaveBeenCalledOnce();

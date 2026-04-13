@@ -80,7 +80,13 @@ export function addAuditEvent(action: string, actorEmail: string, target?: strin
   localStorage.setItem(AUDIT_KEY, JSON.stringify([next, ...current].slice(0, 200)));
 }
 
-export async function sendCandidateInvite(payload: { organizationId: string; email: string; vacancyId: string }): Promise<void> {
+export async function sendCandidateInvite(payload: {
+  organizationId: string;
+  channel: 'email' | 'phone';
+  destination: string;
+  consent: boolean;
+  vacancyId: string;
+}): Promise<void> {
   await apiPost('/candidates/invite', payload);
 }
 

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { EmailGateway } from '../integrations/email.gateway.js';
@@ -7,16 +7,32 @@ import { EmailGateway } from '../integrations/email.gateway.js';
 export class CandidatesService {
   constructor(private readonly emailGateway: EmailGateway) {}
 
-  async invite(organizationId: string, email: string, vacancyId: string, actorUserId: string) {
+  async invite(input: {
+    organizationId: string;
+    vacancyId: string;
+    channel: 'email' | 'phone';
+    destination: string;
+    consent: boolean;
+    actorUserId: string;
+  }) {
+    if (!input.consent) throw new BadRequestException('consent_required');
+    if (input.channel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.destination)) {
+      throw new BadRequestException('invalid_email');
+    }
+    if (input.channel === 'phone' && !/^\+?[1-9]\d{7,14}$/.test(input.destination.replace(/[^\d+]/g, ''))) {
+      throw new BadRequestException('invalid_phone');
+    }
     const membership = await prisma.membership.findUnique({
-      where: { organizationId_userId: { organizationId, userId: actorUserId } },
+      where: { organizationId_userId: { organizationId: input.organizationId, userId: input.actorUserId } },
     });
     if (!membership) throw new ForbiddenException('user_not_member_of_org');
 
+    const email = input.channel === 'email' ? input.destination : `phone-${input.destination.replace(/[^\d+]/g, '')}@placeholder.local`;
+    const phone = input.channel === 'phone' ? input.destination : undefined;
     const candidate = await prisma.candidate.upsert({
       where: { email },
-      update: {},
-      create: { email, organizationId, token: randomUUID(), invitedByUserId: actorUserId },
+      update: { phone: phone ?? undefined },
+      create: { email, phone, organizationId: input.organizationId, token: randomUUID(), invitedByUserId: input.actorUserId },
     });
 
     await prisma.guestSession.upsert({
@@ -32,22 +48,39 @@ export class CandidatesService {
     });
 
     await prisma.application.upsert({
-      where: { candidateId_vacancyId: { candidateId: candidate.id, vacancyId } },
+      where: { candidateId_vacancyId: { candidateId: candidate.id, vacancyId: input.vacancyId } },
       update: {},
-      create: { candidateId: candidate.id, vacancyId },
+      create: { candidateId: candidate.id, vacancyId: input.vacancyId },
     });
 
-    await this.emailGateway.sendTemplated({
-      tenantId: organizationId,
-      to: email,
-      templateKey: 'candidate-invite',
-      templateVersion: 'v1',
-      payload: { token: candidate.token, vacancyId },
-      correlationId: candidate.id,
-    });
+    if (input.channel === 'email') {
+      await this.emailGateway.sendTemplated({
+        tenantId: input.organizationId,
+        to: email,
+        templateKey: 'candidate-invite',
+        templateVersion: 'v1',
+        payload: { token: candidate.token, vacancyId: input.vacancyId },
+        correlationId: candidate.id,
+      });
+    } else {
+      await prisma.messageDispatch.create({
+        data: {
+          channel: 'phone-gateway',
+          destination: input.destination,
+          content: JSON.stringify({ type: 'candidate-invite', token: candidate.token, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
+          status: 'sent',
+        },
+      });
+    }
 
     await prisma.auditEvent.create({
-      data: { action: 'candidate.invited', actorId: actorUserId, entityType: 'candidate', entityId: candidate.id, metadata: { vacancyId } },
+      data: {
+        action: 'candidate.invited',
+        actorId: input.actorUserId,
+        entityType: 'candidate',
+        entityId: candidate.id,
+        metadata: { vacancyId: input.vacancyId, channel: input.channel, destination: input.destination, consent: input.consent },
+      },
     });
 
     return candidate;

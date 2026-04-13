@@ -1,6 +1,28 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
+type VacancyRecord = {
+  organizationId: string;
+  title: string;
+  description: string;
+  location: string | null;
+  workModel: string | null;
+  seniority: string | null;
+  sector: string | null;
+  experienceYearsMin: number | null;
+  experienceYearsMax: number | null;
+  employmentType: string | null;
+  publicationType: string;
+  status: string;
+  department: string | null;
+  requiredSkills: unknown;
+  desiredSkills: unknown;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  createdBy: string;
+  [key: string]: unknown;
+};
+
 type VacancyPayload = {
   organizationId: string;
   title: string;
@@ -124,12 +146,13 @@ export class VacanciesService {
     }
 
     const shouldPublish = publicationType !== 'draft' && !existing.publishedAt;
+    const updateData = { ...data };
+    if (shouldPublish) {
+      (updateData as Record<string, unknown>).publishedAt = new Date();
+    }
     const updated = await prisma.vacancy.update({
       where: { id: vacancyId },
-      data: {
-        ...data,
-        publishedAt: shouldPublish ? new Date() : undefined,
-      },
+      data: updateData,
       include: { organization: true },
     });
 
@@ -146,7 +169,7 @@ export class VacanciesService {
     return this.enrichWithPublicationStatus(updated);
   }
 
-  private enrichWithPublicationStatus(vacancy: { organizationId: string; title: string; description: string; location: string | null; workModel: string | null; seniority: string | null; sector: string | null; experienceYearsMin: number | null; experienceYearsMax: number | null; employmentType: string | null; publicationType: string; status: string; department: string | null; requiredSkills: unknown; desiredSkills: unknown; salaryMin: number | null; salaryMax: number | null; createdBy: string; [key: string]: unknown }) {
+  private enrichWithPublicationStatus(vacancy: VacancyRecord) {
     const publicationMissingFields = this.getPublicationMissingFields({
       organizationId: vacancy.organizationId,
       title: vacancy.title,

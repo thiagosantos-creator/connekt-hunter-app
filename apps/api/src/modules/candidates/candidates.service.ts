@@ -89,7 +89,7 @@ export class CandidatesService {
         dispatchId = dispatch.dispatchId;
         inviteStatus = 'sent';
       } catch (err) {
-        this.logger.warn(`Email dispatch failed for invite, link still generated: ${String(err)}`);
+        this.logger.warn({ message: 'Email dispatch failed for invite, link still generated', error: String(err) });
         inviteStatus = 'link_generated';
       }
     } else if (input.channel === 'phone') {
@@ -105,7 +105,7 @@ export class CandidatesService {
         dispatchId = phoneDispatch.id;
         inviteStatus = 'sent';
       } catch (err) {
-        this.logger.warn(`Phone dispatch failed for invite, link still generated: ${String(err)}`);
+        this.logger.warn({ message: 'Phone dispatch failed for invite, link still generated', error: String(err) });
         inviteStatus = 'link_generated';
       }
     }

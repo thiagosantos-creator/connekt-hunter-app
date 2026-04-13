@@ -665,7 +665,7 @@ export function VacanciesView() {
                         onClick={() => {
                           void apiPatch(`/vacancies/${row.id}`, { publicationType: 'public' })
                             .then(() => { setMsg('Vaga publicada com sucesso!'); setMsgVariant('success'); return load(); })
-                            .catch((err) => { setMsg(String(err)); setMsgVariant('error'); });
+                            .catch((err) => { setMsg(err instanceof Error ? err.message : 'Erro ao publicar vaga.'); setMsgVariant('error'); });
                         }}
                       >
                         Publicar

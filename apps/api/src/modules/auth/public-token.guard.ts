@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { PublicTokenCacheService } from './public-token-cache.service.js';
 
@@ -6,7 +6,7 @@ import { PublicTokenCacheService } from './public-token-cache.service.js';
 export class PublicTokenGuard implements CanActivate {
   private readonly logger = new Logger(PublicTokenGuard.name);
 
-  constructor(private readonly tokenCache: PublicTokenCacheService) {}
+  constructor(@Inject(PublicTokenCacheService) private readonly tokenCache: PublicTokenCacheService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<{ params?: Record<string, string>; body?: Record<string, string> }>();

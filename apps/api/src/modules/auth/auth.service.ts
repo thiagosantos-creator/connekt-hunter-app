@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import type { AuthSession, LoginResult, MembershipReference } from './auth.types.js';
 import { DevAuthProvider } from './providers/dev-auth.provider.js';
@@ -11,10 +11,10 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    private readonly devProvider: DevAuthProvider,
-    private readonly cognitoProvider: CognitoAuthProvider,
-    private readonly integrationsConfig: IntegrationsConfigService,
-    private readonly tokenCache: PublicTokenCacheService,
+    @Inject(DevAuthProvider) private readonly devProvider: DevAuthProvider,
+    @Inject(CognitoAuthProvider) private readonly cognitoProvider: CognitoAuthProvider,
+    @Inject(IntegrationsConfigService) private readonly integrationsConfig: IntegrationsConfigService,
+    @Inject(PublicTokenCacheService) private readonly tokenCache: PublicTokenCacheService,
   ) {}
 
   async login(email: string, password?: string): Promise<LoginResult> {

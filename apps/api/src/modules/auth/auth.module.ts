@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
@@ -11,6 +11,7 @@ import { RateLimitGuard } from './rate-limit.guard.js';
 import { PublicTokenGuard } from './public-token.guard.js';
 import { PublicTokenCacheService } from './public-token-cache.service.js';
 
+@Global()
 @Module({
   imports: [IntegrationsModule],
   controllers: [AuthController],

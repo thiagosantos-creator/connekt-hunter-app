@@ -1,10 +1,10 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { IntegrationsHealthService } from '../integrations/integrations-health.service.js';
 
 @Controller()
 export class HealthController {
-  constructor(private readonly integrationsHealth: IntegrationsHealthService) {}
+  constructor(@Inject(IntegrationsHealthService) private readonly integrationsHealth: IntegrationsHealthService) {}
 
   @Get('/health')
   async health() {

@@ -20,17 +20,20 @@ export class CandidatesController {
     @Body() body: {
       organizationId: string;
       vacancyId: string;
-      channel: 'email' | 'phone';
-      destination: string;
+      channel: 'email' | 'phone' | 'link';
+      destination?: string;
       consent: boolean;
     },
     @CurrentUser() user: AuthUser,
   ) {
+    const destination = body.channel === 'link'
+      ? 'manual'
+      : sanitizeDestination(body.channel, body.destination ?? '');
     return this.candidatesService.invite({
       organizationId: body.organizationId,
       vacancyId: body.vacancyId,
       channel: body.channel,
-      destination: sanitizeDestination(body.channel, body.destination),
+      destination,
       consent: body.consent,
       actorUserId: user.id,
     });

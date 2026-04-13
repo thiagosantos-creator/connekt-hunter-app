@@ -650,6 +650,37 @@ export function VacanciesView() {
                 );
               },
             },
+            ...(canWrite ? [{
+              key: 'actions',
+              header: 'Ações',
+              render: (row: Vacancy) => {
+                const isDraft = row.publicationType === 'draft';
+                const isReady = row.publicationReady;
+                return (
+                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                    {isDraft && isReady && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => {
+                          void apiPatch(`/vacancies/${row.id}`, { publicationType: 'public' })
+                            .then(() => { setMsg('Vaga publicada com sucesso!'); setMsgVariant('success'); return load(); })
+                            .catch((err) => { setMsg(err instanceof Error ? err.message : 'Erro ao publicar vaga.'); setMsgVariant('error'); });
+                        }}
+                      >
+                        Publicar
+                      </Button>
+                    )}
+                    {isDraft && !isReady && (
+                      <Badge variant="warning" size="sm">Campos faltando</Badge>
+                    )}
+                    {!isDraft && row.status === 'active' && (
+                      <Badge variant="success" size="sm">Publicada</Badge>
+                    )}
+                  </div>
+                );
+              },
+            }] : []),
           ]}
           data={vacancies}
           rowKey={(row) => row.id}

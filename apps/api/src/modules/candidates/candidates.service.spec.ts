@@ -95,4 +95,58 @@ describe('CandidatesService', () => {
     expect(result).toEqual(expect.objectContaining({ inviteChannel: 'phone', inviteStatus: 'sent' }));
     expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();
   });
+
+  it('supports link-only invites without email/phone dispatch', async () => {
+    const candidate = { id: 'c3', email: 'link-uuid@placeholder.local', token: 'tok-link', organizationId: 'org1' };
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
+    vi.mocked(prisma.membership.findMany).mockResolvedValue([{ userId: 'u1' }] as never);
+    vi.mocked(prisma.candidate.upsert).mockResolvedValue(candidate as never);
+    vi.mocked(prisma.guestSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.application.upsert).mockResolvedValue({ id: 'app3' } as never);
+    vi.mocked(prisma.candidateInvite.create).mockResolvedValue({ id: 'invite-link', status: 'link_generated', channel: 'link', destination: 'manual' } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+    notificationDispatchService.dispatchToUsers.mockResolvedValue([]);
+
+    const result = await service.invite({
+      organizationId: 'org1',
+      vacancyId: 'v1',
+      channel: 'link',
+      destination: 'manual',
+      consent: true,
+      actorUserId: 'u1',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ inviteChannel: 'link', inviteStatus: 'link_generated' }));
+    expect(emailGateway.sendTemplated).not.toHaveBeenCalled();
+    expect(prisma.messageDispatch.create).not.toHaveBeenCalled();
+  });
+
+  it('generates link even when email dispatch fails', async () => {
+    const candidate = { id: 'c4', email: 'failmail@test.com', token: 'tok-fail', organizationId: 'org1' };
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'u1' } as never);
+    vi.mocked(prisma.membership.findMany).mockResolvedValue([{ userId: 'u1' }] as never);
+    vi.mocked(prisma.candidate.upsert).mockResolvedValue(candidate as never);
+    vi.mocked(prisma.guestSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.candidateOnboardingSession.upsert).mockResolvedValue({} as never);
+    vi.mocked(prisma.application.upsert).mockResolvedValue({ id: 'app4' } as never);
+    vi.mocked(prisma.candidateInvite.create).mockResolvedValue({ id: 'invite-fail', status: 'link_generated', channel: 'email', destination: 'failmail@test.com' } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+    emailGateway.sendTemplated.mockRejectedValue(new Error('SMTP not configured'));
+    notificationDispatchService.dispatchToUsers.mockResolvedValue([]);
+
+    const result = await service.invite({
+      organizationId: 'org1',
+      vacancyId: 'v1',
+      channel: 'email',
+      destination: 'failmail@test.com',
+      consent: true,
+      actorUserId: 'u1',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ inviteId: 'invite-fail', inviteStatus: 'link_generated' }));
+    expect(emailGateway.sendTemplated).toHaveBeenCalledOnce();
+  });
 });

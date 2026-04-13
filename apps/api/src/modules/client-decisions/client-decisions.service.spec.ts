@@ -10,6 +10,7 @@ vi.mock('@connekt/db', () => ({
     },
     clientDecision: {
       create: vi.fn().mockResolvedValue({ id: 'd1', shortlistItemId: 'si1', reviewerId: 'u1', decision: 'approve' }),
+      findMany: vi.fn().mockResolvedValue([]),
     },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
@@ -48,6 +49,27 @@ describe('ClientDecisionsService', () => {
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ actorId: 'u1', action: 'client.decision' }),
+      }),
+    );
+  });
+
+  it('should list all decisions for admin', async () => {
+    vi.mocked(prisma.clientDecision.findMany).mockResolvedValue([
+      { id: 'd1', shortlistItemId: 'si1', decision: 'approve' },
+    ] as never);
+    const result = await service.findAll([], 'admin');
+    expect(result).toHaveLength(1);
+    expect(prisma.clientDecision.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} }),
+    );
+  });
+
+  it('should filter decisions by organization for non-admin', async () => {
+    vi.mocked(prisma.clientDecision.findMany).mockResolvedValue([]);
+    await service.findAll(['org1'], 'client');
+    expect(prisma.clientDecision.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { shortlistItem: { shortlist: { vacancy: { organizationId: { in: ['org1'] } } } } },
       }),
     );
   });

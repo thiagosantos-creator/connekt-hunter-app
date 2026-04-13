@@ -31,8 +31,8 @@ export async function listAuditEvents(): Promise<AuditEvent[]> {
 
 export async function sendCandidateInvite(payload: {
   organizationId: string;
-  channel: 'email' | 'phone';
-  destination: string;
+  channel: 'email' | 'phone' | 'link';
+  destination?: string;
   consent: boolean;
   vacancyId: string;
 }) {

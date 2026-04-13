@@ -1,6 +1,28 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
+type VacancyRecord = {
+  organizationId: string;
+  title: string;
+  description: string;
+  location: string | null;
+  workModel: string | null;
+  seniority: string | null;
+  sector: string | null;
+  experienceYearsMin: number | null;
+  experienceYearsMax: number | null;
+  employmentType: string | null;
+  publicationType: string;
+  status: string;
+  department: string | null;
+  requiredSkills: unknown;
+  desiredSkills: unknown;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  createdBy: string;
+  [key: string]: unknown;
+};
+
 type VacancyPayload = {
   organizationId: string;
   title: string;
@@ -57,34 +79,123 @@ export class VacanciesService {
           include: { organization: true },
         });
 
-    return rows.map((vacancy) => {
-      const publicationMissingFields = this.getPublicationMissingFields({
-        organizationId: vacancy.organizationId,
-        title: vacancy.title,
-        description: vacancy.description,
-        location: vacancy.location ?? undefined,
-        workModel: vacancy.workModel ?? undefined,
-        seniority: vacancy.seniority ?? undefined,
-        sector: vacancy.sector ?? undefined,
-        experienceYearsMin: vacancy.experienceYearsMin ?? undefined,
-        experienceYearsMax: vacancy.experienceYearsMax ?? undefined,
-        employmentType: vacancy.employmentType ?? undefined,
-        publicationType: vacancy.publicationType,
-        status: vacancy.status,
-        department: vacancy.department ?? undefined,
-        requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills.map(String) : [],
-        desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills.map(String) : [],
-        salaryMin: vacancy.salaryMin ?? undefined,
-        salaryMax: vacancy.salaryMax ?? undefined,
-        createdBy: vacancy.createdBy,
-      });
+    return rows.map((vacancy) => this.enrichWithPublicationStatus(vacancy));
+  }
 
-      return {
-        ...vacancy,
-        publicationReady: publicationMissingFields.length === 0,
-        publicationMissingFields,
-      };
+  async findById(vacancyId: string, organizationIds: string[], role: string) {
+    const vacancy = await prisma.vacancy.findUnique({
+      where: { id: vacancyId },
+      include: { organization: true },
     });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+    if (role !== 'admin' && !organizationIds.includes(vacancy.organizationId)) {
+      throw new ForbiddenException('user_not_member_of_org');
+    }
+    return this.enrichWithPublicationStatus(vacancy);
+  }
+
+  async update(
+    vacancyId: string,
+    data: Partial<Omit<VacancyPayload, 'organizationId' | 'createdBy'>>,
+    organizationIds: string[],
+    role: string,
+    actorId: string,
+  ) {
+    const existing = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!existing) throw new NotFoundException('vacancy_not_found');
+    if (role !== 'admin' && !organizationIds.includes(existing.organizationId)) {
+      throw new ForbiddenException('user_not_member_of_org');
+    }
+
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId: existing.organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+
+    const publicationType = data.publicationType ?? existing.publicationType;
+    const merged = {
+      ...existing,
+      ...data,
+      publicationType,
+      organizationId: existing.organizationId,
+      createdBy: existing.createdBy,
+    };
+    const missingFields = this.getPublicationMissingFields({
+      organizationId: merged.organizationId,
+      title: merged.title,
+      description: merged.description,
+      location: merged.location ?? undefined,
+      workModel: merged.workModel ?? undefined,
+      seniority: merged.seniority ?? undefined,
+      sector: merged.sector ?? undefined,
+      experienceYearsMin: merged.experienceYearsMin ?? undefined,
+      experienceYearsMax: merged.experienceYearsMax ?? undefined,
+      employmentType: merged.employmentType ?? undefined,
+      publicationType: merged.publicationType,
+      status: merged.status,
+      department: merged.department ?? undefined,
+      requiredSkills: Array.isArray(merged.requiredSkills) ? merged.requiredSkills.map(String) : [],
+      desiredSkills: Array.isArray(merged.desiredSkills) ? merged.desiredSkills.map(String) : [],
+      salaryMin: merged.salaryMin ?? undefined,
+      salaryMax: merged.salaryMax ?? undefined,
+      createdBy: merged.createdBy,
+    });
+
+    if (publicationType !== 'draft' && missingFields.length > 0) {
+      throw new BadRequestException(`vacancy_incomplete:${missingFields.join(',')}`);
+    }
+
+    const shouldPublish = publicationType !== 'draft' && !existing.publishedAt;
+    const updateData = { ...data };
+    if (shouldPublish) {
+      (updateData as Record<string, unknown>).publishedAt = new Date();
+    }
+    const updated = await prisma.vacancy.update({
+      where: { id: vacancyId },
+      data: updateData,
+      include: { organization: true },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId,
+        action: shouldPublish ? 'vacancy.published' : 'vacancy.updated',
+        entityType: 'Vacancy',
+        entityId: vacancyId,
+        metadata: { changes: Object.keys(data), publicationType } as never,
+      },
+    });
+
+    return this.enrichWithPublicationStatus(updated);
+  }
+
+  private enrichWithPublicationStatus(vacancy: VacancyRecord) {
+    const publicationMissingFields = this.getPublicationMissingFields({
+      organizationId: vacancy.organizationId,
+      title: vacancy.title,
+      description: vacancy.description,
+      location: vacancy.location ?? undefined,
+      workModel: vacancy.workModel ?? undefined,
+      seniority: vacancy.seniority ?? undefined,
+      sector: vacancy.sector ?? undefined,
+      experienceYearsMin: vacancy.experienceYearsMin ?? undefined,
+      experienceYearsMax: vacancy.experienceYearsMax ?? undefined,
+      employmentType: vacancy.employmentType ?? undefined,
+      publicationType: vacancy.publicationType,
+      status: vacancy.status,
+      department: vacancy.department ?? undefined,
+      requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills.map(String) : [],
+      desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills.map(String) : [],
+      salaryMin: vacancy.salaryMin ?? undefined,
+      salaryMax: vacancy.salaryMax ?? undefined,
+      createdBy: vacancy.createdBy,
+    });
+
+    return {
+      ...vacancy,
+      publicationReady: publicationMissingFields.length === 0,
+      publicationMissingFields,
+    };
   }
 
   async findPublicById(vacancyId: string) {

@@ -356,11 +356,15 @@ model NotificationDispatch {
 }
 
 model CandidateProfile {
-  id          String    @id @default(cuid())
-  candidateId String    @unique
-  fullName    String?
-  phone       String?
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  id            String    @id @default(cuid())
+  candidateId   String    @unique
+  fullName      String?
+  phone         String?
+  photoUrl      String?
+  photoProvider String?
+  socialName    String?
+  socialEmail   String?
+  candidate     Candidate @relation(fields: [candidateId], references: [id])
 }
 
 model Application {

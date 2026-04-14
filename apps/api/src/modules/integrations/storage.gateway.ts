@@ -158,6 +158,10 @@ export class StorageGateway {
     if (extension === '.doc') return 'application/msword';
     if (extension === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     if (extension === '.txt') return 'text/plain; charset=utf-8';
+    if (extension === '.jpg' || extension === '.jpeg') return 'image/jpeg';
+    if (extension === '.png') return 'image/png';
+    if (extension === '.webp') return 'image/webp';
+    if (extension === '.gif') return 'image/gif';
     return 'application/octet-stream';
   }
 }

@@ -1,12 +1,16 @@
-import { Body, Controller, Get, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
+import { CognitoCallbackService } from './cognito-callback.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { CurrentUser } from './current-user.decorator.js';
 import type { AuthUser } from './auth.types.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
+  constructor(
+    @Inject(AuthService) private readonly authService: AuthService,
+    @Inject(CognitoCallbackService) private readonly cognitoCallbackService: CognitoCallbackService,
+  ) {}
 
   @Post('login')
   login(@Body() body: { email: string; password?: string }) {
@@ -31,6 +35,38 @@ export class AuthController {
   @Get('candidate-auth-config')
   getCandidateAuthConfig() {
     return this.authService.getCandidateAuthConfig();
+  }
+
+  /**
+   * Handles the OAuth2 authorization_code callback from Cognito Hosted UI.
+   * Exchanges the code for tokens, verifies the id_token, and creates a local session.
+   * The optional `inviteToken` links the social identity to an existing candidate.
+   */
+  @Post('cognito-callback')
+  async cognitoCallback(
+    @Body() body: { code: string; inviteToken?: string; state?: string },
+  ) {
+    if (!body.code || typeof body.code !== 'string') {
+      throw new BadRequestException('authorization_code_required');
+    }
+
+    const cfg = this.authService.getCandidateAuthConfig();
+
+    if (!cfg.poolId || !cfg.clientId || !cfg.domain) {
+      throw new BadRequestException('cognito_candidate_pool_not_configured');
+    }
+
+    return this.cognitoCallbackService.handleCallback({
+      code: body.code,
+      state: body.state,
+      poolId: cfg.poolId,
+      clientId: cfg.clientId,
+      clientSecret: process.env.COGNITO_CANDIDATE_CLIENT_SECRET,
+      domain: cfg.domain,
+      redirectUri: cfg.redirectUri,
+      region: cfg.region,
+      inviteToken: body.inviteToken,
+    });
   }
 
   @UseGuards(JwtAuthGuard)

@@ -192,13 +192,30 @@ export function ProductIntelligenceView() {
     setMsgVariant(variant);
   };
 
+  const extractErrorMessage = (err: unknown): string => {
+    if (err instanceof Error) {
+      const text = err.message;
+      if (text.includes('user_not_member_of_org')) {
+        return 'Você não tem acesso a essa organização. Verifique se seu usuário está vinculado à empresa da vaga selecionada.';
+      }
+      if (text.includes('candidate_vacancy_cross_tenant_mismatch')) {
+        return 'O candidato e a vaga pertencem a organizações diferentes. Selecione um candidato e uma vaga da mesma empresa.';
+      }
+      if (text.includes('vacancy_not_found')) return 'Vaga não encontrada. Selecione uma vaga válida.';
+      if (text.includes('candidate_not_found')) return 'Candidato não encontrado. Selecione um candidato válido.';
+      if (text.includes('application_not_found')) return 'Candidatura não encontrada. Selecione uma candidatura válida.';
+      return text;
+    }
+    return 'Erro inesperado. Tente novamente.';
+  };
+
   const compute = async () => {
     try {
       const data = await apiPost<Record<string, unknown>>('/candidate-matching/compute', { applicationId });
       setResult(data);
       feedback('Matching calculado com breakdown, evidências e explicação.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -208,7 +225,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Insights gerados.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -222,7 +239,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Comparativo assistido gerado.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -232,7 +249,7 @@ export function ProductIntelligenceView() {
       setRanking(data);
       feedback('Ranking assistido gerado.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -242,7 +259,7 @@ export function ProductIntelligenceView() {
       setRecommendations(data);
       feedback('Recomendações geradas com explicações.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -252,7 +269,7 @@ export function ProductIntelligenceView() {
       setRisk(data);
       feedback('Risco identificado com explicação assistiva.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -262,7 +279,7 @@ export function ProductIntelligenceView() {
       setSuggestions(data);
       feedback('Ações sugeridas carregadas.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -272,7 +289,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Automação assistida executada com override humano.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -291,7 +308,7 @@ export function ProductIntelligenceView() {
       setRanking(data);
       feedback('Ordem atualizada com override humano.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 

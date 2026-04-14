@@ -12,17 +12,17 @@ async function main() {
   const [admin, headhunter, client] = await Promise.all([
     prisma.user.upsert({
       where: { email: 'admin@demo.local' },
-      update: {},
+      update: { name: 'Admin', role: 'admin' },
       create: { email: 'admin@demo.local', name: 'Admin', role: 'admin' }
     }),
     prisma.user.upsert({
       where: { email: 'headhunter@demo.local' },
-      update: {},
+      update: { name: 'Headhunter', role: 'headhunter' },
       create: { email: 'headhunter@demo.local', name: 'Headhunter', role: 'headhunter' }
     }),
     prisma.user.upsert({
       where: { email: 'client@demo.local' },
-      update: {},
+      update: { name: 'Client', role: 'client' },
       create: { email: 'client@demo.local', name: 'Client', role: 'client' }
     })
   ]);

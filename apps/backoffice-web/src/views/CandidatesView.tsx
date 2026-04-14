@@ -25,11 +25,26 @@ import {
   StatBox,
   colors,
   fontSize,
+  fontWeight,
   radius,
   spacing,
 } from '@connekt/ui';
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    const text = err.message;
+    if (text.includes('user_not_member_of_org')) {
+      return 'Você não tem acesso a essa organização. Verifique se seu usuário está vinculado à empresa selecionada.';
+    }
+    if (text.includes('candidate_vacancy_cross_tenant_mismatch')) {
+      return 'O candidato e a vaga pertencem a organizações diferentes. Selecione um candidato e uma vaga da mesma empresa.';
+    }
+    return text;
+  }
+  return 'Erro inesperado. Tente novamente.';
+}
 
 export function CandidatesView() {
   const { user } = useAuth();
@@ -115,7 +130,7 @@ export function CandidatesView() {
     setLoadingManagedCandidates(true);
     void loadManagedCandidates(orgId)
       .catch((err) => {
-        setMsg(String(err));
+        setMsg(extractErrorMessage(err));
         setMsgVariant('error');
         setManagedCandidates([]);
       })
@@ -184,7 +199,7 @@ export function CandidatesView() {
       await loadInviteHistory(orgId);
       if (canManageCandidateAccounts) await loadManagedCandidates(orgId);
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setLoading(false);
@@ -198,7 +213,7 @@ export function CandidatesView() {
       setMsg('Recomendações carregadas para o candidato.');
       setMsgVariant('success');
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     }
   };
@@ -237,7 +252,7 @@ export function CandidatesView() {
       setMsg('Link copiado.');
       setMsgVariant('success');
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     }
   };
@@ -260,7 +275,7 @@ export function CandidatesView() {
       setMsgVariant('success');
       if (orgId) await loadInviteHistory(orgId);
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setSavingManagedCandidate(false);
@@ -277,7 +292,7 @@ export function CandidatesView() {
       setMsgVariant(response.status === 'sent' ? 'success' : 'error');
     } catch (err) {
       setManagedCandidateFeedback(null);
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setResettingCandidate(false);
@@ -299,7 +314,7 @@ export function CandidatesView() {
       }
     } catch (err) {
       setManagedInviteFeedback(null);
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setResendingCandidateInvite(false);

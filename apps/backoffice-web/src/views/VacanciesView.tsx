@@ -218,6 +218,7 @@ export function VacanciesView() {
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [form, setForm] = useState<VacancyForm>(emptyVacancyForm);
   const [templateForm, setTemplateForm] = useState<TemplateForm>(emptyTemplateForm);
   const [requiredSkillInput, setRequiredSkillInput] = useState('');
@@ -462,38 +463,62 @@ export function VacanciesView() {
 
   return (
     <PageContent>
-      <PageHeader title="Vagas" description="Crie vagas completas, salve templates reutilizáveis e compartilhe o link público quando a vaga estiver pronta." />
+      <PageHeader title="Vagas" description="Gerencie e publique vagas. Use o formulário abaixo para criar novas vagas com apoio de IA." />
 
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
+      {/* ── Stats summary ─────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: spacing.lg }}>
+        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Total de vagas</div>
+          <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{vacancies.length}</div>
+        </div>
+        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Publicadas</div>
+          <div style={{ fontSize: fontSize.xl, fontWeight: 700, color: colors.success }}>{publishedVacancies.length}</div>
+          <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Ativas e prontas para compartilhar</div>
+        </div>
+        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Rascunhos</div>
+          <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{draftVacancies.length}</div>
+          <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Pendentes de revisão</div>
+        </div>
+      </div>
+
+      {/* ── All vacancies table (primary view) ────────────────────── */}
       <Card style={{ marginBottom: spacing.lg }}>
         <CardHeader>
-          <CardTitle>Publicação rápida</CardTitle>
-          <CardDescription>Veja primeiro o que já está publicado e quais vagas ainda estão em rascunho para evitar retrabalho.</CardDescription>
+          <CardTitle>Todas as vagas</CardTitle>
+          <CardDescription>Visualize, pesquise e publique vagas cadastradas para a sua empresa.</CardDescription>
         </CardHeader>
-        <CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-            <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Vagas publicadas</div>
-            <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{publishedVacancies.length}</div>
-            <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Ativas e prontas para compartilhar</div>
-          </div>
-          <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-            <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Rascunhos</div>
-            <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{draftVacancies.length}</div>
-            <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Pendentes de revisão/publicação</div>
-          </div>
-        </CardContent>
-        {publishedVacancies.length > 0 && (
-          <CardContent style={{ paddingTop: 0 }}>
+        <CardContent style={{ paddingTop: 0 }}>
+          {vacancies.length === 0 ? (
+            <EmptyState
+              title="Nenhuma vaga cadastrada"
+              description={canWrite ? 'Clique em "Nova vaga" abaixo para criar a primeira.' : 'Nenhuma vaga disponível no momento.'}
+            />
+          ) : (
             <DataTable<Vacancy>
               columns={[
-                { key: 'title', header: 'Vaga publicada', render: (row) => row.title },
-                { key: 'organization', header: 'Empresa', render: (row) => row.organization?.name ?? row.organizationId },
+                { key: 'title', header: 'Título', render: (row) => row.title },
+                { key: 'organizationId', header: 'Empresa', render: (row) => row.organization?.name ?? row.organizationId },
+                { key: 'sector', header: 'Setor', render: (row) => row.sector ?? row.department ?? '-' },
+                { key: 'workModel', header: 'Modalidade', render: (row) => row.workModel ?? '-' },
+                { key: 'publicationType', header: 'Publicação', render: (row) => row.publicationType ?? '-' },
                 {
-                  key: 'link',
-                  header: 'Ações',
+                  key: 'ready',
+                  header: 'Pronta?',
+                  render: (row) => row.publicationReady
+                    ? 'Sim'
+                    : `Não (${(row.publicationMissingFields ?? []).map(missingFieldLabel).join(', ') || '-'})`,
+                },
+                {
+                  key: 'publicUrl',
+                  header: 'Link',
                   render: (row) => {
                     const publicUrl = `${candidateWebBase}/vacancies/${row.id}`;
+                    const canShare = row.publicationType === 'public' && row.publicationReady;
+                    if (!canShare) return <span style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>Indisponível</span>;
                     return (
                       <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
                         <a href={publicUrl} target="_blank" rel="noreferrer">Abrir</a>
@@ -504,145 +529,194 @@ export function VacanciesView() {
                     );
                   },
                 },
+                ...(canWrite ? [{
+                  key: 'actions',
+                  header: 'Ações',
+                  render: (row: Vacancy) => {
+                    const isDraft = row.publicationType === 'draft';
+                    const isReady = row.publicationReady;
+                    return (
+                      <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                        {isDraft && isReady && (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => {
+                              void apiPatch(`/vacancies/${row.id}`, { publicationType: 'public' })
+                                .then(() => { setMsg('Vaga publicada com sucesso!'); setMsgVariant('success'); return load(); })
+                                .catch((err) => { setMsg(err instanceof Error ? err.message : 'Erro ao publicar vaga.'); setMsgVariant('error'); });
+                            }}
+                          >
+                            Publicar
+                          </Button>
+                        )}
+                        {isDraft && !isReady && (
+                          <Badge variant="warning" size="sm">Campos faltando</Badge>
+                        )}
+                        {!isDraft && row.status === 'active' && (
+                          <Badge variant="success" size="sm">Publicada</Badge>
+                        )}
+                      </div>
+                    );
+                  },
+                }] : []),
               ]}
-              data={publishedVacancies}
+              data={vacancies}
               rowKey={(row) => row.id}
-              pageSize={5}
-              emptyMessage="Nenhuma vaga publicada"
+              emptyMessage="Nenhuma vaga cadastrada"
+              searchable
+              searchPlaceholder="Buscar vaga por título, empresa ou setor"
+              pageSize={10}
             />
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
 
+      {/* ── Create vacancy (collapsible) ─────────────────────────── */}
       {canWrite && (
         <Card style={{ marginBottom: spacing.lg }}>
-          <form onSubmit={(e) => { void createVacancy(e); }}>
-            <CardHeader>
-              <CardTitle>Criar vaga publicável</CardTitle>
-              <CardDescription>Selecione a empresa, preencha os campos obrigatórios e use templates para acelerar o cadastro.</CardDescription>
-            </CardHeader>
-            <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-              {orgOptions.length > 0 ? (
-                <Select
-                  label="Empresa"
-                  value={orgId}
-                  onChange={(e) => setOrgId(e.target.value)}
-                  options={orgOptions}
-                  placeholder="Selecione a empresa"
-                  required
-                />
-              ) : (
-                <InlineMessage variant="warning">Nenhuma empresa disponível para este usuário.</InlineMessage>
-              )}
+          <CardHeader>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, flexWrap: 'wrap' }}>
+              <div>
+                <CardTitle>Nova vaga</CardTitle>
+                <CardDescription>Crie uma nova vaga com preenchimento manual ou assistido por IA.</CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant={showCreateForm ? 'outline' : 'secondary'}
+                onClick={() => setShowCreateForm((v) => !v)}
+              >
+                {showCreateForm ? '▲ Fechar formulário' : '✚ Criar nova vaga'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showCreateForm && (
+            <form onSubmit={(e) => { void createVacancy(e); }}>
+              <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                {orgOptions.length > 0 ? (
+                  <Select
+                    label="Empresa"
+                    value={orgId}
+                    onChange={(e) => setOrgId(e.target.value)}
+                    options={orgOptions}
+                    placeholder="Selecione a empresa"
+                    required
+                  />
+                ) : (
+                  <InlineMessage variant="warning">Nenhuma empresa disponível para este usuário.</InlineMessage>
+                )}
 
-              <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-                <Select
-                  label="Template de vaga"
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  options={[
-                    { value: '', label: filteredTemplates.length > 0 ? 'Selecione um template' : 'Nenhum template disponível' },
-                    ...filteredTemplates.map((item) => ({ value: item.id, label: `${item.name} (${item.role})` })),
-                  ]}
-                />
-                <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                  <Button type="button" variant="secondary" onClick={() => { void applyTemplate(); }} disabled={!selectedTemplateId}>Aplicar template</Button>
-                  <Button type="button" variant="outline" onClick={editTemplate} disabled={!selectedTemplateId}>Editar template</Button>
-                  <Button type="button" variant="ghost" onClick={resetTemplateEditor}>Novo template</Button>
+                {/* ── AI assist — shown early so it's visible ─── */}
+                <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center', padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <strong>✨ Preencher com IA</strong>
+                    <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs }}>
+                      Informe título, senioridade e setor e deixe a IA sugerir descrição e skills. Você revisa antes de salvar.
+                    </div>
+                  </div>
+                  <Button type="button" variant="secondary" onClick={() => { void generateSuggestion(); }} disabled={!form.title.trim() || !form.seniority.trim() || !(form.sector.trim() || form.department.trim())}>
+                    Sugerir conteúdo com IA
+                  </Button>
                 </div>
-              </div>
 
-              <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-                <Input label="Título" value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} required />
-                <Input label="Localização" value={form.location} onChange={(e) => setForm((current) => ({ ...current, location: e.target.value }))} />
-                <Select label="Modalidade" value={form.workModel} onChange={(e) => setForm((current) => ({ ...current, workModel: e.target.value }))} options={[{ value: 'onsite', label: 'Presencial' }, { value: 'hybrid', label: 'Híbrido' }, { value: 'remote', label: 'Remoto' }]} />
-                <Select label="Senioridade" value={form.seniority} onChange={(e) => setForm((current) => ({ ...current, seniority: e.target.value }))} options={[{ value: 'junior', label: 'Júnior' }, { value: 'pleno', label: 'Pleno' }, { value: 'senior', label: 'Sênior' }]} />
-                <Input label="Setor" value={form.sector} onChange={(e) => setForm((current) => ({ ...current, sector: e.target.value }))} />
-                <Input label="Departamento / área interna" value={form.department} onChange={(e) => setForm((current) => ({ ...current, department: e.target.value }))} />
-                <Input label="Experiência mínima (anos)" type="number" value={form.experienceYearsMin} onChange={(e) => setForm((current) => ({ ...current, experienceYearsMin: e.target.value }))} />
-                <Input label="Experiência máxima (anos)" type="number" value={form.experienceYearsMax} onChange={(e) => setForm((current) => ({ ...current, experienceYearsMax: e.target.value }))} />
-                <Select label="Tipo de contratação" value={form.employmentType} onChange={(e) => setForm((current) => ({ ...current, employmentType: e.target.value }))} options={[{ value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }, { value: 'contract', label: 'Contrato' }, { value: 'intern', label: 'Estágio' }]} />
-                <Select label="Publicação" value={form.publicationType} onChange={(e) => setForm((current) => ({ ...current, publicationType: e.target.value }))} options={[{ value: 'draft', label: 'Rascunho' }, { value: 'restricted', label: 'Restrita' }, { value: 'public', label: 'Pública' }, { value: 'confidential', label: 'Confidencial' }]} />
-                <Select label="Status" value={form.status} onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'expired', label: 'Expirada' }, { value: 'frozen', label: 'Congelada' }, { value: 'disabled', label: 'Desativada' }]} />
-                <Input label="Faixa salarial mínima" type="number" value={form.salaryMin} onChange={(e) => setForm((current) => ({ ...current, salaryMin: e.target.value }))} />
-                <Input label="Faixa salarial máxima" type="number" value={form.salaryMax} onChange={(e) => setForm((current) => ({ ...current, salaryMax: e.target.value }))} />
-              </div>
-
-              <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center', padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-                <div style={{ flex: 1, minWidth: 220 }}>
-                  <strong>Rascunho com IA</strong>
-                  <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>
-                    Preencha ao menos título, senioridade e setor para receber um primeiro rascunho antes de finalizar o restante.
+                <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                  <Select
+                    label="Template de vaga"
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    options={[
+                      { value: '', label: filteredTemplates.length > 0 ? 'Selecione um template' : 'Nenhum template disponível' },
+                      ...filteredTemplates.map((item) => ({ value: item.id, label: `${item.name} (${item.role})` })),
+                    ]}
+                  />
+                  <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <Button type="button" variant="secondary" onClick={() => { void applyTemplate(); }} disabled={!selectedTemplateId}>Aplicar template</Button>
+                    <Button type="button" variant="outline" onClick={editTemplate} disabled={!selectedTemplateId}>Editar template</Button>
+                    <Button type="button" variant="ghost" onClick={resetTemplateEditor}>Novo template</Button>
                   </div>
                 </div>
-                <Button type="button" variant="secondary" onClick={() => { void generateSuggestion(); }} disabled={!form.title.trim() || !form.seniority.trim() || !(form.sector.trim() || form.department.trim())}>
-                  Sugerir conteúdo com IA
+
+                <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                  <Input label="Título" value={form.title} onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))} required />
+                  <Input label="Localização" value={form.location} onChange={(e) => setForm((current) => ({ ...current, location: e.target.value }))} />
+                  <Select label="Modalidade" value={form.workModel} onChange={(e) => setForm((current) => ({ ...current, workModel: e.target.value }))} options={[{ value: 'onsite', label: 'Presencial' }, { value: 'hybrid', label: 'Híbrido' }, { value: 'remote', label: 'Remoto' }]} />
+                  <Select label="Senioridade" value={form.seniority} onChange={(e) => setForm((current) => ({ ...current, seniority: e.target.value }))} options={[{ value: 'junior', label: 'Júnior' }, { value: 'pleno', label: 'Pleno' }, { value: 'senior', label: 'Sênior' }]} />
+                  <Input label="Setor" value={form.sector} onChange={(e) => setForm((current) => ({ ...current, sector: e.target.value }))} />
+                  <Input label="Departamento / área interna" value={form.department} onChange={(e) => setForm((current) => ({ ...current, department: e.target.value }))} />
+                  <Input label="Experiência mínima (anos)" type="number" value={form.experienceYearsMin} onChange={(e) => setForm((current) => ({ ...current, experienceYearsMin: e.target.value }))} />
+                  <Input label="Experiência máxima (anos)" type="number" value={form.experienceYearsMax} onChange={(e) => setForm((current) => ({ ...current, experienceYearsMax: e.target.value }))} />
+                  <Select label="Tipo de contratação" value={form.employmentType} onChange={(e) => setForm((current) => ({ ...current, employmentType: e.target.value }))} options={[{ value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }, { value: 'contract', label: 'Contrato' }, { value: 'intern', label: 'Estágio' }]} />
+                  <Select label="Publicação" value={form.publicationType} onChange={(e) => setForm((current) => ({ ...current, publicationType: e.target.value }))} options={[{ value: 'draft', label: 'Rascunho' }, { value: 'restricted', label: 'Restrita' }, { value: 'public', label: 'Pública' }, { value: 'confidential', label: 'Confidencial' }]} />
+                  <Select label="Status" value={form.status} onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'expired', label: 'Expirada' }, { value: 'frozen', label: 'Congelada' }, { value: 'disabled', label: 'Desativada' }]} />
+                  <Input label="Faixa salarial mínima" type="number" value={form.salaryMin} onChange={(e) => setForm((current) => ({ ...current, salaryMin: e.target.value }))} />
+                  <Input label="Faixa salarial máxima" type="number" value={form.salaryMax} onChange={(e) => setForm((current) => ({ ...current, salaryMax: e.target.value }))} />
+                </div>
+
+                {suggestion && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Preview da IA</CardTitle>
+                      <Badge variant="warning">Revisão humana obrigatória</Badge>
+                    </CardHeader>
+                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                      <p><strong>Resumo:</strong> {suggestion.summary}</p>
+                      <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('summary')}>Usar resumo</Button>
+                      <p><strong>Skills obrigatórias:</strong> {suggestion.requiredSkills.join(', ')}</p>
+                      <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('requiredSkills')}>Usar skills obrigatórias</Button>
+                      <p><strong>Skills desejáveis:</strong> {suggestion.desiredSkills.join(', ')}</p>
+                      <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('desiredSkills')}>Usar skills desejáveis</Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Textarea label="Descrição" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} rows={4} />
+
+                <SkillField
+                  label="Skills obrigatórias"
+                  values={form.requiredSkills}
+                  inputValue={requiredSkillInput}
+                  onInputChange={setRequiredSkillInput}
+                  onAdd={() => addSkill('requiredSkills')}
+                  onRemove={(value) => removeSkill('requiredSkills', value)}
+                />
+
+                <SkillField
+                  label="Skills desejáveis"
+                  values={form.desiredSkills}
+                  inputValue={desiredSkillInput}
+                  onInputChange={setDesiredSkillInput}
+                  onAdd={() => addSkill('desiredSkills')}
+                  onRemove={(value) => removeSkill('desiredSkills', value)}
+                />
+
+                <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                  <Button type="button" variant="outline" onClick={() => { void saveTemplate(); }} disabled={!orgId || templateSaving}>
+                    {templateSaving ? 'Salvando template...' : editingTemplateId ? 'Atualizar template' : 'Salvar como template'}
+                  </Button>
+                </div>
+
+                <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                  <Input label="Nome do template" value={templateForm.name} onChange={(e) => setTemplateForm((current) => ({ ...current, name: e.target.value }))} placeholder="Ex.: Engenheiro Backend Pleno" />
+                  <Input label="Função do template" value={templateForm.role} onChange={(e) => setTemplateForm((current) => ({ ...current, role: e.target.value }))} placeholder="Ex.: Backend Engineer" />
+                  <Input label="Setor do template" value={templateForm.sector} onChange={(e) => setTemplateForm((current) => ({ ...current, sector: e.target.value }))} placeholder="Ex.: Tecnologia" />
+                  <Select label="Status do template" value={templateForm.status} onChange={(e) => setTemplateForm((current) => ({ ...current, status: e.target.value as TemplateForm['status'] }))} options={[{ value: 'draft', label: 'Rascunho' }, { value: 'active', label: 'Ativo' }, { value: 'archived', label: 'Arquivado' }]} />
+                  <label style={{ display: 'flex', gap: spacing.sm, alignItems: 'center', fontSize: fontSize.sm }}>
+                    <input type="checkbox" checked={templateForm.isFavorite} onChange={(e) => setTemplateForm((current) => ({ ...current, isFavorite: e.target.checked }))} />
+                    Marcar como favorito
+                  </label>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" loading={loading} disabled={!orgId}>
+                  {loading ? 'Criando vaga...' : 'Criar vaga'}
                 </Button>
-              </div>
-
-              <Textarea label="Descrição" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} rows={4} />
-
-              <SkillField
-                label="Skills obrigatórias"
-                values={form.requiredSkills}
-                inputValue={requiredSkillInput}
-                onInputChange={setRequiredSkillInput}
-                onAdd={() => addSkill('requiredSkills')}
-                onRemove={(value) => removeSkill('requiredSkills', value)}
-              />
-
-              <SkillField
-                label="Skills desejáveis"
-                values={form.desiredSkills}
-                inputValue={desiredSkillInput}
-                onInputChange={setDesiredSkillInput}
-                onAdd={() => addSkill('desiredSkills')}
-                onRemove={(value) => removeSkill('desiredSkills', value)}
-              />
-
-              <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                <Button type="button" variant="outline" onClick={() => { void saveTemplate(); }} disabled={!orgId || templateSaving}>
-                  {templateSaving ? 'Salvando template...' : editingTemplateId ? 'Atualizar template' : 'Salvar como template'}
-                </Button>
-              </div>
-
-              <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-                <Input label="Nome do template" value={templateForm.name} onChange={(e) => setTemplateForm((current) => ({ ...current, name: e.target.value }))} placeholder="Ex.: Engenheiro Backend Pleno" />
-                <Input label="Função do template" value={templateForm.role} onChange={(e) => setTemplateForm((current) => ({ ...current, role: e.target.value }))} placeholder="Ex.: Backend Engineer" />
-                <Input label="Setor do template" value={templateForm.sector} onChange={(e) => setTemplateForm((current) => ({ ...current, sector: e.target.value }))} placeholder="Ex.: Tecnologia" />
-                <Select label="Status do template" value={templateForm.status} onChange={(e) => setTemplateForm((current) => ({ ...current, status: e.target.value as TemplateForm['status'] }))} options={[{ value: 'draft', label: 'Rascunho' }, { value: 'active', label: 'Ativo' }, { value: 'archived', label: 'Arquivado' }]} />
-                <label style={{ display: 'flex', gap: spacing.sm, alignItems: 'center', fontSize: fontSize.sm }}>
-                  <input type="checkbox" checked={templateForm.isFavorite} onChange={(e) => setTemplateForm((current) => ({ ...current, isFavorite: e.target.checked }))} />
-                  Marcar como favorito
-                </label>
-              </div>
-
-              {suggestion && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Preview da IA</CardTitle>
-                    <Badge variant="warning">Revisão humana obrigatória</Badge>
-                  </CardHeader>
-                  <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    <p><strong>Resumo:</strong> {suggestion.summary}</p>
-                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('summary')}>Usar resumo</Button>
-                    <p><strong>Skills obrigatórias:</strong> {suggestion.requiredSkills.join(', ')}</p>
-                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('requiredSkills')}>Usar skills obrigatórias</Button>
-                    <p><strong>Skills desejáveis:</strong> {suggestion.desiredSkills.join(', ')}</p>
-                    <Button type="button" variant="ghost" onClick={() => acceptSuggestionSection('desiredSkills')}>Usar skills desejáveis</Button>
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" loading={loading} disabled={!orgId}>
-                {loading ? 'Criando vaga...' : 'Criar vaga'}
-              </Button>
-            </CardFooter>
-          </form>
+              </CardFooter>
+            </form>
+          )}
         </Card>
       )}
 
+      {/* ── Templates section ─────────────────────────────────────── */}
       <Card style={{ marginBottom: spacing.lg }}>
         <CardHeader>
           <CardTitle>Templates disponíveis</CardTitle>
@@ -650,7 +724,7 @@ export function VacanciesView() {
         </CardHeader>
         <CardContent>
           {filteredTemplates.length === 0 ? (
-            <EmptyState title="Nenhum template disponível" description="Crie o primeiro template a partir do formulário acima." />
+            <EmptyState title="Nenhum template disponível" description="Crie o primeiro template a partir do formulário de nova vaga." />
           ) : (
             <DataTable<VacancyTemplate>
               columns={[
@@ -682,81 +756,6 @@ export function VacanciesView() {
           )}
         </CardContent>
       </Card>
-
-      {vacancies.length === 0 ? (
-        <EmptyState title="Nenhuma vaga cadastrada" description={canWrite ? 'Crie a primeira vaga acima.' : 'Nenhuma vaga disponível.'} />
-      ) : (
-        <DataTable<Vacancy>
-          columns={[
-            { key: 'title', header: 'Título', render: (row) => row.title },
-            { key: 'organizationId', header: 'Empresa', render: (row) => row.organization?.name ?? row.organizationId },
-            { key: 'sector', header: 'Setor', render: (row) => row.sector ?? row.department ?? '-' },
-            { key: 'workModel', header: 'Modalidade', render: (row) => row.workModel ?? '-' },
-            { key: 'publicationType', header: 'Publicação', render: (row) => row.publicationType ?? '-' },
-            {
-              key: 'ready',
-              header: 'Pronta?',
-              render: (row) => row.publicationReady
-                ? 'Sim'
-                : `Não (${(row.publicationMissingFields ?? []).map(missingFieldLabel).join(', ') || '-'})`,
-            },
-            {
-              key: 'publicUrl',
-              header: 'Link da vaga',
-              render: (row) => {
-                const publicUrl = `${candidateWebBase}/vacancies/${row.id}`;
-                const canShare = row.publicationType === 'public' && row.publicationReady;
-                if (!canShare) return 'Indisponível';
-                return (
-                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                    <a href={publicUrl} target="_blank" rel="noreferrer">Abrir</a>
-                    <Button size="sm" variant="ghost" onClick={() => { void copyText(publicUrl, 'Link da vaga copiado.'); }}>
-                      Copiar
-                    </Button>
-                  </div>
-                );
-              },
-            },
-            ...(canWrite ? [{
-              key: 'actions',
-              header: 'Ações',
-              render: (row: Vacancy) => {
-                const isDraft = row.publicationType === 'draft';
-                const isReady = row.publicationReady;
-                return (
-                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                    {isDraft && isReady && (
-                      <Button
-                        size="sm"
-                        variant="success"
-                        onClick={() => {
-                          void apiPatch(`/vacancies/${row.id}`, { publicationType: 'public' })
-                            .then(() => { setMsg('Vaga publicada com sucesso!'); setMsgVariant('success'); return load(); })
-                            .catch((err) => { setMsg(err instanceof Error ? err.message : 'Erro ao publicar vaga.'); setMsgVariant('error'); });
-                        }}
-                      >
-                        Publicar
-                      </Button>
-                    )}
-                    {isDraft && !isReady && (
-                      <Badge variant="warning" size="sm">Campos faltando</Badge>
-                    )}
-                    {!isDraft && row.status === 'active' && (
-                      <Badge variant="success" size="sm">Publicada</Badge>
-                    )}
-                  </div>
-                );
-              },
-            }] : []),
-          ]}
-          data={vacancies}
-          rowKey={(row) => row.id}
-          emptyMessage="Nenhuma vaga cadastrada"
-          searchable
-          searchPlaceholder="Buscar vaga por título, empresa ou setor"
-          pageSize={10}
-        />
-      )}
     </PageContent>
   );
 }

@@ -1,21 +1,46 @@
-import { useEffect, useState } from 'react';
-import { Badge, Card, CardContent, CardHeader, CardTitle, DataTable, EmptyState, InlineMessage, PageContent, PageHeader, Select, TableSkeleton, spacing } from '@connekt/ui';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  InlineMessage,
+  PageContent,
+  PageHeader,
+  Select,
+  StatBox,
+  Tabs,
+  colors,
+  fontSize,
+  fontWeight,
+  radius,
+  spacing,
+} from '@connekt/ui';
 import { apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { HeadhunterInboxItem } from '../services/types.js';
 
-const priorityVariant: Record<string, 'danger' | 'warning' | 'info'> = {
-  high: 'danger',
-  medium: 'warning',
-  low: 'info',
+const priorityMeta: Record<string, { variant: 'danger' | 'warning' | 'info'; label: string; icon: string; border: string }> = {
+  high: { variant: 'danger', label: 'Alta', icon: '🔴', border: colors.dangerLight },
+  medium: { variant: 'warning', label: 'Média', icon: '🟡', border: colors.warningLight },
+  low: { variant: 'info', label: 'Baixa', icon: '🔵', border: colors.infoLight },
+};
+
+const formatAge = (hours: number) => {
+  if (hours < 1) return '< 1h';
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
 };
 
 export function InboxView() {
   const { user } = useAuth();
   const [items, setItems] = useState<HeadhunterInboxItem[]>([]);
-  const [priority, setPriority] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const orgId = user?.organizationIds?.[0] ?? '';
 
@@ -23,8 +48,7 @@ export function InboxView() {
     if (!orgId) return;
     setLoading(true);
     try {
-      const query = new URLSearchParams({ organizationId: orgId, ...(priority ? { priority } : {}) });
-      setItems(await apiGet<HeadhunterInboxItem[]>(`/headhunter-inbox?${query.toString()}`));
+      setItems(await apiGet<HeadhunterInboxItem[]>(`/headhunter-inbox?${new URLSearchParams({ organizationId: orgId }).toString()}`));
     } catch (err) {
       setError(String(err));
     } finally {
@@ -32,53 +56,134 @@ export function InboxView() {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, [orgId, priority]);
+  useEffect(() => { void load(); }, [orgId]);
+
+  const stats = useMemo(() => {
+    const total = items.length;
+    const high = items.filter((i) => i.priority === 'high').length;
+    const medium = items.filter((i) => i.priority === 'medium').length;
+    const low = items.filter((i) => i.priority === 'low').length;
+    return { total, high, medium, low };
+  }, [items]);
+
+  const filtered = useMemo(() => {
+    let result = items;
+    if (activeTab === 'high') result = result.filter((i) => i.priority === 'high');
+    else if (activeTab === 'medium') result = result.filter((i) => i.priority === 'medium');
+    else if (activeTab === 'low') result = result.filter((i) => i.priority === 'low');
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      result = result.filter((i) =>
+        i.vacancyTitle.toLowerCase().includes(q) ||
+        i.candidateEmail.toLowerCase().includes(q) ||
+        i.status.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [items, activeTab, searchTerm]);
+
+  const tabs = [
+    { key: 'all', label: 'Todas', badge: stats.total },
+    { key: 'high', label: '🔴 Urgente', badge: stats.high },
+    { key: 'medium', label: '🟡 Média', badge: stats.medium },
+    { key: 'low', label: '🔵 Baixa', badge: stats.low },
+  ];
 
   return (
     <PageContent>
-      <PageHeader title="Inbox Operacional" description="Tarefas pendentes priorizadas por urgência e tempo em aberto." />
+      <PageHeader
+        title="Inbox Operacional"
+        description="Tarefas pendentes priorizadas por urgência. Resolva as de alta prioridade primeiro."
+        actions={<Button variant="outline" size="sm" onClick={() => { void load(); }}>↻ Atualizar</Button>}
+      />
+
       {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
-      <Card>
-        <CardHeader><CardTitle>Tarefas pendentes priorizadas</CardTitle></CardHeader>
-        <CardContent>
-          <Select label="Prioridade" value={priority} onChange={(e) => setPriority(e.target.value)} options={[{ value: '', label: 'Todas' }, { value: 'high', label: 'Alta' }, { value: 'medium', label: 'Média' }, { value: 'low', label: 'Baixa' }]} />
-          {loading ? <TableSkeleton rows={5} columns={6} /> : items.length === 0 ? <EmptyState title="Inbox vazia" description="Sem pendências críticas no momento. Revise vagas ativas e convites pendentes." /> : (
-            <DataTable
-              data={items}
-              rowKey={(row) => row.id}
-              columns={[
-                {
-                  key: 'priority',
-                  header: 'Prioridade',
-                  render: (row: HeadhunterInboxItem) => (
-                    <Badge variant={priorityVariant[row.priority] ?? 'info'} size="sm">
-                      {row.priority === 'high' ? 'Alta' : row.priority === 'medium' ? 'Média' : 'Baixa'}
-                    </Badge>
-                  ),
-                },
-                { key: 'vacancyTitle', header: 'Vaga', render: (row: HeadhunterInboxItem) => row.vacancyTitle },
-                { key: 'candidateEmail', header: 'Candidato', render: (row: HeadhunterInboxItem) => row.candidateEmail },
-                { key: 'status', header: 'Status', render: (row: HeadhunterInboxItem) => row.status },
-                { key: 'ageHours', header: 'Em aberto', render: (row: HeadhunterInboxItem) => `${row.ageHours}h` },
-                {
-                  key: 'quickActions',
-                  header: 'Ações rápidas',
-                  render: (row: HeadhunterInboxItem) => (
-                    <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                      {row.quickActions.map((action) => (
-                        <Badge key={action} variant="info" size="sm">{action}</Badge>
-                      ))}
-                    </div>
-                  ),
-                },
-              ]}
-              emptyMessage="Sem pendências"
+
+      {loading ? (
+        <div style={{ display: 'grid', gap: spacing.lg }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md }}>
+            {[1, 2, 3, 4].map((i) => <div key={i} style={{ height: 80, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />)}
+          </div>
+          {[1, 2, 3].map((i) => <div key={i} style={{ height: 80, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />)}
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          title="Inbox vazia"
+          description="Sem pendências críticas no momento. Parabéns! 🎉 Revise vagas ativas e convites pendentes."
+          icon="✅"
+        />
+      ) : (
+        <>
+          {/* Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
+            <StatBox label="Total" value={stats.total} subtext="tarefas pendentes" />
+            <StatBox label="Urgentes" value={stats.high} subtext={stats.high > 0 ? 'requer ação imediata' : 'Nenhuma urgente'} />
+            <StatBox label="Média" value={stats.medium} subtext="prioridade intermediária" />
+            <StatBox label="Baixa" value={stats.low} subtext="pode aguardar" />
+          </div>
+
+          {/* Search */}
+          <div style={{ marginBottom: spacing.md }}>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por vaga, candidato ou status..."
+              style={{ width: '100%', maxWidth: 400, padding: `${spacing.sm}px ${spacing.md}px`, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: fontSize.md, outline: 'none', background: colors.surface, color: colors.text, boxSizing: 'border-box' }}
             />
+          </div>
+
+          <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+
+          {/* Cards */}
+          {filtered.length === 0 ? (
+            <EmptyState title="Nenhuma tarefa" description="Nenhum item corresponde aos filtros selecionados." icon="🔍" />
+          ) : (
+            <div style={{ display: 'grid', gap: spacing.sm }}>
+              {filtered.map((item) => {
+                const meta = priorityMeta[item.priority] ?? priorityMeta.low;
+                return (
+                  <Card key={item.id} style={{ borderLeft: `4px solid ${meta.border}`, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: `${spacing.md}px ${spacing.lg}px` }}>
+                      {/* Left */}
+                      <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', minWidth: 0 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: radius.full, background: meta.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.md, flexShrink: 0 }}>
+                          {meta.icon}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: 2 }}>
+                            <span style={{ fontWeight: fontWeight.semibold, fontSize: fontSize.md, color: colors.text }}>{item.vacancyTitle}</span>
+                            <Badge variant={meta.variant} size="sm">{meta.label}</Badge>
+                          </div>
+                          <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', fontSize: fontSize.sm, color: colors.textSecondary }}>
+                            <span>👤 {item.candidateEmail}</span>
+                            <span>📊 {item.status}</span>
+                            <span>⏱️ {formatAge(item.ageHours)} aberto</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: quick actions */}
+                      <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {item.quickActions.map((action) => (
+                          <Badge key={action} variant="info" size="sm">{action}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Footer */}
+          <div style={{ marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: fontSize.sm, color: colors.textSecondary }}>
+            <span>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {items.length} tarefas</span>
+            <span>{stats.high > 0 ? `⚠️ ${stats.high} tarefa(s) urgente(s)` : '✅ Sem urgências'}</span>
+          </div>
+        </>
+      )}
     </PageContent>
   );
 }

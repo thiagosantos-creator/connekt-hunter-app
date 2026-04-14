@@ -223,7 +223,11 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
         {error && <div style={{ padding: `${spacing.md}px ${spacing.lg}px 0` }}><InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage></div>}
 
         {loading && !detail ? (
-          <div style={{ padding: spacing.xl }}><div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando perfil do candidato...</div></div>
+          <div style={{ padding: spacing.xxl, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: spacing.md, minHeight: 300 }}>
+            <div style={{ width: 32, height: 32, border: `3px solid ${colors.border}`, borderTopColor: colors.info, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando dossiê do candidato...</div>
+            <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Consolidando dados de IA, matching e avaliações</div>
+          </div>
         ) : detail ? (
           <div style={{ padding: spacing.lg }}>
             <section style={{ marginBottom: spacing.lg, padding: spacing.xl, borderRadius: radius.xl, color: colors.textInverse, background: `linear-gradient(135deg, ${detail.vacancy.organization?.tenantSettings?.primaryColor || colors.primary} 0%, ${detail.vacancy.organization?.tenantSettings?.secondaryColor || colors.info} 58%, #dbeafe 100%)`, overflow: 'hidden' }}>
@@ -370,6 +374,63 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </Card>
             </section>
 
+            {/* Smart Interview section (visible to all when data exists) */}
+            {safeArray(detail.smartInterviewSessions).length > 0 && (
+              <section style={{ marginBottom: spacing.lg }}>
+                <Card>
+                  <CardHeader><CardTitle>Entrevista inteligente</CardTitle></CardHeader>
+                  <CardContent style={{ display: 'grid', gap: spacing.md }}>
+                    {detail.smartInterviewSessions!.map((session) => (
+                      <div key={session.id} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, flexWrap: 'wrap', gap: spacing.xs }}>
+                          <Badge variant={session.status === 'reviewed' ? 'success' : session.status === 'submitted' ? 'info' : 'warning'}>{sentence(session.status)}</Badge>
+                          {session.startedAt && <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Início: {formatDate(session.startedAt)}</span>}
+                          {session.submittedAt && <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Enviado: {formatDate(session.submittedAt)}</span>}
+                        </div>
+                        {session.aiAnalysis && (
+                          <div style={{ marginTop: spacing.sm }}>
+                            <AiTag />
+                            <div style={{ marginTop: spacing.xs, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>
+                              {session.aiAnalysis.summary}
+                            </div>
+                            {Array.isArray(session.aiAnalysis.highlights) && session.aiAnalysis.highlights.length > 0 && (
+                              <div style={{ marginTop: spacing.sm }}>
+                                <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.success, marginBottom: spacing.xs }}>Destaques</div>
+                                {session.aiAnalysis.highlights.map((h, idx) => (
+                                  <div key={idx} style={{ display: 'flex', gap: spacing.xs, marginBottom: 2 }}>
+                                    <span style={{ color: colors.success }}>•</span>
+                                    <span style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>{String(h)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {Array.isArray(session.aiAnalysis.risks) && session.aiAnalysis.risks.length > 0 && (
+                              <div style={{ marginTop: spacing.sm }}>
+                                <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.warning, marginBottom: spacing.xs }}>Pontos de atenção</div>
+                                {session.aiAnalysis.risks.map((r, idx) => (
+                                  <div key={idx} style={{ display: 'flex', gap: spacing.xs, marginBottom: 2 }}>
+                                    <span style={{ color: colors.warning }}>•</span>
+                                    <span style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>{String(r)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {session.humanReview && (
+                          <div style={{ marginTop: spacing.md, padding: spacing.sm, borderRadius: radius.md, background: colors.surface, border: `1px solid ${colors.borderLight}` }}>
+                            <div style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Revisão humana por {session.humanReview.reviewer?.name || 'Avaliador'}</div>
+                            <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginTop: 2 }}>{sentence(session.humanReview.decision)}</div>
+                            {session.humanReview.notes && <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 2 }}>{session.humanReview.notes}</div>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
             <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
               <Card>
                 <CardHeader><CardTitle>Pareceres e histórico</CardTitle></CardHeader>
@@ -381,6 +442,9 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
                     <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.successLight, color: colors.success }}>
                       <div style={{ fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Última decisão do cliente</div>
                       <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: spacing.xs }}>{sentence(detail.shortlistItems[0].decisions[0].decision)}</div>
+                      {detail.shortlistItems[0].decisions[0].reviewer && (
+                        <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2 }}>por {detail.shortlistItems[0].decisions[0].reviewer.name || detail.shortlistItems[0].decisions[0].reviewer.email}</div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -396,6 +460,16 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
                         <Badge variant="info">{Math.round(item.confidence * 100)}%</Badge>
                       </div>
                       <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>{item.explanation}</div>
+                      {item.actionableInsights && (
+                        <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, color: colors.info }}>
+                          {(typeof item.actionableInsights === 'string' ? [item.actionableInsights] : item.actionableInsights).map((insight, idx) => (
+                            <div key={idx} style={{ display: 'flex', gap: spacing.xs, marginBottom: 2 }}>
+                              <span>💡</span>
+                              <span>{insight}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )) : <EmptyState title="Sem recomendações geradas" description="As recomendações assistivas aparecerão aqui quando houver sinal suficiente." />}
                   {viewerRole !== 'client' && intelligence.workflowSuggestions.length > 0 && intelligence.workflowSuggestions.map((item) => (

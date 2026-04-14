@@ -8,7 +8,7 @@ import {
   CardDescription,
   CardContent,
   InlineMessage,
-  Spinner,
+  LoadingState,
   spacing,
   colors,
   fontSize,
@@ -36,8 +36,6 @@ export function AccountView() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ textAlign: 'center', marginTop: 80 }}><Spinner /></div>;
-
   return (
     <div style={{ maxWidth: 520, margin: '40px auto', padding: `0 ${spacing.md}px` }}>
       <Card variant="elevated">
@@ -48,6 +46,14 @@ export function AccountView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {loading ? (
+            <LoadingState
+              message="Carregando configurações da sua conta..."
+              description="Estamos verificando as opções de acesso e segurança disponíveis para o seu perfil."
+              minHeight={220}
+            />
+          ) : (
+            <>
           <div style={{ marginBottom: spacing.lg, padding: spacing.md, background: colors.surfaceAlt, borderRadius: 8 }}>
             <p style={{ margin: 0, color: colors.textSecondary }}>
               <strong>E-mail:</strong> {info.email ?? '—'}
@@ -109,6 +115,8 @@ export function AccountView() {
                 Alterar senha no provedor
               </Button>
             </div>
+          )}
+            </>
           )}
         </CardContent>
       </Card>

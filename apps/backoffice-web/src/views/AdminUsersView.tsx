@@ -16,16 +16,18 @@ import {
   PageContent,
   PageHeader,
   Select,
-  Skeleton,
   StatBox,
+  TableSkeleton,
   spacing,
 } from '@connekt/ui';
+import type { MessageVariant } from '@connekt/ui';
 
 export function AdminUsersView() {
   const { user } = useAuth();
   const [rows, setRows] = useState<ManagedUser[]>([]);
   const [inviteRows, setInviteRows] = useState<CandidateInvite[]>([]);
   const [feedback, setFeedback] = useState('');
+  const [feedbackVariant, setFeedbackVariant] = useState<MessageVariant>('info');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteVacancyId, setInviteVacancyId] = useState('');
   const [organizationId, setOrganizationId] = useState('');
@@ -79,7 +81,10 @@ export function AdminUsersView() {
     setLoadingInvites(true);
     void listManagedUsers(organizationId)
       .then(setRows)
-      .catch((error) => setFeedback(String(error)))
+      .catch((error) => {
+        setFeedbackVariant('error');
+        setFeedback(String(error));
+      })
       .finally(() => setLoadingUsers(false));
     void listCandidateInvites(organizationId)
       .then(setInviteRows)
@@ -121,11 +126,15 @@ export function AdminUsersView() {
                 void updateManagedUser({ organizationId: row.tenantId, userId: row.id, role })
                   .then((updated) => {
                     setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                    setFeedbackVariant('success');
                     setFeedback('Perfil atualizado.');
                   })
-                  .catch((error) => setFeedback(String(error)));
-              }}
-            >
+                  .catch((error) => {
+                    setFeedbackVariant('error');
+                    setFeedback(String(error));
+                  });
+               }}
+             >
               <option value="admin">admin</option>
               <option value="headhunter">headhunter</option>
               <option value="client">client</option>
@@ -152,11 +161,15 @@ export function AdminUsersView() {
                 void updateManagedUser({ organizationId: row.tenantId, userId: row.id, isActive: !row.isActive })
                   .then((updated) => {
                     setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+                    setFeedbackVariant('success');
                     setFeedback('Status do usuário atualizado.');
                   })
-                  .catch((error) => setFeedback(String(error)));
-              }}
-            >
+                  .catch((error) => {
+                    setFeedbackVariant('error');
+                    setFeedback(String(error));
+                  });
+               }}
+             >
               {row.isActive ? 'Desativar' : 'Ativar'}
             </Button>
           ) : (
@@ -178,11 +191,13 @@ export function AdminUsersView() {
         vacancyId: inviteVacancyId,
         organizationId,
       });
+      setFeedbackVariant('success');
       setFeedback('Convite enviado com sucesso.');
       setInviteEmail('');
       setInviteVacancyId('');
       setInviteRows(await listCandidateInvites(organizationId));
     } catch (error) {
+      setFeedbackVariant('error');
       setFeedback(`Erro ao enviar convite: ${String(error)}`);
     }
   };
@@ -190,7 +205,7 @@ export function AdminUsersView() {
   return (
     <PageContent>
       <PageHeader title="Gestão de Usuários" description="Administração persistida de usuários, permissões e governança de convites." />
-      {feedback && <InlineMessage variant="info" onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
+      {feedback && <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
 
       <Card style={{ marginTop: spacing.md, marginBottom: spacing.md }}>
         <CardHeader>
@@ -237,50 +252,52 @@ export function AdminUsersView() {
         </Card>
       )}
 
-      {loadingInvites ? (
-        <Card style={{ marginBottom: spacing.md }}>
-          <CardContent>
-            <Skeleton style={{ height: 160, borderRadius: 8 }} />
-          </CardContent>
-        </Card>
-      ) : inviteRows.length > 0 && (
+      {canInvite && (
         <Card style={{ marginBottom: spacing.md }}>
           <CardHeader>
             <CardTitle>Governança de convites</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable
-              columns={[
-                { key: 'candidate', header: 'Candidato', render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination },
-                { key: 'vacancy', header: 'Vaga', render: (row: CandidateInvite) => row.vacancy.title },
-                { key: 'channel', header: 'Canal', render: (row: CandidateInvite) => row.channel },
-                { key: 'status', header: 'Status', render: (row: CandidateInvite) => row.status },
-              ]}
-              data={inviteRows}
-              rowKey={(row) => row.id}
-              pageSize={5}
-            />
+            {loadingInvites ? (
+              <TableSkeleton rows={5} columns={4} />
+            ) : (
+              <DataTable
+                columns={[
+                  { key: 'candidate', header: 'Candidato', render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination },
+                  { key: 'vacancy', header: 'Vaga', render: (row: CandidateInvite) => row.vacancy.title },
+                  { key: 'channel', header: 'Canal', render: (row: CandidateInvite) => row.channel },
+                  { key: 'status', header: 'Status', render: (row: CandidateInvite) => row.status },
+                ]}
+                data={inviteRows}
+                rowKey={(row) => row.id}
+                pageSize={5}
+                emptyMessage="Nenhum convite registrado para esta empresa."
+              />
+            )}
           </CardContent>
         </Card>
       )}
 
-      {loadingUsers ? (
-        <Card>
-          <CardContent>
-            <Skeleton style={{ height: 240, borderRadius: 8 }} />
-          </CardContent>
-        </Card>
-      ) : (
-        <DataTable
-          columns={cols}
-          data={rows}
-          rowKey={(row) => row.id}
-          searchable
-          searchPlaceholder="Buscar usuário por nome ou e-mail"
-          pageSize={10}
-          emptyMessage="Nenhum usuário encontrado para esta empresa."
-        />
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Usuários administrados</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingUsers ? (
+            <TableSkeleton rows={6} columns={5} />
+          ) : (
+            <DataTable
+              columns={cols}
+              data={rows}
+              rowKey={(row) => row.id}
+              searchable
+              searchPlaceholder="Buscar usuário por nome ou e-mail"
+              pageSize={10}
+              emptyMessage="Nenhum usuário encontrado para esta empresa."
+            />
+          )}
+        </CardContent>
+      </Card>
     </PageContent>
   );
 }

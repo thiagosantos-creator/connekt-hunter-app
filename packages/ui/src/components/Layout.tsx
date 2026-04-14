@@ -124,6 +124,27 @@ export function Spinner({ size = 24 }: { size?: number }) {
   );
 }
 
+export function LoadingState({ message = 'Carregando informações...', description, size = 28, minHeight = 160 }: { message?: string; description?: string; size?: number; minHeight?: number }) {
+  return (
+    <div
+      style={{
+        minHeight,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        gap: spacing.xs,
+        padding: spacing.lg,
+      }}
+    >
+      <Spinner size={size} />
+      <p style={{ margin: 0, color: colors.textSecondary, fontSize: fontSize.md }}>{message}</p>
+      {description && <p style={{ margin: 0, color: colors.textMuted, fontSize: fontSize.sm, maxWidth: 520 }}>{description}</p>}
+    </div>
+  );
+}
+
 /** Skeleton loading placeholder */
 export function Skeleton({ width, height = 16, borderRadius, style }: { width?: string | number; height?: number; borderRadius?: number; style?: React.CSSProperties }) {
   return (
@@ -138,6 +159,16 @@ export function Skeleton({ width, height = 16, borderRadius, style }: { width?: 
         ...style,
       }}
     />
+  );
+}
+
+export function FormSkeleton({ rows = 6, itemHeight = 32 }: { rows?: number; itemHeight?: number }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} height={itemHeight} borderRadius={radius.sm} />
+      ))}
+    </div>
   );
 }
 

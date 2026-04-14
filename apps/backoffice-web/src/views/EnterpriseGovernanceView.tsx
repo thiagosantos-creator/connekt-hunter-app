@@ -253,7 +253,7 @@ export function EnterpriseGovernanceView() {
           <SectionTitle>Funil operacional</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
             {funnelEntries.map(([key, value]) => (
-              <StatBox key={key} label={formatLabel(key)} value={value} />
+              <StatBox key={key} label={formatLabel(key)} value={String(value)} />
             ))}
           </div>
         </>

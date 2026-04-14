@@ -53,6 +53,12 @@ export function AdminUsersView() {
       .map((item) => ({ value: item.id, label: item.title })),
     [organizationId, vacancies],
   );
+  const organizationLabelById = useMemo(
+    () => Object.fromEntries(
+      organizations.map((item) => [item.id, item.tenantSettings?.publicName || item.name]),
+    ),
+    [organizations],
+  );
 
   useEffect(() => {
     void Promise.all([
@@ -85,6 +91,7 @@ export function AdminUsersView() {
   const activeUsers = rows.filter((row) => row.isActive).length;
   const inactiveUsers = rows.length - activeUsers;
   const pendingInvites = inviteRows.filter((row) => row.status !== 'delivered' && row.status !== 'completed').length;
+  const getOrganizationLabel = (id: string) => organizationLabelById[id] || id;
 
   const cols = useMemo(
     () => [
@@ -130,12 +137,8 @@ export function AdminUsersView() {
       {
         key: 'tenantId',
         header: 'Empresa',
-        render: (row: ManagedUser) => organizations.find((item) => item.id === row.tenantId)?.tenantSettings?.publicName
-          || organizations.find((item) => item.id === row.tenantId)?.name
-          || row.tenantId,
-        searchValue: (row: ManagedUser) => organizations.find((item) => item.id === row.tenantId)?.tenantSettings?.publicName
-          || organizations.find((item) => item.id === row.tenantId)?.name
-          || row.tenantId,
+        render: (row: ManagedUser) => getOrganizationLabel(row.tenantId),
+        searchValue: (row: ManagedUser) => getOrganizationLabel(row.tenantId),
       },
       {
         key: 'status',
@@ -161,7 +164,7 @@ export function AdminUsersView() {
           ),
       },
     ],
-    [canManage, organizations],
+    [canManage, organizationLabelById],
   );
 
   if (!user) return null;

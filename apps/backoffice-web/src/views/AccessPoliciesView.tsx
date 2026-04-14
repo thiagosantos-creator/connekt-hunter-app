@@ -17,6 +17,7 @@ const policyLabels: Record<keyof TenantPolicy, { label: string; description: str
   canAuditEvents: { label: 'Pode auditar eventos', description: 'Acesso à trilha de auditoria do sistema.' },
   canAdministrateTenant: { label: 'Pode administrar tenant', description: 'Gerenciamento completo de usuários, políticas e configurações.' },
 };
+const TOTAL_POLICIES = Object.keys(policyLabels).length;
 
 export function AccessPoliciesView() {
   const { user } = useAuth();
@@ -89,7 +90,7 @@ export function AccessPoliciesView() {
             <InlineMessage variant="warning">Nenhum tenant disponível para gestão.</InlineMessage>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
-            <StatBox label="Políticas ativas" value={`${enabledPoliciesCount}/4`} />
+            <StatBox label="Políticas ativas" value={`${enabledPoliciesCount}/${TOTAL_POLICIES}`} />
             <StatBox label="Convites" value={policy.canInviteCandidates ? 'Liberado' : 'Bloqueado'} />
             <StatBox label="Decisões" value={policy.canApproveDecisions ? 'Liberado' : 'Bloqueado'} />
             <StatBox label="Auditoria" value={policy.canAuditEvents ? 'Liberado' : 'Bloqueado'} />

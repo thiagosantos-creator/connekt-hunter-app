@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PageContent, PageHeader, DataTable, EmptyState, TableSkeleton } from '@connekt/ui';
+import { PageContent, PageHeader, DataTable, EmptyState, InlineMessage, TableSkeleton } from '@connekt/ui';
 import { listAuditEvents } from '../services/account.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../services/rbac.js';
@@ -9,11 +9,12 @@ export function AuditTrailView() {
   const { user } = useAuth();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     void listAuditEvents()
       .then(setEvents)
-      .catch(() => setEvents([]))
+      .catch((err) => setError(`Não foi possível carregar os eventos: ${String(err)}`))
       .finally(() => setLoading(false));
   }, []);
 
@@ -39,6 +40,7 @@ export function AuditTrailView() {
   return (
     <PageContent>
       <PageHeader title="Auditoria" description="Eventos de login/logout, senha, MFA e permissões." />
+      {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
       {loading ? (
         <TableSkeleton rows={8} columns={4} />
       ) : (

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { generateMockMfaQr, saveProfile } from '../services/account.js';
+import { saveProfile } from '../services/account.js';
 import {
   PageContent,
   PageHeader,
@@ -37,33 +37,45 @@ export function AccountView() {
   const [title, setTitle] = useState(user?.title ?? '');
   const [company, setCompany] = useState(user?.company ?? '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
-  const [mfaEnabled, setMfaEnabled] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackVariant, setFeedbackVariant] = useState<'success' | 'error'>('success');
+  const [saving, setSaving] = useState(false);
 
   const exp = useMemo(() => roleExperience[user?.role ?? 'client'], [user?.role]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(''), 4000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   if (!user) return null;
 
   const save = () => {
-    saveProfile({ ...user, name, title, company, avatarUrl });
-    refreshAuth();
-    setFeedback('Perfil atualizado com sucesso.');
-    setFeedbackVariant('success');
-  };
-
-  const toggleMfa = () => {
-    const next = !mfaEnabled;
-    setMfaEnabled(next);
-    setFeedback(next ? 'MFA ativado.' : 'MFA desativado.');
-    setFeedbackVariant('success');
+    if (!name.trim()) {
+      setFeedback('O nome é obrigatório.');
+      setFeedbackVariant('error');
+      return;
+    }
+    setSaving(true);
+    try {
+      saveProfile({ ...user, name, title, company, avatarUrl });
+      refreshAuth();
+      setFeedback('Perfil atualizado com sucesso.');
+      setFeedbackVariant('success');
+    } catch (err) {
+      setFeedback(`Erro ao salvar: ${String(err)}`);
+      setFeedbackVariant('error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <PageContent>
       <PageHeader title="Conta e Segurança" description="Gerencie seus dados, segurança e experiência por perfil." />
 
-      {feedback && <InlineMessage variant={feedbackVariant}>{feedback}</InlineMessage>}
+      {feedback && <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
         <Card>
@@ -72,11 +84,11 @@ export function AccountView() {
             <CardDescription>Dados básicos da conta.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input label="Foto (URL)" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
-            <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input label="Foto (URL)" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." />
+            <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
             <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} />
             <Input label="Empresa" value={company} onChange={(e) => setCompany(e.target.value)} />
-            <Button onClick={save}>Salvar perfil</Button>
+            <Button onClick={save} loading={saving}>Salvar perfil</Button>
           </CardContent>
         </Card>
 
@@ -87,24 +99,9 @@ export function AccountView() {
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
             <InlineMessage variant="info">
-              Sua senha e login social são gerenciados pelo Cognito.
-              Para alterar senha ou vincular Google/LinkedIn, utilize o portal do provedor de identidade.
+              Sua senha, login social e MFA são gerenciados pelo Cognito.
+              Para alterar senha, vincular Google/LinkedIn ou configurar MFA, utilize o portal do provedor de identidade.
             </InlineMessage>
-
-            <div style={{ border: `1px solid ${colors.border}`, borderRadius: 8, padding: spacing.md }}>
-              <strong>MFA</strong>
-              <p style={{ marginTop: spacing.xs, marginBottom: spacing.sm }}>
-                {mfaEnabled ? 'MFA ativo para seu login.' : 'MFA inativo. Ative para reforçar a segurança.'}
-              </p>
-              {!mfaEnabled && (
-                <code style={{ display: 'block', fontSize: 12, marginBottom: spacing.sm }}>
-                  {generateMockMfaQr(user.email)}
-                </code>
-              )}
-              <Button variant={mfaEnabled ? 'ghost' : 'secondary'} onClick={toggleMfa}>
-                {mfaEnabled ? 'Desativar MFA' : 'Ativar MFA (QR Code)'}
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>

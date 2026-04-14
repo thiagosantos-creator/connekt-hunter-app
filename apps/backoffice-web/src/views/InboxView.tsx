@@ -6,9 +6,9 @@ import {
   CardContent,
   EmptyState,
   InlineMessage,
+  Input,
   PageContent,
   PageHeader,
-  Select,
   StatBox,
   Tabs,
   colors,
@@ -127,12 +127,10 @@ export function InboxView() {
 
           {/* Search */}
           <div style={{ marginBottom: spacing.md }}>
-            <input
-              type="text"
+            <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por vaga, candidato ou status..."
-              style={{ width: '100%', maxWidth: 400, padding: `${spacing.sm}px ${spacing.md}px`, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: fontSize.md, outline: 'none', background: colors.surface, color: colors.text, boxSizing: 'border-box' }}
             />
           </div>
 

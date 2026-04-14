@@ -23,11 +23,12 @@ export function NotificationPreferencesView() {
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<MessageVariant>('success');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     void Promise.all([
-      apiGet<NotificationPreference>('/notification-preferences/me').then(setPrefs).catch(() => null),
+      apiGet<NotificationPreference>('/notification-preferences/me').then(setPrefs).catch((err) => setLoadError(`Erro ao carregar preferências: ${String(err)}`)),
       apiGet<NotificationDispatch[]>('/notification-preferences/me/dispatches').then(setDispatches).catch(() => setDispatches([])),
     ]).finally(() => setLoading(false));
   }, []);
@@ -51,6 +52,7 @@ export function NotificationPreferencesView() {
     <PageContent>
       <PageHeader title="Preferências de Notificação" description="Configure quais canais e eventos devem gerar notificações." />
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
+      {loadError && <InlineMessage variant="warning" onDismiss={() => setLoadError('')}>{loadError}</InlineMessage>}
       <Card style={{ marginBottom: spacing.lg }}>
         <CardHeader><CardTitle>Centro de notificações</CardTitle></CardHeader>
         <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
@@ -74,7 +76,7 @@ export function NotificationPreferencesView() {
               <Checkbox label="Auditoria crítica" description="Eventos de segurança e compliance." checked={prefs.eventCriticalAudit} onChange={(v) => setPrefs({ ...prefs, eventCriticalAudit: v })} />
 
               <Select label="Frequência de envio" value={prefs.frequency} onChange={(e) => setPrefs({ ...prefs, frequency: e.target.value })} options={[{ value: 'immediate', label: 'Imediato' }, { value: 'daily', label: 'Resumo diário' }, { value: 'weekly', label: 'Resumo semanal' }]} />
-              <Button onClick={() => { void save(); }} loading={saving}>Salvar preferências</Button>
+              <Button onClick={() => { void save(); }} loading={saving} disabled={!!loadError}>Salvar preferências</Button>
             </>
           )}
         </CardContent>

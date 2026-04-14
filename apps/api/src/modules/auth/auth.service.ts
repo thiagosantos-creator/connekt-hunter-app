@@ -122,8 +122,10 @@ export class AuthService {
   getCandidateAuthConfig() {
     const poolId = process.env.COGNITO_CANDIDATE_POOL_ID ?? process.env.COGNITO_USER_POOL_ID ?? '';
     const clientId = process.env.COGNITO_CANDIDATE_CLIENT_ID ?? process.env.COGNITO_CLIENT_ID ?? '';
-    const domain = process.env.COGNITO_CANDIDATE_DOMAIN ?? '';
+    const clientSecret = process.env.COGNITO_CANDIDATE_CLIENT_SECRET ?? process.env.COGNITO_CLIENT_SECRET ?? '';
+    const domain = process.env.COGNITO_CANDIDATE_DOMAIN ?? process.env.COGNITO_DOMAIN ?? '';
     const redirectUri = process.env.COGNITO_CANDIDATE_REDIRECT_URI ?? 'http://localhost:5174/auth/callback';
+    const logoutUri = process.env.COGNITO_CANDIDATE_LOGOUT_URI ?? 'http://localhost:5174';
     const region = process.env.AWS_REGION ?? process.env.S3_REGION ?? 'us-east-1';
 
     if (!poolId || !clientId) {
@@ -137,12 +139,19 @@ export class AuthService {
       domain,
       region,
       redirectUri,
+      logoutUri,
+      clientSecretConfigured: Boolean(clientSecret),
+      usesClientSecret: Boolean(clientSecret),
       socialProviders: ['Google', 'LinkedIn'] as const,
       hostedUiUrl: domain
         ? `https://${domain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirectUri)}`
         : null,
+      tokenEndpoint: domain ? `https://${domain}/oauth2/token` : null,
       changePasswordUrl: domain
         ? `https://${domain}/forgotPassword?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`
+        : null,
+      logoutUrl: domain
+        ? `https://${domain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`
         : null,
     };
   }

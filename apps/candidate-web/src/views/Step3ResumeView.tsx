@@ -61,6 +61,7 @@ export function Step3ResumeView() {
       const result = await apiPost<ResumeUploadResponse>('/candidate/onboarding/resume', {
         token: getToken(),
         filename: file.name,
+        contentType: file.type || undefined,
       });
 
       // Upload actual file content to the presigned URL
@@ -74,6 +75,12 @@ export function Step3ResumeView() {
           throw new Error('Falha ao enviar arquivo. Tente novamente.');
         }
       }
+
+      await apiPost('/candidate/onboarding/resume/complete', {
+        token: getToken(),
+        resumeId: result.id,
+        filename: file.name,
+      });
 
       navigate('/status');
     } catch (err) {

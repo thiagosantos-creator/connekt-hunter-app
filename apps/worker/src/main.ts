@@ -80,11 +80,18 @@ export async function processResumeUploads(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { resumeId: string };
     const ok = await safeProcess('resume.uploaded', evt.id, async () => {
-      await prisma.resumeParseResult.upsert({
+      const existing = await prisma.resumeParseResult.findUnique({
         where: { resumeId: payload.resumeId },
-        update: { status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
-        create: { resumeId: payload.resumeId, status: 'parsed', parsedJson: { summary: 'mock parsed resume' } },
       });
+      if (!existing) {
+        await prisma.resumeParseResult.create({
+          data: {
+            resumeId: payload.resumeId,
+            status: 'pending',
+            parsedJson: { info: 'resume_parse_pending' } as never,
+          },
+        });
+      }
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
     if (ok) processed++;

@@ -289,3 +289,19 @@ Implementado nesta fase:
 - Suíte de integração com stack real (API + Postgres + worker + Redis opcional).
 - Tracing/correlação mínima para API e worker com logs estruturados.
 - ADRs 016/017/018/019 e SDDs atualizados.
+
+## AWS Test Stack
+- CloudFormation template: `infra/aws/cloudformation/connekt-test-stack.yaml`
+- Example parameters: `infra/aws/cloudformation/parameters.example.json`
+- Env export helper: `infra/aws/cloudformation/export-connekt-env.ps1`
+- The stack provisions:
+  - an S3 bucket for assets
+  - a workforce Cognito pool with confidential client
+  - a candidate Cognito pool with confidential client
+- Additional env vars expected for real Cognito usage:
+  - `COGNITO_CLIENT_SECRET`
+  - `COGNITO_CANDIDATE_CLIENT_SECRET`
+  - `COGNITO_DOMAIN`
+  - `COGNITO_LOGOUT_URI`
+  - `COGNITO_CANDIDATE_LOGOUT_URI`
+- Architecture note: `docs/adr/021-cognito-test-stack-cloudformation.md`

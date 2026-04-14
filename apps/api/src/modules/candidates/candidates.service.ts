@@ -88,6 +88,7 @@ export class CandidatesService {
       inviteStatus: invite.status,
       inviteChannel: invite.channel,
       inviteDestination: invite.destination,
+      accessUrl: this.buildCandidateAccessUrl(candidate.token),
     };
   }
 
@@ -500,6 +501,7 @@ export class CandidatesService {
       update: {},
       create: { candidateId: input.candidateId, vacancyId: input.vacancyId },
     });
+    const accessUrl = this.buildCandidateAccessUrl(input.candidateToken);
 
     let dispatchId: string | undefined;
     let inviteStatus = 'link_generated';
@@ -511,7 +513,12 @@ export class CandidatesService {
           to: input.destination,
           templateKey: 'candidate-invite',
           templateVersion: 'v1',
-          payload: { token: input.candidateToken, vacancyId: input.vacancyId },
+          payload: {
+            token: input.candidateToken,
+            vacancyId: input.vacancyId,
+            vacancyTitle: input.vacancyTitle,
+            accessUrl,
+          },
           correlationId: input.candidateId,
         });
         dispatchId = dispatch.dispatchId;
@@ -525,7 +532,13 @@ export class CandidatesService {
           data: {
             channel: 'phone-gateway',
             destination: input.destination,
-            content: JSON.stringify({ type: 'candidate-invite', token: input.candidateToken, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
+            content: JSON.stringify({
+              type: 'candidate-invite',
+              token: input.candidateToken,
+              vacancyId: input.vacancyId,
+              accessUrl,
+              providerHint: 'sms|whatsapp',
+            }),
             status: 'sent',
           },
         });

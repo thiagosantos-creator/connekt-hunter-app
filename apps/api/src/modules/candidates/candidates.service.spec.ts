@@ -68,7 +68,12 @@ describe('CandidatesService', () => {
       consent: true,
       actorUserId: 'u1',
     });
-    expect(result).toEqual(expect.objectContaining({ id: candidate.id, inviteId: 'invite1', inviteStatus: 'sent' }));
+    expect(result).toEqual(expect.objectContaining({
+      id: candidate.id,
+      inviteId: 'invite1',
+      inviteStatus: 'sent',
+      accessUrl: 'http://localhost:5174/?token=tok',
+    }));
     expect(prisma.candidate.upsert).toHaveBeenCalledOnce();
     expect(emailGateway.sendTemplated).toHaveBeenCalledOnce();
     expect(prisma.auditEvent.create).toHaveBeenCalledOnce();
@@ -104,7 +109,11 @@ describe('CandidatesService', () => {
       actorUserId: 'u1',
     });
 
-    expect(result).toEqual(expect.objectContaining({ inviteChannel: 'phone', inviteStatus: 'sent' }));
+    expect(result).toEqual(expect.objectContaining({
+      inviteChannel: 'phone',
+      inviteStatus: 'sent',
+      accessUrl: 'http://localhost:5174/?token=tok-phone',
+    }));
     expect(prisma.messageDispatch.create).toHaveBeenCalledOnce();
   });
 
@@ -130,7 +139,11 @@ describe('CandidatesService', () => {
       actorUserId: 'u1',
     });
 
-    expect(result).toEqual(expect.objectContaining({ inviteChannel: 'link', inviteStatus: 'link_generated' }));
+    expect(result).toEqual(expect.objectContaining({
+      inviteChannel: 'link',
+      inviteStatus: 'link_generated',
+      accessUrl: 'http://localhost:5174/?token=tok-link',
+    }));
     expect(emailGateway.sendTemplated).not.toHaveBeenCalled();
     expect(prisma.messageDispatch.create).not.toHaveBeenCalled();
   });

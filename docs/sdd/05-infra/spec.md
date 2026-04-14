@@ -1,19 +1,20 @@
-# SDD — Infra (Slice 09)
+# SDD - Infra (Slice 09)
 
 ## Redis-backed controls
-- Rate limiting distribuído para endpoints públicos via chave `ratelimit:v1:<scope>:<route>:<ip>`.
-- Token cache público com hash SHA-256 (`public-token:v1:<token_hash>`), TTL curto (`PUBLIC_TOKEN_CACHE_TTL_SEC`, default 30s).
-- Fallback local em memória preservado quando Redis estiver indisponível.
+- Distributed rate limiting for public endpoints via `ratelimit:v1:<scope>:<route>:<ip>`.
+- Public token cache with SHA-256 hash (`public-token:v1:<token_hash>`) and short TTL (`PUBLIC_TOKEN_CACHE_TTL_SEC`, default 30s).
+- Local in-memory fallback remains available whenever Redis is unavailable.
 
 ## Runtime components
-- API NestJS (HTTP).
-- Worker processando outbox real.
-- Postgres (estado transacional).
-- Redis (throttling + token cache).
-- Storage/Email/AI gateways com fallback mock/local.
+- NestJS API (HTTP)
+- Worker processing outbox events
+- Postgres (transactional state)
+- Redis (throttling and token cache)
+- Storage, email, auth, AI gateways with local/mock fallback
+- Optional AWS test stack for real S3 + Cognito validation via CloudFormation
 
-## Configuração por ambiente
-- `REDIS_ENABLED` (`true` por padrão)
+## Environment configuration
+- `REDIS_ENABLED` (`true` by default)
 - `REDIS_URL`
 - `RATE_LIMIT_WINDOW_SEC`
 - `RATE_LIMIT_MAX_REQUESTS`

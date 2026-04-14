@@ -1,0 +1,30 @@
+[
+  {
+    "ParameterKey": "EnvironmentName",
+    "ParameterValue": "staging"
+  },
+  {
+    "ParameterKey": "WorkforceDomainPrefix",
+    "ParameterValue": "connekt-stg-company"
+  },
+  {
+    "ParameterKey": "CandidateDomainPrefix",
+    "ParameterValue": "connekt-stg-candidate"
+  },
+  {
+    "ParameterKey": "WorkforceCallbackUrl",
+    "ParameterValue": "http://localhost:5173/auth/callback"
+  },
+  {
+    "ParameterKey": "WorkforceLogoutUrl",
+    "ParameterValue": "http://localhost:5173"
+  },
+  {
+    "ParameterKey": "CandidateCallbackUrl",
+    "ParameterValue": "http://localhost:5174/auth/callback"
+  },
+  {
+    "ParameterKey": "CandidateLogoutUrl",
+    "ParameterValue": "http://localhost:5174"
+  }
+]

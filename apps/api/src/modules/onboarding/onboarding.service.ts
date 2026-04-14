@@ -3,6 +3,7 @@ import { prisma } from '@connekt/db';
 import { StorageGateway } from '../integrations/storage.gateway.js';
 import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
 import { NotificationDispatchService } from '../notification-preferences/notification-dispatch.service.js';
+import { extractResumeTextFromBuffer } from './resume-text-extractor.js';
 
 @Injectable()
 export class OnboardingService {
@@ -80,7 +81,7 @@ export class OnboardingService {
     return { ok: true };
   }
 
-  async resume(token: string, filename: string) {
+  async createResumeUpload(token: string, filename: string, contentType?: string) {
     const candidate = await prisma.candidate.findUnique({ where: { token } });
     if (!candidate) throw new NotFoundException('candidate_not_found');
 
@@ -93,11 +94,12 @@ export class OnboardingService {
       tenantId: candidate.organizationId,
       namespace: `candidate-cv/${candidate.id}`,
       filename,
+      contentType,
       metadata: { source: 'candidate-onboarding' },
     });
 
     const resume = await prisma.candidateResume.create({
-      data: { sessionId: session.id, objectKey: upload.objectKey, provider: upload.provider },
+      data: { sessionId: session.id, objectKey: upload.objectKey, provider: upload.provider, status: 'pending_upload' },
     });
 
     await this.storageGateway.recordAsset({
@@ -105,13 +107,37 @@ export class OnboardingService {
       objectKey: upload.objectKey,
       category: 'resume-cv',
       provider: upload.provider,
-      metadata: { candidateId: candidate.id, sessionId: session.id },
+      metadata: { candidateId: candidate.id, sessionId: session.id, filename, status: 'pending_upload' },
     });
+
+    this.logger.log(JSON.stringify({ event: 'onboarding_resume_upload_created', candidateId: candidate.id, resumeId: resume.id }));
+
+    return { ...resume, upload };
+  }
+
+  async completeResume(token: string, resumeId: string, filename: string) {
+    const candidate = await prisma.candidate.findUnique({ where: { token } });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    const resume = await prisma.candidateResume.findFirst({
+      where: {
+        id: resumeId,
+        session: { candidateId: candidate.id },
+      },
+      include: {
+        session: true,
+      },
+    });
+    if (!resume) throw new NotFoundException('resume_not_found');
+
+    const objectBuffer = await this.storageGateway.getObjectBuffer(resume.objectKey);
+    const resumeText = await extractResumeTextFromBuffer(filename, objectBuffer);
 
     const parsed = await this.cvParserGateway.parseResume({
       resumeId: resume.id,
       objectKey: resume.objectKey,
       candidateId: candidate.id,
+      resumeText,
     });
 
     await prisma.resumeParseResult.upsert({
@@ -120,7 +146,11 @@ export class OnboardingService {
       create: { resumeId: resume.id, status: 'parsed', parsedJson: parsed as never },
     });
 
-    await prisma.outboxEvent.create({ data: { topic: 'resume.uploaded', payload: { resumeId: resume.id } } });
+    await prisma.candidateResume.update({
+      where: { id: resume.id },
+      data: { status: 'parsed' },
+    });
+
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
       data: { resumeCompleted: true, status: 'completed' },
@@ -132,14 +162,20 @@ export class OnboardingService {
         action: 'onboarding.resume_completed',
         entityType: 'Candidate',
         entityId: candidate.id,
-        metadata: { organizationId: candidate.organizationId, resumeId: resume.id } as never,
+        metadata: { organizationId: candidate.organizationId, resumeId: resume.id, objectKey: resume.objectKey } as never,
       },
     });
 
     this.logger.log(JSON.stringify({ event: 'onboarding_resume_completed', candidateId: candidate.id, resumeId: resume.id }));
     await this.notifyInviter(candidate.organizationId, candidate.invitedByUserId, candidate.id, 'resume');
 
-    return { ...resume, upload };
+    return {
+      ok: true,
+      resumeId: resume.id,
+      objectKey: resume.objectKey,
+      provider: resume.provider,
+      parsed,
+    };
   }
 
   async getParsedResume(token: string) {

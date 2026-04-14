@@ -1,6 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import {
+  CreateBucketCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  PutObjectCommand,
+  S3Client,
+  S3ServiceException,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'node:crypto';
+import { extname } from 'node:path';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 
 export interface PresignedUpload {
@@ -14,11 +24,45 @@ export interface PresignedUpload {
 
 @Injectable()
 export class StorageGateway {
-  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {}
+  private readonly bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
+  private readonly region = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
+  private readonly endpoint = process.env.S3_ENDPOINT;
+  private readonly s3: S3Client;
+  private bucketReady = false;
 
-  async createPresignedUpload(input: { tenantId: string; namespace: string; filename: string; metadata?: Record<string, unknown> }): Promise<PresignedUpload> {
+  constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {
+    this.s3 = new S3Client({
+      region: this.region,
+      endpoint: this.endpoint,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' || Boolean(this.endpoint),
+    });
+  }
+
+  async createPresignedUpload(input: {
+    tenantId: string;
+    namespace: string;
+    filename: string;
+    contentType?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<PresignedUpload> {
     const provider = this.config.isIntegrationEnabled('storage') ? 'aws-s3' : 'minio';
-    const objectKey = `${input.tenantId}/${input.namespace}/${randomUUID()}-${input.filename}`;
+    const safeFilename = this.sanitizeFilename(input.filename);
+    const objectKey = `${input.tenantId}/${input.namespace}/${randomUUID()}-${safeFilename}`;
+    const contentType = input.contentType ?? this.detectContentType(safeFilename);
+
+    await this.ensureBucket();
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+      ContentType: contentType,
+      Metadata: {
+        tenantId: input.tenantId,
+        namespace: input.namespace,
+      },
+    });
+
+    const url = await getSignedUrl(this.s3, command, { expiresIn: 900 });
 
     await prisma.providerExecutionLog.create({
       data: {
@@ -28,7 +72,7 @@ export class StorageGateway {
         status: 'success',
         idempotencyKey: objectKey,
         requestJson: input as never,
-        responseJson: { objectKey } as never,
+        responseJson: { objectKey, bucket: this.bucket, expiresIn: 900, contentType } as never,
       },
     });
 
@@ -37,9 +81,21 @@ export class StorageGateway {
       objectKey,
       method: 'PUT',
       expiresIn: 900,
-      url: provider === 'aws-s3' ? `https://s3.amazonaws.com/mock-bucket/${encodeURIComponent(objectKey)}` : `https://minio.local/${encodeURIComponent(objectKey)}`,
-      headers: { 'x-upload-provider': provider, 'x-tenant-id': input.tenantId },
+      url,
+      headers: { 'Content-Type': contentType },
     };
+  }
+
+  async getObjectBuffer(objectKey: string): Promise<Buffer> {
+    const response = await this.s3.send(new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+    }));
+    const bytes = await response.Body?.transformToByteArray();
+    if (!bytes) {
+      throw new Error(`storage_object_empty:${objectKey}`);
+    }
+    return Buffer.from(bytes);
   }
 
   async recordAsset(input: { tenantId: string; objectKey: string; category: string; provider?: string; metadata?: Record<string, unknown> }) {
@@ -52,5 +108,56 @@ export class StorageGateway {
         metadata: (input.metadata ?? {}) as never,
       },
     });
+  }
+
+  private async ensureBucket() {
+    if (this.bucketReady) return;
+
+    try {
+      await this.s3.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      this.bucketReady = true;
+      return;
+    } catch (error) {
+      const code = this.getS3ErrorCode(error);
+      const canCreate = code === 'NotFound' || code === 'NoSuchBucket' || code === '404';
+      if (!canCreate) {
+        throw error;
+      }
+    }
+
+    try {
+      await this.s3.send(new CreateBucketCommand({ Bucket: this.bucket }));
+      this.bucketReady = true;
+    } catch (error) {
+      const code = this.getS3ErrorCode(error);
+      if (code === 'BucketAlreadyOwnedByYou' || code === 'BucketAlreadyExists') {
+        this.bucketReady = true;
+        return;
+      }
+      throw error;
+    }
+  }
+
+  private getS3ErrorCode(error: unknown) {
+    if (error instanceof S3ServiceException) {
+      return error.name;
+    }
+    if (error && typeof error === 'object' && 'name' in error) {
+      return String((error as { name: unknown }).name);
+    }
+    return '';
+  }
+
+  private sanitizeFilename(filename: string) {
+    return filename.replace(/[^a-zA-Z0-9._-]/g, '-');
+  }
+
+  private detectContentType(filename: string) {
+    const extension = extname(filename).toLowerCase();
+    if (extension === '.pdf') return 'application/pdf';
+    if (extension === '.doc') return 'application/msword';
+    if (extension === '.docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    if (extension === '.txt') return 'text/plain; charset=utf-8';
+    return 'application/octet-stream';
   }
 }

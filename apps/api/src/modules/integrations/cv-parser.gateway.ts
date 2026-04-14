@@ -17,8 +17,12 @@ export class CvParserGateway {
     let provider = isReal ? 'cv-parser-real' : 'cv-parser-mock';
     let parsed: Record<string, unknown>;
 
-    if (isReal && input.resumeText) {
+    if (isReal) {
       try {
+        if (!input.resumeText?.trim()) {
+          throw new Error('resume_text_required_for_real_cv_parser');
+        }
+
         const result = await this.openai.parseResume({
           resumeText: input.resumeText,
           objectKey: input.objectKey,

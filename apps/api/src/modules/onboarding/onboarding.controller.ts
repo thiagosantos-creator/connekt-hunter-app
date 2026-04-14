@@ -21,8 +21,13 @@ export class OnboardingController {
   }
 
   @Post('resume')
-  resume(@Body() body: { token: string; filename: string }) {
-    return this.onboardingService.resume(body.token, body.filename);
+  resume(@Body() body: { token: string; filename: string; contentType?: string }) {
+    return this.onboardingService.createResumeUpload(body.token, body.filename, body.contentType);
+  }
+
+  @Post('resume/complete')
+  completeResume(@Body() body: { token: string; resumeId: string; filename: string }) {
+    return this.onboardingService.completeResume(body.token, body.resumeId, body.filename);
   }
 
   @Get('parsed-resume/:token')

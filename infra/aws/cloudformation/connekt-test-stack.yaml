@@ -1,0 +1,248 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Connekt Hunter test stack with S3 assets bucket and two Cognito user pools (workforce + candidate).
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: staging
+    AllowedPattern: '^[a-z0-9-]+$'
+  WorkforceDomainPrefix:
+    Type: String
+    Description: Base Cognito domain prefix for admin/headhunter/client access. The template appends the AWS account id automatically.
+    AllowedPattern: '^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$'
+    MinLength: 1
+    MaxLength: 50
+    ConstraintDescription: Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number. Avoid reserved terms aws, amazon, and cognito.
+  CandidateDomainPrefix:
+    Type: String
+    Description: Base Cognito domain prefix for candidate access. The template appends the AWS account id automatically.
+    AllowedPattern: '^[a-z0-9](?:[a-z0-9-]{0,48}[a-z0-9])?$'
+    MinLength: 1
+    MaxLength: 50
+    ConstraintDescription: Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number. Avoid reserved terms aws, amazon, and cognito.
+  WorkforceCallbackUrl:
+    Type: String
+    Default: http://localhost:5173/auth/callback
+  WorkforceLogoutUrl:
+    Type: String
+    Default: http://localhost:5173
+  CandidateCallbackUrl:
+    Type: String
+    Default: http://localhost:5174/auth/callback
+  CandidateLogoutUrl:
+    Type: String
+    Default: http://localhost:5174
+  AllowCandidateSelfSignUp:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+
+Conditions:
+  CandidateSelfSignUpEnabled: !Equals [!Ref AllowCandidateSelfSignUp, 'true']
+
+Resources:
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET, HEAD, PUT]
+            AllowedOrigins:
+              - http://localhost:5173
+              - http://localhost:5174
+            ExposedHeaders:
+              - ETag
+            MaxAge: 3000
+      Tags:
+        - Key: Project
+          Value: Connekt Hunter
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  WorkforceUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub connekt-${EnvironmentName}-workforce
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+        - Name: name
+          Required: true
+          Mutable: true
+      UserPoolTags:
+        Project: Connekt Hunter
+        Environment: !Ref EnvironmentName
+
+  WorkforceUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub connekt-${EnvironmentName}-workforce-app
+      UserPoolId: !Ref WorkforceUserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - !Ref WorkforceCallbackUrl
+      LogoutURLs:
+        - !Ref WorkforceLogoutUrl
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+
+  WorkforceUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub ${WorkforceDomainPrefix}-${AWS::AccountId}
+      UserPoolId: !Ref WorkforceUserPool
+
+  WorkforceAdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      Description: Administrative users for Connekt Hunter workforce access.
+      UserPoolId: !Ref WorkforceUserPool
+
+  WorkforceHeadhunterGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: headhunter
+      Description: Recruiters and operators.
+      UserPoolId: !Ref WorkforceUserPool
+
+  WorkforceClientGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: client
+      Description: Hiring client reviewers.
+      UserPoolId: !Ref WorkforceUserPool
+
+  CandidateUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub connekt-${EnvironmentName}-candidate
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: OPTIONAL
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: !If [CandidateSelfSignUpEnabled, false, true]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+        - Name: name
+          Required: false
+          Mutable: true
+      UserPoolTags:
+        Project: Connekt Hunter
+        Environment: !Ref EnvironmentName
+
+  CandidateUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub connekt-${EnvironmentName}-candidate-app
+      UserPoolId: !Ref CandidateUserPool
+      GenerateSecret: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - !Ref CandidateCallbackUrl
+      LogoutURLs:
+        - !Ref CandidateLogoutUrl
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+
+  CandidateUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub ${CandidateDomainPrefix}-${AWS::AccountId}
+      UserPoolId: !Ref CandidateUserPool
+
+Outputs:
+  AssetsBucketName:
+    Description: S3 bucket for resumes, interview media, and assets.
+    Value: !Ref AssetsBucket
+  WorkforceUserPoolId:
+    Description: Cognito user pool for workforce access.
+    Value: !Ref WorkforceUserPool
+  WorkforceClientId:
+    Description: App client id for workforce Hosted UI.
+    Value: !Ref WorkforceUserPoolClient
+  WorkforceDomain:
+    Description: Workforce Hosted UI domain.
+    Value: !Sub ${WorkforceDomainPrefix}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com
+  CandidateUserPoolId:
+    Description: Cognito user pool for candidate access.
+    Value: !Ref CandidateUserPool
+  CandidateClientId:
+    Description: App client id for candidate Hosted UI.
+    Value: !Ref CandidateUserPoolClient
+  CandidateDomain:
+    Description: Candidate Hosted UI domain.
+    Value: !Sub ${CandidateDomainPrefix}-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com

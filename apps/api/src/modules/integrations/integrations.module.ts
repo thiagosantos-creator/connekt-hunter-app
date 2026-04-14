@@ -7,6 +7,9 @@ import { AiGateway } from './ai.gateway.js';
 import { CvParserGateway } from './cv-parser.gateway.js';
 import { TranscriptionGateway } from './transcription.gateway.js';
 import { IntegrationsHealthService } from './integrations-health.service.js';
+import { OpenAiProvider } from './openai.provider.js';
+import { AwsTranscribeProvider } from './aws-transcribe.provider.js';
+import { AwsComprehendProvider } from './aws-comprehend.provider.js';
 
 @Global()
 @Module({
@@ -14,6 +17,9 @@ import { IntegrationsHealthService } from './integrations-health.service.js';
     IntegrationsConfigService,
     ProviderRegistryService,
     IntegrationsHealthService,
+    OpenAiProvider,
+    AwsTranscribeProvider,
+    AwsComprehendProvider,
     StorageGateway,
     EmailGateway,
     AiGateway,
@@ -24,6 +30,9 @@ import { IntegrationsHealthService } from './integrations-health.service.js';
     IntegrationsConfigService,
     ProviderRegistryService,
     IntegrationsHealthService,
+    OpenAiProvider,
+    AwsTranscribeProvider,
+    AwsComprehendProvider,
     StorageGateway,
     EmailGateway,
     AiGateway,

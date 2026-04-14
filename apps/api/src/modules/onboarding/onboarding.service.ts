@@ -142,6 +142,92 @@ export class OnboardingService {
     return { ...resume, upload };
   }
 
+  async getParsedResume(token: string) {
+    const candidate = await prisma.candidate.findUnique({ where: { token } });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    const session = await prisma.candidateOnboardingSession.findUnique({
+      where: { candidateId: candidate.id },
+      include: {
+        resumes: {
+          include: {
+            parseResult: true,
+            parseMetadata: true,
+          },
+          orderBy: { uploadedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!session) throw new NotFoundException('onboarding_session_not_found');
+
+    const resume = session.resumes[0];
+    if (!resume?.parseResult) {
+      return { status: 'pending', parsedData: null };
+    }
+
+    return {
+      status: resume.parseResult.status,
+      parsedData: resume.parseResult.parsedJson,
+      confidence: resume.parseMetadata?.confidenceJson ?? null,
+      provider: resume.parseMetadata?.provider ?? null,
+    };
+  }
+
+  async getStatus(token: string) {
+    const candidate = await prisma.candidate.findUnique({
+      where: { token },
+      include: {
+        profile: true,
+        onboarding: true,
+        applications: {
+          include: {
+            vacancy: { select: { id: true, title: true } },
+            shortlistItems: {
+              include: {
+                decisions: { select: { decision: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+              },
+            },
+            smartInterviewSessions: { select: { id: true, status: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    const steps: Array<{ key: string; label: string; completed: boolean; current: boolean }> = [];
+    const onboarding = candidate.onboarding;
+    const app = candidate.applications[0];
+
+    const basicDone = !!onboarding?.basicCompleted;
+    const consentDone = !!onboarding?.consentCompleted;
+    const resumeDone = !!onboarding?.resumeCompleted;
+    const hasShortlistItems = !!(app?.shortlistItems?.length);
+    const hasDecisions = !!(hasShortlistItems && app?.shortlistItems?.[0]?.decisions?.length);
+
+    steps.push({ key: 'basic', label: 'Dados básicos', completed: basicDone, current: !basicDone });
+    steps.push({ key: 'consent', label: 'Consentimento LGPD', completed: consentDone, current: basicDone && !consentDone });
+    steps.push({ key: 'resume', label: 'Envio de currículo', completed: resumeDone, current: consentDone && !resumeDone });
+    steps.push({ key: 'review', label: 'Em avaliação', completed: hasShortlistItems, current: resumeDone && !hasShortlistItems });
+    steps.push({ key: 'shortlisted', label: 'Na shortlist', completed: hasDecisions, current: hasShortlistItems && !hasDecisions });
+    steps.push({ key: 'decision', label: 'Decisão final', completed: hasDecisions, current: false });
+
+    const interview = app?.smartInterviewSessions?.[0];
+    const latestDecision = app?.shortlistItems?.[0]?.decisions?.[0];
+
+    return {
+      candidateId: candidate.id,
+      fullName: candidate.profile?.fullName ?? null,
+      email: candidate.email,
+      vacancy: app ? { id: app.vacancy.id, title: app.vacancy.title } : null,
+      onboardingStatus: onboarding?.status ?? 'not_started',
+      steps,
+      interview: interview ? { id: interview.id, status: interview.status } : null,
+      decision: latestDecision ? { decision: latestDecision.decision, at: latestDecision.createdAt } : null,
+    };
+  }
+
   private async notifyInviter(organizationId: string, invitedByUserId: string | null, candidateId: string, step: string) {
     if (!invitedByUserId) return;
     await this.notificationDispatchService.dispatchToUsers({

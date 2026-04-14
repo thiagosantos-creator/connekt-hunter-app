@@ -226,6 +226,8 @@ export class SmartInterviewService {
         summary: aiResult.summary,
         highlights: aiResult.highlights as never,
         risks: aiResult.risks as never,
+        evidence: (aiResult.evidence ?? []) as never,
+        sentimentJson: (aiResult.sentiment ?? null) as never,
       },
       create: {
         sessionId,
@@ -233,6 +235,8 @@ export class SmartInterviewService {
         summary: aiResult.summary,
         highlights: aiResult.highlights as never,
         risks: aiResult.risks as never,
+        evidence: (aiResult.evidence ?? []) as never,
+        sentimentJson: (aiResult.sentiment ?? null) as never,
       },
     });
 

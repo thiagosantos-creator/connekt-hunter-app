@@ -9,6 +9,7 @@ import {
   PageHeader,
   StatusPill,
   TableSkeleton,
+  Textarea,
   spacing,
 } from '@connekt/ui';
 import { CandidateProfileModal } from '../components/candidate/CandidateProfileModal.js';
@@ -47,6 +48,9 @@ export function ClientReviewView() {
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
   const [loading, setLoading] = useState(true);
+  const [commentAppId, setCommentAppId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [commenting, setCommenting] = useState(false);
 
   useEffect(() => {
     void Promise.all([
@@ -75,6 +79,23 @@ export function ClientReviewView() {
     } catch (error) {
       setMsg(error instanceof Error ? error.message : String(error));
       setMsgVariant('error');
+    }
+  };
+
+  const sendComment = async () => {
+    if (!commentAppId || !commentText.trim()) return;
+    setCommenting(true);
+    try {
+      await apiPost('/client-comments', { applicationId: commentAppId, comment: commentText });
+      setMsg('Comentário enviado com sucesso.');
+      setMsgVariant('success');
+      setCommentAppId(null);
+      setCommentText('');
+    } catch (error) {
+      setMsg(error instanceof Error ? error.message : String(error));
+      setMsgVariant('error');
+    } finally {
+      setCommenting(false);
     }
   };
 
@@ -118,11 +139,16 @@ export function ClientReviewView() {
     },
     {
       key: 'profile',
-      header: 'Dossiê',
+      header: 'Ações',
       render: (row: ShortlistItemWithApplication) => (
-        <Button variant="outline" size="sm" onClick={() => setSelectedApplicationId(row.applicationId)}>
-          Abrir perfil
-        </Button>
+        <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+          <Button variant="outline" size="sm" onClick={() => setSelectedApplicationId(row.applicationId)}>
+            Abrir perfil
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { setCommentAppId(row.applicationId); setCommentText(''); }}>
+            Comentar
+          </Button>
+        </div>
       ),
     },
   ];
@@ -164,6 +190,53 @@ export function ClientReviewView() {
         onClose={() => setSelectedApplicationId(null)}
         viewerRole="client"
       />
+
+      {commentAppId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="comment-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') setCommentAppId(null); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{
+            background: '#fff',
+            padding: spacing.lg,
+            borderRadius: 8,
+            width: '100%',
+            maxWidth: 480,
+            display: 'grid',
+            gap: spacing.md,
+          }}>
+            <h3 id="comment-modal-title" style={{ margin: 0 }}>Enviar comentário ao recrutador</h3>
+            <Textarea
+              label="Comentário sobre o candidato"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Escreva seu feedback ou observação sobre o candidato..."
+              rows={4}
+            />
+            <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
+              <Button variant="ghost" onClick={() => setCommentAppId(null)}>Cancelar</Button>
+              <Button
+                onClick={() => { void sendComment(); }}
+                loading={commenting}
+                disabled={!commentText.trim()}
+              >
+                Enviar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageContent>
   );
 }

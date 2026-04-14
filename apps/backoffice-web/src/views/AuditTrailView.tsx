@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { PageContent, PageHeader, DataTable, EmptyState } from '@connekt/ui';
+import { PageContent, PageHeader, DataTable, EmptyState, TableSkeleton } from '@connekt/ui';
 import { listAuditEvents } from '../services/account.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../services/rbac.js';
@@ -8,9 +8,13 @@ import type { AuditEvent } from '../services/types.js';
 export function AuditTrailView() {
   const { user } = useAuth();
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void listAuditEvents().then(setEvents).catch(() => setEvents([]));
+    void listAuditEvents()
+      .then(setEvents)
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const columns = useMemo(
@@ -35,15 +39,19 @@ export function AuditTrailView() {
   return (
     <PageContent>
       <PageHeader title="Auditoria" description="Eventos de login/logout, senha, MFA e permissões." />
-      <DataTable
-        columns={columns}
-        data={events}
-        rowKey={(row) => row.id}
-        searchable
-        searchPlaceholder="Buscar evento"
-        pageSize={15}
-        emptyMessage="Nenhum evento de auditoria registrado"
-      />
+      {loading ? (
+        <TableSkeleton rows={8} columns={4} />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={events}
+          rowKey={(row) => row.id}
+          searchable
+          searchPlaceholder="Buscar evento"
+          pageSize={15}
+          emptyMessage="Nenhum evento de auditoria registrado"
+        />
+      )}
     </PageContent>
   );
 }

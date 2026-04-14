@@ -1,12 +1,12 @@
 /** @connekt/ui — Shared design system for Connekt Hunter */
 
-export { tokens, colors, spacing, radius, fontSize, fontWeight, shadows } from './tokens/tokens.js';
+export { tokens, colors, spacing, radius, fontSize, fontWeight, shadows, zIndex } from './tokens/tokens.js';
 
 export { Button } from './components/Button.js';
 export type { ButtonProps, ButtonVariant } from './components/Button.js';
 
-export { Input, Textarea, Select } from './components/Input.js';
-export type { InputProps, TextareaProps, SelectProps, SelectOption } from './components/Input.js';
+export { Input, Textarea, Select, Checkbox } from './components/Input.js';
+export type { InputProps, TextareaProps, SelectProps, SelectOption, CheckboxProps } from './components/Input.js';
 
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/Card.js';
 export type { CardProps } from './components/Card.js';

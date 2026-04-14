@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors, radius, fontSize, spacing } from '../tokens/tokens.js';
+import { colors, radius, fontSize, spacing, fontWeight } from '../tokens/tokens.js';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -92,5 +92,61 @@ export function Select({ label, error, style, options, placeholder, ...props }: 
       </select>
       {error && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
     </div>
+  );
+}
+
+/* ───── Checkbox ───── */
+
+export interface CheckboxProps {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  id?: string;
+}
+
+let checkboxCounter = 0;
+
+export function Checkbox({ label, description, checked, onChange, disabled, id }: CheckboxProps) {
+  const uid = id ?? `cb-${++checkboxCounter}`;
+  return (
+    <label
+      htmlFor={uid}
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        padding: `${spacing.xs}px 0`,
+      }}
+    >
+      <input
+        type="checkbox"
+        id={uid}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        style={{
+          width: 18,
+          height: 18,
+          margin: 0,
+          marginTop: 1,
+          accentColor: colors.primary,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          flexShrink: 0,
+        }}
+        aria-checked={checked}
+      />
+      <span>
+        <span style={{ fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.text }}>{label}</span>
+        {description && (
+          <span style={{ display: 'block', fontSize: fontSize.xs, color: colors.textMuted, marginTop: 1 }}>
+            {description}
+          </span>
+        )}
+      </span>
+    </label>
   );
 }

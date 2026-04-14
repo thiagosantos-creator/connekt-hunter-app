@@ -516,7 +516,14 @@ export class CandidatesService {
   }
 
   private hasPasswordResetConfig() {
-    return this.buildPasswordResetUrl('availability-check@example.com') !== null;
+    const config = this.authService.getCandidateAuthConfig();
+    if (!config.changePasswordUrl) return false;
+    try {
+      new URL(config.changePasswordUrl);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private isResettableEmail(email: string) {

@@ -142,6 +142,7 @@ export function CandidatesView() {
   const inviteUrl = result ? `${candidateWebBase}/?token=${encodeURIComponent(result.token)}` : '';
   const activeManagedCandidates = managedCandidates.filter((candidate) => candidate.hasLoginAccount).length;
   const resettableManagedCandidates = managedCandidates.filter((candidate) => candidate.canRequestPasswordReset).length;
+  const normalizedManagedCandidateEmail = managedCandidateEmail.trim().toLowerCase();
 
   const handleRecommendationSelection = (applicationId: string) => {
     const selected = applications.find((item) => item.id === applicationId);
@@ -464,7 +465,7 @@ export function CandidatesView() {
                           type="button"
                           onClick={() => { void saveManagedCandidateEmail(); }}
                           loading={savingManagedCandidate}
-                          disabled={!managedCandidateEmail.trim() || managedCandidateEmail.trim().toLowerCase() === selectedManagedCandidate.email.toLowerCase()}
+                          disabled={!normalizedManagedCandidateEmail || normalizedManagedCandidateEmail === selectedManagedCandidate.email.toLowerCase()}
                         >
                           Salvar e-mail
                         </Button>

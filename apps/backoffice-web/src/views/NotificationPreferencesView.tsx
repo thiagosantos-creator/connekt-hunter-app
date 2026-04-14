@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPut } from '../services/api.js';
 import type { NotificationDispatch, NotificationPreference } from '../services/types.js';
-import { Button, Card, CardContent, CardHeader, CardTitle, DataTable, InlineMessage, PageContent, PageHeader, Select, spacing } from '@connekt/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Checkbox, DataTable, InlineMessage, PageContent, PageHeader, SectionTitle, Select, Skeleton, spacing } from '@connekt/ui';
 
 const defaultPrefs: NotificationPreference = {
   emailEnabled: true,
@@ -20,36 +20,61 @@ export function NotificationPreferencesView() {
   const [prefs, setPrefs] = useState<NotificationPreference>(defaultPrefs);
   const [dispatches, setDispatches] = useState<NotificationDispatch[]>([]);
   const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void apiGet<NotificationPreference>('/notification-preferences/me').then(setPrefs).catch(() => null);
-    void apiGet<NotificationDispatch[]>('/notification-preferences/me/dispatches').then(setDispatches).catch(() => setDispatches([]));
+    void Promise.all([
+      apiGet<NotificationPreference>('/notification-preferences/me').then(setPrefs).catch(() => null),
+      apiGet<NotificationDispatch[]>('/notification-preferences/me/dispatches').then(setDispatches).catch(() => setDispatches([])),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const save = async () => {
-    await apiPut('/notification-preferences/me', prefs);
-    setDispatches(await apiGet<NotificationDispatch[]>('/notification-preferences/me/dispatches'));
-    setMsg('Preferências salvas.');
+    setSaving(true);
+    try {
+      await apiPut('/notification-preferences/me', prefs);
+      setDispatches(await apiGet<NotificationDispatch[]>('/notification-preferences/me/dispatches'));
+      setMsg('Preferências salvas com sucesso.');
+    } catch (err) {
+      setMsg(`Erro ao salvar: ${String(err)}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <PageContent>
-      <PageHeader title="Preferências de Notificação" />
-      {msg && <InlineMessage variant="success" onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
+      <PageHeader title="Preferências de Notificação" description="Configure quais canais e eventos devem gerar notificações." />
+      {msg && <InlineMessage variant={msg.startsWith('Erro') ? 'error' : 'success'} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
       <Card style={{ marginBottom: spacing.lg }}>
         <CardHeader><CardTitle>Centro de notificações</CardTitle></CardHeader>
-        <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-          <label><input type="checkbox" checked={prefs.emailEnabled} onChange={(e) => setPrefs({ ...prefs, emailEnabled: e.target.checked })} /> Canal: e-mail</label>
-          <label><input type="checkbox" checked={prefs.phoneEnabled} onChange={(e) => setPrefs({ ...prefs, phoneEnabled: e.target.checked })} /> Canal: telefone</label>
-          <label><input type="checkbox" checked={prefs.inAppEnabled} onChange={(e) => setPrefs({ ...prefs, inAppEnabled: e.target.checked })} /> Canal: in-app</label>
-          <label><input type="checkbox" checked={prefs.eventNewInvite} onChange={(e) => setPrefs({ ...prefs, eventNewInvite: e.target.checked })} /> Evento: novo convite</label>
-          <label><input type="checkbox" checked={prefs.eventStepCompleted} onChange={(e) => setPrefs({ ...prefs, eventStepCompleted: e.target.checked })} /> Evento: onboarding concluído</label>
-          <label><input type="checkbox" checked={prefs.eventDecision} onChange={(e) => setPrefs({ ...prefs, eventDecision: e.target.checked })} /> Evento: decisão</label>
-          <label><input type="checkbox" checked={prefs.eventReminder} onChange={(e) => setPrefs({ ...prefs, eventReminder: e.target.checked })} /> Evento: lembrete operacional</label>
-          <label><input type="checkbox" checked={prefs.eventAccessChange} onChange={(e) => setPrefs({ ...prefs, eventAccessChange: e.target.checked })} /> Evento: alteração de acesso</label>
-          <label><input type="checkbox" checked={prefs.eventCriticalAudit} onChange={(e) => setPrefs({ ...prefs, eventCriticalAudit: e.target.checked })} /> Evento: auditoria crítica</label>
-          <Select label="Frequência" value={prefs.frequency} onChange={(e) => setPrefs({ ...prefs, frequency: e.target.value })} options={[{ value: 'immediate', label: 'Imediato' }, { value: 'daily', label: 'Diário' }, { value: 'weekly', label: 'Semanal' }]} />
-          <Button onClick={() => { void save(); }}>Salvar</Button>
+        <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+              {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} style={{ height: 32, borderRadius: 4 }} />)}
+            </div>
+          ) : (
+            <>
+              <SectionTitle>Canais de envio</SectionTitle>
+              <Checkbox label="E-mail" description="Notificações enviadas para seu e-mail cadastrado." checked={prefs.emailEnabled} onChange={(v) => setPrefs({ ...prefs, emailEnabled: v })} />
+              <Checkbox label="Telefone (SMS/WhatsApp)" description="Notificações por SMS ou WhatsApp." checked={prefs.phoneEnabled} onChange={(v) => setPrefs({ ...prefs, phoneEnabled: v })} />
+              <Checkbox label="In-app" description="Notificações exibidas dentro do sistema." checked={prefs.inAppEnabled} onChange={(v) => setPrefs({ ...prefs, inAppEnabled: v })} />
+
+              <div style={{ marginTop: spacing.md }}>
+                <SectionTitle>Eventos monitorados</SectionTitle>
+              </div>
+              <Checkbox label="Novo convite" description="Quando um candidato é convidado para uma vaga." checked={prefs.eventNewInvite} onChange={(v) => setPrefs({ ...prefs, eventNewInvite: v })} />
+              <Checkbox label="Onboarding concluído" description="Quando um candidato completa uma etapa do onboarding." checked={prefs.eventStepCompleted} onChange={(v) => setPrefs({ ...prefs, eventStepCompleted: v })} />
+              <Checkbox label="Decisão registrada" description="Quando uma decisão de aprovação/rejeição é feita." checked={prefs.eventDecision} onChange={(v) => setPrefs({ ...prefs, eventDecision: v })} />
+              <Checkbox label="Lembrete operacional" description="Lembretes automáticos de follow-up e prazos." checked={prefs.eventReminder} onChange={(v) => setPrefs({ ...prefs, eventReminder: v })} />
+              <Checkbox label="Alteração de acesso" description="Mudanças de permissão ou status de usuários." checked={prefs.eventAccessChange} onChange={(v) => setPrefs({ ...prefs, eventAccessChange: v })} />
+              <Checkbox label="Auditoria crítica" description="Eventos de segurança e compliance." checked={prefs.eventCriticalAudit} onChange={(v) => setPrefs({ ...prefs, eventCriticalAudit: v })} />
+
+              <Select label="Frequência de envio" value={prefs.frequency} onChange={(e) => setPrefs({ ...prefs, frequency: e.target.value })} options={[{ value: 'immediate', label: 'Imediato' }, { value: 'daily', label: 'Resumo diário' }, { value: 'weekly', label: 'Resumo semanal' }]} />
+              <Button onClick={() => { void save(); }} loading={saving}>Salvar preferências</Button>
+            </>
+          )}
         </CardContent>
       </Card>
 

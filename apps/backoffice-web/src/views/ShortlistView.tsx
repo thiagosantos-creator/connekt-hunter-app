@@ -24,6 +24,7 @@ import {
   PageContent,
   InlineMessage,
   SectionTitle,
+  TableSkeleton,
   spacing,
   colors,
   fontSize,
@@ -41,12 +42,13 @@ export function ShortlistView() {
   const [vacancyIdForPriority, setVacancyIdForPriority] = useState('');
   const [priorities, setPriorities] = useState<PriorityScore[]>([]);
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void Promise.all([
       apiGet<Application[]>('/applications').then(setApps),
       apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
-    ]);
+    ]).finally(() => setLoading(false));
   }, []);
 
   const addToShortlist = async (appId: string) => {
@@ -178,12 +180,16 @@ export function ShortlistView() {
       )}
 
       <SectionTitle>Aplicações</SectionTitle>
-      <DataTable<Application>
-        columns={appColumns}
-        data={apps}
-        rowKey={(row) => row.id}
-        emptyMessage="Nenhuma aplicação encontrada"
-      />
+      {loading ? (
+        <TableSkeleton rows={5} columns={3} />
+      ) : (
+        <DataTable<Application>
+          columns={appColumns}
+          data={apps}
+          rowKey={(row) => row.id}
+          emptyMessage="Nenhuma aplicação encontrada"
+        />
+      )}
 
       {selectedApp && (
         <Card style={{ marginTop: spacing.lg }}>

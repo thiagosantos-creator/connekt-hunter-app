@@ -192,15 +192,21 @@ export function ClientReviewView() {
       />
 
       {commentAppId && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-        }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="comment-modal-title"
+          onKeyDown={(e) => { if (e.key === 'Escape') setCommentAppId(null); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
           <div style={{
             background: '#fff',
             padding: spacing.lg,
@@ -210,7 +216,7 @@ export function ClientReviewView() {
             display: 'grid',
             gap: spacing.md,
           }}>
-            <h3 style={{ margin: 0 }}>Enviar comentário ao recrutador</h3>
+            <h3 id="comment-modal-title" style={{ margin: 0 }}>Enviar comentário ao recrutador</h3>
             <Textarea
               label="Comentário sobre o candidato"
               value={commentText}

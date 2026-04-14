@@ -1,12 +1,47 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
+import {
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  InlineMessage,
+  PageContent,
+  PageHeader,
+  SectionTitle,
+  Skeleton,
+  StatBox,
+  colors,
+  fontSize,
+  radius,
+  spacing,
+} from '@connekt/ui';
 
 interface GovernanceData {
   tenant: Record<string, unknown>;
   accessPolicies: unknown[];
   templates: unknown[];
   dashboard: Record<string, unknown>;
+}
+
+function KeyValueGrid({ data }: { data: Record<string, unknown> }) {
+  const entries = Object.entries(data).filter(([, v]) => v !== null && v !== undefined);
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: `${spacing.xs}px ${spacing.md}px` }}>
+      {entries.map(([k, v]) => (
+        <div key={k} style={{ display: 'contents' }}>
+          <span style={{ fontWeight: 600, fontSize: fontSize.sm, color: colors.textSecondary, textTransform: 'capitalize' }}>
+            {k.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
+          </span>
+          <span style={{ fontSize: fontSize.sm, color: colors.text }}>
+            {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function EnterpriseGovernanceView() {
@@ -34,29 +69,97 @@ export function EnterpriseGovernanceView() {
       .finally(() => setLoading(false));
   }, [organizationId]);
 
-  if (!organizationId) return <div style={{ padding: 24 }}>Sem tenant vinculado para governança.</div>;
-  if (loading) return <div style={{ padding: 24 }}>Carregando centro enterprise...</div>;
-  if (error) return <div style={{ padding: 24, color: '#b42318' }}>Erro: {error}</div>;
+  if (!organizationId) {
+    return (
+      <PageContent>
+        <PageHeader title="Governança Enterprise" />
+        <InlineMessage variant="warning">Sem tenant vinculado para governança.</InlineMessage>
+      </PageContent>
+    );
+  }
+
+  if (loading) {
+    return (
+      <PageContent>
+        <PageHeader title="Governança Enterprise" description="Administração centralizada do tenant, controle de acesso, comunicação e dashboard." />
+        <div style={{ display: 'grid', gap: spacing.md }}>
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent>
+                <Skeleton style={{ height: 120, borderRadius: radius.md }} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </PageContent>
+    );
+  }
+
+  if (error) {
+    return (
+      <PageContent>
+        <PageHeader title="Governança Enterprise" />
+        <InlineMessage variant="error">Erro ao carregar dados de governança: {error}</InlineMessage>
+      </PageContent>
+    );
+  }
+
+  const kpiSnapshots = data?.dashboard as Record<string, unknown> | undefined;
+  const kpiEntries = kpiSnapshots ? Object.entries(kpiSnapshots).filter(([, v]) => typeof v === 'number') : [];
 
   return (
-    <main style={{ padding: 24, display: 'grid', gap: 16 }}>
-      <h1 style={{ margin: 0 }}>Governança Enterprise</h1>
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
-        <h2>Tenant Admin</h2>
-        <pre>{JSON.stringify(data?.tenant, null, 2)}</pre>
-      </section>
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
-        <h2>Access Control</h2>
-        <p>Políticas: {data?.accessPolicies.length ?? 0}</p>
-      </section>
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
-        <h2>Communication Center</h2>
-        <p>Templates: {data?.templates.length ?? 0}</p>
-      </section>
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: 12 }}>
-        <h2>Executive Dashboard</h2>
-        <pre>{JSON.stringify(data?.dashboard, null, 2)}</pre>
-      </section>
-    </main>
+    <PageContent>
+      <PageHeader title="Governança Enterprise" description="Administração centralizada do tenant, controle de acesso, comunicação e dashboard." />
+
+      {kpiEntries.length > 0 && (
+        <>
+          <SectionTitle>KPIs Executivos</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
+            {kpiEntries.map(([key, value]) => (
+              <StatBox
+                key={key}
+                label={key.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())}
+                value={String(value)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'grid', gap: spacing.md }}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Configuração do Tenant</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data?.tenant ? <KeyValueGrid data={data.tenant} /> : <span style={{ color: colors.textMuted }}>Sem dados</span>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Controle de Acesso</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <Badge variant="info">{data?.accessPolicies.length ?? 0} política(s)</Badge>
+              <span style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>configurada(s) neste tenant</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Centro de Comunicação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <Badge variant="info">{data?.templates.length ?? 0} template(s)</Badge>
+              <span style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>de comunicação disponíveis</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </PageContent>
   );
 }

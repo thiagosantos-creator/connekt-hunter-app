@@ -209,6 +209,28 @@ export function CandidatesView() {
     return 'danger';
   };
 
+  const inviteStatusVariant = (status?: string): 'success' | 'warning' | 'info' | 'neutral' => {
+    if (status === 'sent') return 'success';
+    if (status === 'link_generated') return 'info';
+    if (status) return 'warning';
+    return 'neutral';
+  };
+
+  const inviteChannelLabel = (channel?: string) => {
+    if (channel === 'email') return 'E-mail';
+    if (channel === 'phone') return 'Telefone';
+    if (channel === 'link') return 'Link manual';
+    return channel || 'Não definido';
+  };
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return '—';
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  };
+
   const copyToClipboard = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -389,10 +411,42 @@ export function CandidatesView() {
         <CardContent>
           <DataTable
             columns={[
-              { key: 'candidate', header: 'Candidato', render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination },
-              { key: 'vacancy', header: 'Vaga', render: (row: CandidateInvite) => row.vacancy.title },
-              { key: 'channel', header: 'Canal', render: (row: CandidateInvite) => row.channel },
-              { key: 'status', header: 'Status', render: (row: CandidateInvite) => row.status },
+              {
+                key: 'candidate',
+                header: 'Candidato',
+                render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination,
+                searchValue: (row: CandidateInvite) => `${row.candidate.email ?? ''} ${row.candidate.phone ?? ''} ${row.destination}`.trim(),
+                sortValue: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination,
+              },
+              {
+                key: 'vacancy',
+                header: 'Vaga',
+                render: (row: CandidateInvite) => row.vacancy.title,
+                searchValue: (row: CandidateInvite) => row.vacancy.title,
+                sortValue: (row: CandidateInvite) => row.vacancy.title,
+              },
+              {
+                key: 'channel',
+                header: 'Canal',
+                render: (row: CandidateInvite) => inviteChannelLabel(row.channel),
+                sortValue: (row: CandidateInvite) => inviteChannelLabel(row.channel),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row: CandidateInvite) => (
+                  <Badge variant={inviteStatusVariant(row.status)} size="sm">
+                    {row.status}
+                  </Badge>
+                ),
+                sortValue: (row: CandidateInvite) => row.status,
+              },
+              {
+                key: 'createdAt',
+                header: 'Enviado em',
+                render: (row: CandidateInvite) => formatDate(row.createdAt),
+                sortValue: (row: CandidateInvite) => new Date(row.createdAt).getTime(),
+              },
               {
                 key: 'link',
                 header: 'Link',
@@ -401,7 +455,7 @@ export function CandidatesView() {
                   return (
                     <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
                       <a href={historyInviteUrl} target="_blank" rel="noreferrer">Abrir</a>
-                       <Button size="sm" variant="ghost" onClick={() => { void copyToClipboard(historyInviteUrl); }}>Copiar</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { void copyToClipboard(historyInviteUrl); }}>Copiar</Button>
                     </div>
                   );
                 },
@@ -409,6 +463,8 @@ export function CandidatesView() {
             ]}
             data={inviteHistory}
             rowKey={(row) => row.id}
+            searchable
+            searchPlaceholder="Buscar por candidato, vaga ou canal"
             pageSize={6}
             emptyMessage="Nenhum convite emitido"
           />
@@ -475,6 +531,7 @@ export function CandidatesView() {
                   ]}
                   data={managedCandidates}
                   rowKey={(row) => row.id}
+                  selectedRowKey={selectedManagedCandidateId}
                   searchable
                   searchPlaceholder="Buscar candidato por nome ou e-mail"
                   pageSize={6}
@@ -490,6 +547,51 @@ export function CandidatesView() {
                         <StatBox label="Aplicações" value={selectedManagedCandidate.applicationsCount} />
                         <StatBox label="Convites" value={selectedManagedCandidate.invitesCount} />
                         <StatBox label="Provedores" value={selectedManagedCandidate.authProviders.join(', ') || 'Sem conta'} />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                        <Badge variant={selectedManagedCandidate.hasLoginAccount ? 'success' : 'warning'}>
+                          {selectedManagedCandidate.hasLoginAccount ? 'Conta ativa' : 'Conta pendente'}
+                        </Badge>
+                        <Badge variant={selectedManagedCandidate.canRequestPasswordReset ? 'info' : 'neutral'}>
+                          {selectedManagedCandidate.canRequestPasswordReset ? 'Reset habilitado' : 'Reset indisponível'}
+                        </Badge>
+                        {selectedManagedCandidate.lastInvite && (
+                          <>
+                            <Badge variant="neutral">
+                              Último canal: {inviteChannelLabel(selectedManagedCandidate.lastInvite.channel)}
+                            </Badge>
+                            <Badge variant={inviteStatusVariant(selectedManagedCandidate.lastInvite.status)}>
+                              Último status: {selectedManagedCandidate.lastInvite.status}
+                            </Badge>
+                          </>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: spacing.md,
+                          padding: spacing.md,
+                          borderRadius: radius.md,
+                          background: colors.surfaceAlt,
+                        }}
+                      >
+                        <div>
+                          <SectionTitle>Resumo da conta</SectionTitle>
+                          <p style={{ margin: 0 }}>Criado em: {formatDate(selectedManagedCandidate.createdAt)}</p>
+                          <p style={{ margin: `${spacing.xs}px 0 0` }}>Upgrade convidado: {formatDate(selectedManagedCandidate.guestUpgradeAt)}</p>
+                        </div>
+                        <div>
+                          <SectionTitle>Último acesso compartilhado</SectionTitle>
+                          <p style={{ margin: 0 }}>
+                            Canal: {inviteChannelLabel(selectedManagedCandidate.lastInvite?.channel)}
+                          </p>
+                          <p style={{ margin: `${spacing.xs}px 0 0` }}>
+                            Data: {formatDate(selectedManagedCandidate.lastInvite?.createdAt)}
+                          </p>
+                        </div>
                       </div>
 
                       <Input

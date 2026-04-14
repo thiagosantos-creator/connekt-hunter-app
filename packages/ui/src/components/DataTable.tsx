@@ -22,6 +22,7 @@ export interface DataTableProps<T> {
   rowKey: (row: T) => string;
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  selectedRowKey?: string | null;
   /** Enable search bar */
   searchable?: boolean;
   searchPlaceholder?: string;
@@ -35,6 +36,7 @@ export function DataTable<T>({
   rowKey,
   emptyMessage = 'Nenhum dado encontrado.',
   onRowClick,
+  selectedRowKey,
   searchable = false,
   searchPlaceholder = 'Buscar…',
   pageSize,
@@ -69,7 +71,9 @@ export function DataTable<T>({
   }, [filtered, sortKey, sortAsc, columns]);
 
   const totalPages = pageSize ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
-  const paginated = pageSize ? sorted.slice(page * pageSize, (page + 1) * pageSize) : sorted;
+  const currentPage = Math.min(page, totalPages - 1);
+  const paginated = pageSize ? sorted.slice(currentPage * pageSize, (currentPage + 1) * pageSize) : sorted;
+  const hasActiveSearch = search.trim().length > 0;
 
   const handleSort = (key: string) => {
     const col = columns.find((c) => c.key === key);
@@ -103,6 +107,45 @@ export function DataTable<T>({
               background: colors.surfaceAlt,
             }}
           />
+        </div>
+      )}
+
+      {(searchable || pageSize) && (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: spacing.sm,
+            flexWrap: 'wrap',
+            padding: `${spacing.sm}px ${spacing.md}px`,
+            borderBottom: `1px solid ${colors.borderLight}`,
+            background: colors.surfaceAlt,
+            fontSize: fontSize.sm,
+            color: colors.textSecondary,
+          }}
+        >
+          <span>
+            {sorted.length} resultado(s)
+            {hasActiveSearch ? ` para “${search.trim()}”` : ''}
+          </span>
+          {hasActiveSearch && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setPage(0); }}
+              style={{
+                padding: `2px ${spacing.sm}px`,
+                border: `1px solid ${colors.border}`,
+                borderRadius: radius.sm,
+                background: colors.surface,
+                cursor: 'pointer',
+                color: colors.text,
+                fontSize: fontSize.sm,
+              }}
+            >
+              Limpar busca
+            </button>
+          )}
         </div>
       )}
 
@@ -142,11 +185,22 @@ export function DataTable<T>({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
+                onKeyDown={(event) => {
+                  if (!onRowClick) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onRowClick(row);
+                  }
+                }}
                 className="connekt-data-table__row"
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-selected={selectedRowKey ? selectedRowKey === rowKey(row) : undefined}
                 style={{
                   borderBottom: `1px solid ${colors.borderLight}`,
                   cursor: onRowClick ? 'pointer' : 'default',
-                  transition: 'background 0.1s',
+                  transition: 'background 0.1s, box-shadow 0.1s',
+                  background: selectedRowKey === rowKey(row) ? colors.infoLight : undefined,
+                  boxShadow: selectedRowKey === rowKey(row) ? `inset 3px 0 0 ${colors.info}` : undefined,
                 }}
               >
                 {columns.map((col) => (
@@ -162,7 +216,7 @@ export function DataTable<T>({
 
       {paginated.length === 0 && (
         <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.textMuted, fontSize: fontSize.md }}>
-          {emptyMessage}
+          {hasActiveSearch ? `Nenhum resultado encontrado para “${search.trim()}”.` : emptyMessage}
         </div>
       )}
 
@@ -171,17 +225,17 @@ export function DataTable<T>({
           <span>{sorted.length} resultado(s)</span>
           <div style={{ display: 'flex', gap: spacing.xs }}>
             <button
-              onClick={() => setPage(Math.max(0, page - 1))}
-              disabled={page === 0}
-              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: page === 0 ? 'not-allowed' : 'pointer', color: page === 0 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
+              onClick={() => setPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: currentPage === 0 ? 'not-allowed' : 'pointer', color: currentPage === 0 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
             >
               ←
             </button>
-            <span style={{ padding: `2px ${spacing.sm}px` }}>{page + 1} / {totalPages}</span>
+            <span style={{ padding: `2px ${spacing.sm}px` }}>{currentPage + 1} / {totalPages}</span>
             <button
-              onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-              disabled={page >= totalPages - 1}
-              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer', color: page >= totalPages - 1 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
+              onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage >= totalPages - 1}
+              style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer', color: currentPage >= totalPages - 1 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
             >
               →
             </button>

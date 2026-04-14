@@ -307,7 +307,7 @@ export function ProductIntelligenceView() {
     <PageContent>
       <PageHeader
         title="Inteligência do Produto"
-        description="Matching, insights, comparador e ranking assistido — a decisão final é sempre humana."
+        description="Plataforma de IA para tomada de decisão assistida — matching, insights, ranking e análise de risco."
       />
 
       {msg && (
@@ -316,25 +316,58 @@ export function ProductIntelligenceView() {
         </InlineMessage>
       )}
 
+      {/* Context selector */}
+      <Card style={{ marginBottom: spacing.lg, borderLeft: `3px solid ${colors.accent}` }}>
+        <CardHeader>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+            <span style={{ fontSize: fontSize.lg }}>🎯</span>
+            <div>
+              <CardTitle>Contexto de análise</CardTitle>
+              <CardDescription>Selecione a aplicação. O candidato e a vaga serão preenchidos automaticamente.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: spacing.md }}>
+          <Select
+            label="Aplicação (candidato + vaga)"
+            value={applicationId}
+            onChange={(e) => handleApplicationSelection(e.target.value)}
+            options={applicationOptions}
+            placeholder="Selecione uma aplicação"
+          />
+          <Select
+            label="Vaga"
+            value={vacancyId}
+            onChange={(e) => setVacancyId(e.target.value)}
+            options={vacancyOptions}
+            placeholder="Selecione uma vaga"
+          />
+          <Select
+            label="Candidato"
+            value={candidateId}
+            onChange={(e) => setCandidateId(e.target.value)}
+            options={candidateOptions}
+            placeholder="Selecione um candidato"
+          />
+        </CardContent>
+      </Card>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
-        {/* Matching */}
+
+        {/* ── Matching ────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Matching</CardTitle>
-            <CardDescription>Calcule o score de compatibilidade candidato-vaga.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <AiTag />
+              <div>
+                <CardTitle>Matching Candidato-Vaga</CardTitle>
+                <CardDescription>Score de compatibilidade multidimensional com breakdown e evidências.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Select
-              label="Aplicação"
-              value={applicationId}
-              onChange={(e) => handleApplicationSelection(e.target.value)}
-              options={applicationOptions}
-              placeholder="Selecione uma aplicação"
-            />
-          </CardContent>
           <CardFooter>
             <Button onClick={() => { void compute(); }} disabled={!applicationId}>
-              Calcular
+              Calcular Matching
             </Button>
           </CardFooter>
           {hasScoreCard && (
@@ -350,33 +383,24 @@ export function ProductIntelligenceView() {
           {result && !hasScoreCard && <ResultCard title="Resultado do Matching" data={result} />}
         </Card>
 
-        {/* Insights & Compare */}
+        {/* ── Insights & Compare ──────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Insights &amp; Comparação</CardTitle>
-            <CardDescription>Gere insights individuais ou compare dois candidatos.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <AiTag />
+              <div>
+                <CardTitle>Insights &amp; Comparação</CardTitle>
+                <CardDescription>Gere insights individuais ou compare dois candidatos lado a lado.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Select
-              label="Vaga"
-              value={vacancyId}
-              onChange={(e) => setVacancyId(e.target.value)}
-              options={vacancyOptions}
-              placeholder="Selecione uma vaga"
-            />
-            <Select
-              label="Candidato"
-              value={candidateId}
-              onChange={(e) => setCandidateId(e.target.value)}
-              options={candidateOptions}
-              placeholder="Selecione um candidato"
-            />
             <Select
               label="Outro candidato (comparação)"
               value={otherCandidateId}
               onChange={(e) => setOtherCandidateId(e.target.value)}
               options={candidateOptions.filter((item) => item.value !== candidateId)}
-              placeholder="Selecione outro candidato"
+              placeholder="Selecione outro candidato para comparar"
             />
           </CardContent>
           <CardFooter style={{ gap: spacing.sm, flexWrap: 'wrap' }}>
@@ -385,30 +409,35 @@ export function ProductIntelligenceView() {
               onClick={() => { void generateInsights(); }}
               disabled={!vacancyId || !candidateId}
             >
-              Gerar Insights
+              💡 Gerar Insights
             </Button>
             <Button
               variant="outline"
               onClick={() => { void compare(); }}
               disabled={!vacancyId || !candidateId || !otherCandidateId}
             >
-              Comparar Candidatos
+              ⚖️ Comparar Candidatos
             </Button>
           </CardFooter>
         </Card>
 
-        {/* Ranking */}
+        {/* ── Ranking ─────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Ranking Assistido</CardTitle>
-            <CardDescription>Gere e ajuste o ranking de candidatos para a vaga.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <AiTag />
+              <div>
+                <CardTitle>Ranking Assistido</CardTitle>
+                <CardDescription>Gere o ranking de candidatos por vaga e ajuste a ordem manualmente.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardFooter>
             <Button
               onClick={() => { void generateRanking(); }}
               disabled={!vacancyId}
             >
-              Gerar Ranking
+              📊 Gerar Ranking
             </Button>
           </CardFooter>
           {ranking.length > 0 && (
@@ -423,60 +452,57 @@ export function ProductIntelligenceView() {
           )}
         </Card>
 
-        {/* Recommendations */}
+        {/* ── Recommendations ─────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Recomendações IA</CardTitle>
-            <CardDescription>Recomendações personalizadas com explicações da IA.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <AiTag />
+              <div>
+                <CardTitle>Recomendações IA</CardTitle>
+                <CardDescription>Recomendações personalizadas com explicações detalhadas.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardFooter>
             <Button
               onClick={() => { void generateRecommendations(); }}
               disabled={!vacancyId || !candidateId}
             >
-              Gerar Recomendações
+              🎯 Gerar Recomendações
             </Button>
           </CardFooter>
           {recommendations.length > 0 && (
             <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
               {recommendations.map((item) => (
-                <Card key={item.id} variant="outlined">
-                  <CardContent
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: spacing.sm,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <AiTag />
-                    <div style={{ flex: 1 }}>
-                      <strong>{item.title}</strong>
-                      <p
-                        style={{
-                          margin: `${spacing.xs}px 0 0`,
-                          color: colors.textSecondary,
-                          fontSize: fontSize.sm,
-                        }}
-                      >
-                        {item.explanation}
-                      </p>
+                <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md, padding: spacing.md, background: colors.surfaceAlt, borderRadius: radius.md, border: `1px solid ${colors.border}` }}>
+                  <AiTag />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
+                      <strong style={{ fontSize: fontSize.md }}>{item.title}</strong>
+                      <Badge variant={confidenceVariant(item.confidence)} size="sm">
+                        {Math.round(item.confidence * 100)}% confiança
+                      </Badge>
                     </div>
-                    <Badge variant={confidenceVariant(item.confidence)} size="sm">
-                      {Math.round(item.confidence * 100)}%
-                    </Badge>
-                  </CardContent>
-                </Card>
+                    <p style={{ margin: 0, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 1.6 }}>
+                      {item.explanation}
+                    </p>
+                  </div>
+                </div>
               ))}
             </CardContent>
           )}
         </Card>
 
-        {/* Risk */}
+        {/* ── Risk ────────────────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Análise de Risco</CardTitle>
-            <CardDescription>Identifique riscos potenciais com explicação assistiva.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <span style={{ fontSize: fontSize.lg }}>⚠️</span>
+              <div>
+                <CardTitle>Análise de Risco</CardTitle>
+                <CardDescription>Identifique riscos potenciais com explicações detalhadas e fatores ponderados.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardFooter>
             <Button
@@ -484,7 +510,7 @@ export function ProductIntelligenceView() {
               onClick={() => { void analyzeRisk(); }}
               disabled={!vacancyId || !candidateId}
             >
-              Analisar Risco
+              🔍 Analisar Risco
             </Button>
           </CardFooter>
           {risk && (
@@ -501,7 +527,7 @@ export function ProductIntelligenceView() {
                   )}
                 </div>
                 {risk.explanation && (
-                  <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, margin: 0 }}>
+                  <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, margin: 0, lineHeight: 1.6 }}>
                     {risk.explanation}
                   </p>
                 )}
@@ -516,9 +542,10 @@ export function ProductIntelligenceView() {
                             display: 'flex',
                             alignItems: 'center',
                             gap: spacing.sm,
-                            padding: spacing.sm,
-                            background: '#f8f9fa',
-                            borderRadius: radius.sm,
+                            padding: `${spacing.sm}px ${spacing.md}px`,
+                            background: colors.surfaceAlt,
+                            borderRadius: radius.md,
+                            border: `1px solid ${colors.border}`,
                           }}
                         >
                           <Badge
@@ -553,11 +580,16 @@ export function ProductIntelligenceView() {
           )}
         </Card>
 
-        {/* Workflow Automation */}
+        {/* ── Workflow Automation ──────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Automação</CardTitle>
-            <CardDescription>Sugestões de ações automatizadas com controle humano.</CardDescription>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <span style={{ fontSize: fontSize.lg }}>⚡</span>
+              <div>
+                <CardTitle>Automação de Workflow</CardTitle>
+                <CardDescription>Sugestões de ações automatizadas com supervisão humana obrigatória.</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardFooter>
             <Button
@@ -571,28 +603,24 @@ export function ProductIntelligenceView() {
           {suggestions.length > 0 && (
             <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
               {suggestions.map((item) => (
-                <Card key={item.id} variant="outlined">
-                  <CardContent>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.sm, flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-                          <Badge variant="info" size="sm">{item.suggestionType}</Badge>
-                          <Badge variant="neutral" size="sm">{item.status}</Badge>
-                        </div>
-                        <p style={{ margin: 0, color: colors.textSecondary, fontSize: fontSize.sm }}>
-                          {item.explanation}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { void executeSuggestion(item.id); }}
-                      >
-                        Executar
-                      </Button>
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md, flexWrap: 'wrap', padding: spacing.md, background: colors.surfaceAlt, borderRadius: radius.md, border: `1px solid ${colors.border}` }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
+                      <Badge variant="info" size="sm">{item.suggestionType}</Badge>
+                      <Badge variant="neutral" size="sm">{item.status}</Badge>
                     </div>
-                  </CardContent>
-                </Card>
+                    <p style={{ margin: 0, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 1.5 }}>
+                      {item.explanation}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { void executeSuggestion(item.id); }}
+                  >
+                    ▶ Executar
+                  </Button>
+                </div>
               ))}
             </CardContent>
           )}

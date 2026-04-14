@@ -300,6 +300,11 @@ export interface ApplicationDetail extends Application {
     id: string;
     comment: string;
     createdAt: string;
+    ratingTechnical?: number | null;
+    ratingBehavioral?: number | null;
+    ratingInterviewer?: number | null;
+    ratingAi?: number | null;
+    overallRating?: number | null;
     evaluator?: {
       id: string;
       name: string;
@@ -357,6 +362,11 @@ export interface EvalRecord {
   id: string;
   comment: string;
   evaluatorId: string;
+  ratingTechnical?: number | null;
+  ratingBehavioral?: number | null;
+  ratingInterviewer?: number | null;
+  ratingAi?: number | null;
+  overallRating?: number | null;
 }
 
 export interface PriorityScore {

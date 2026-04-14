@@ -447,13 +447,18 @@ model ShortlistItem {
 }
 
 model Evaluation {
-  id            String       @id @default(cuid())
-  applicationId String
-  evaluatorId   String
-  comment       String
-  createdAt     DateTime     @default(now())
-  application   Application  @relation(fields: [applicationId], references: [id])
-  evaluator     User         @relation(fields: [evaluatorId], references: [id])
+  id                  String       @id @default(cuid())
+  applicationId       String
+  evaluatorId         String
+  comment             String
+  ratingTechnical     Int?
+  ratingBehavioral    Int?
+  ratingInterviewer   Int?
+  ratingAi            Int?
+  overallRating       Float?
+  createdAt           DateTime     @default(now())
+  application         Application  @relation(fields: [applicationId], references: [id])
+  evaluator           User         @relation(fields: [evaluatorId], references: [id])
 }
 
 model ClientDecision {

@@ -9,7 +9,17 @@ vi.mock('@connekt/db', () => ({
       findUnique: vi.fn(),
     },
     evaluation: {
-      create: vi.fn().mockResolvedValue({ id: 'e1', applicationId: 'a1', evaluatorId: 'u1', comment: 'ok' }),
+      create: vi.fn().mockResolvedValue({
+        id: 'e1',
+        applicationId: 'a1',
+        evaluatorId: 'u1',
+        comment: 'ok',
+        ratingTechnical: 4,
+        ratingBehavioral: 5,
+        ratingInterviewer: 3,
+        ratingAi: 4,
+        overallRating: 75,
+      }),
     },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
@@ -47,6 +57,52 @@ describe('EvaluationsService', () => {
     expect(result).toBeDefined();
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'evaluation.created' }) }),
+    );
+  });
+
+  it('should compute overallRating from ratings and include in audit metadata', async () => {
+    vi.mocked(prisma.application.findUnique).mockResolvedValue({
+      id: 'a1',
+      vacancy: { organizationId: 'org1' },
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    await service.create('a1', 'u1', 'comment', {
+      ratingTechnical: 4,
+      ratingBehavioral: 5,
+      ratingInterviewer: 3,
+      ratingAi: 4,
+    });
+    expect(prisma.evaluation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ratingTechnical: 4,
+          ratingBehavioral: 5,
+          ratingInterviewer: 3,
+          ratingAi: 4,
+        }),
+      }),
+    );
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'evaluation.created',
+          metadata: expect.objectContaining({ overallRating: expect.any(Number) }),
+        }),
+      }),
+    );
+  });
+
+  it('should not include overallRating when no ratings are provided', async () => {
+    vi.mocked(prisma.application.findUnique).mockResolvedValue({
+      id: 'a1',
+      vacancy: { organizationId: 'org1' },
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    await service.create('a1', 'u1', 'comment only');
+    expect(prisma.evaluation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ overallRating: undefined }),
+      }),
     );
   });
 });

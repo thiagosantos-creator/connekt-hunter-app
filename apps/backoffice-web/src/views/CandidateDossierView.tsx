@@ -466,9 +466,46 @@ export function CandidateDossierView() {
             <Card>
               <CardHeader><CardTitle>Pareceres e histórico</CardTitle></CardHeader>
               <CardContent style={{ display: 'grid', gap: spacing.md }}>
-                {safeArray(detail.evaluations).length > 0 ? detail.evaluations?.map((item) => (
-                  <TimelineRow key={item.id} title={item.evaluator?.name || item.evaluator?.email || 'Avaliador'} subtitle={formatDateTime(item.createdAt)} body={item.comment} />
-                )) : <EmptyState title="Sem avaliações humanas" description="Os pareceres do time aparecerão aqui quando forem registrados." />}
+                {safeArray(detail.evaluations).length > 0 ? detail.evaluations?.map((item) => {
+                  const hasRatings = [item.ratingTechnical, item.ratingBehavioral, item.ratingInterviewer, item.ratingAi].some((v) => v != null);
+                  return (
+                    <div key={item.id} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm }}>
+                        <div>
+                          <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.text }}>{item.evaluator?.name || item.evaluator?.email || 'Avaliador'}</div>
+                          <div style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{formatDateTime(item.createdAt)}</div>
+                        </div>
+                        {item.overallRating != null && (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, background: colors.primaryLight, color: colors.textInverse }}>
+                            <span style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, lineHeight: 1 }}>{item.overallRating}%</span>
+                            <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ranking</span>
+                          </div>
+                        )}
+                      </div>
+                      {hasRatings && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.xs}px ${spacing.md}px`, marginBottom: spacing.sm, padding: spacing.sm, borderRadius: radius.md, background: colors.surface, border: `1px solid ${colors.border}` }}>
+                          {([
+                            { key: 'ratingTechnical', label: '🔧 Técnica' },
+                            { key: 'ratingBehavioral', label: '🤝 Comportamental' },
+                            { key: 'ratingInterviewer', label: '🎙️ Entrevistador' },
+                            { key: 'ratingAi', label: '🤖 IA' },
+                          ] as const).map(({ key, label }) => {
+                            const val = item[key];
+                            if (val == null) return null;
+                            return (
+                              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
+                                <span style={{ fontSize: fontSize.xs, color: colors.textSecondary, minWidth: 120 }}>{label}</span>
+                                <span style={{ color: colors.warning }}>{Array.from({ length: val }, (_, i) => <span key={i}>★</span>)}</span>
+                                <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{val}/5</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>{item.comment}</div>
+                    </div>
+                  );
+                }) : <EmptyState title="Sem avaliações humanas" description="Os pareceres do time aparecerão aqui quando forem registrados." />}
                 {detail.shortlistItems?.[0]?.decisions?.[0] && (
                   <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.successLight, color: colors.success }}>
                     <div style={{ fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Última decisão do cliente</div>

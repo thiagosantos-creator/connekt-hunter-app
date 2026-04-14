@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut } from './api.js';
-import type { AuditEvent, AuthUser, CandidateInvite, ManagedUser } from './types.js';
+import type { AuditEvent, AuthUser, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, ManagedCandidate, ManagedUser } from './types.js';
 
 const PROFILE_KEY = 'bo_user';
 
@@ -41,6 +41,27 @@ export async function sendCandidateInvite(payload: {
 
 export async function listCandidateInvites(organizationId: string): Promise<CandidateInvite[]> {
   return apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(organizationId)}`);
+}
+
+export async function listManagedCandidates(organizationId: string): Promise<ManagedCandidate[]> {
+  return apiGet<ManagedCandidate[]>(`/admin/candidates?organizationId=${encodeURIComponent(organizationId)}`);
+}
+
+export async function updateManagedCandidate(input: {
+  candidateId: string;
+  email: string;
+}): Promise<ManagedCandidate> {
+  return apiPut<ManagedCandidate>(`/admin/candidates/${input.candidateId}`, {
+    email: input.email,
+  });
+}
+
+export async function requestCandidatePasswordReset(candidateId: string): Promise<CandidatePasswordResetResult> {
+  return apiPost<CandidatePasswordResetResult>(`/admin/candidates/${candidateId}/request-password-reset`, {});
+}
+
+export async function resendCandidateInvite(candidateId: string): Promise<CandidateInviteResendResult> {
+  return apiPost<CandidateInviteResendResult>(`/admin/candidates/${candidateId}/resend-invite`, {});
 }
 
 export function generateMockMfaQr(email: string): string {

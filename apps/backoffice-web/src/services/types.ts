@@ -121,6 +121,47 @@ export interface Candidate {
   inviteDestination?: string;
 }
 
+export interface ManagedCandidate {
+  id: string;
+  organizationId: string;
+  email: string;
+  phone?: string | null;
+  fullName?: string | null;
+  createdAt: string;
+  guestUpgradeAt?: string | null;
+  userId?: string | null;
+  hasLoginAccount: boolean;
+  authProviders: string[];
+  applicationsCount: number;
+  invitesCount: number;
+  canRequestPasswordReset: boolean;
+  lastInvite?: {
+    id: string;
+    channel: string;
+    destination: string;
+    status: string;
+    createdAt: string;
+  } | null;
+}
+
+export interface CandidatePasswordResetResult {
+  status: 'sent' | 'manual_action_required';
+  provider: string;
+  email: string;
+  message: string;
+  resetUrl?: string | null;
+}
+
+export interface CandidateInviteResendResult {
+  inviteId: string;
+  inviteStatus: string;
+  inviteChannel: string;
+  inviteDestination: string;
+  token: string;
+  accessUrl: string;
+  message: string;
+}
+
 export interface CandidateRecommendation {
   id: string;
   candidateId: string;

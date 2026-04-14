@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors, radius, fontSize, fontWeight, spacing } from '../tokens/tokens.js';
+import { useInjectStyle } from './useInjectStyle.js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success';
 
@@ -24,10 +25,20 @@ const sizeStyles: Record<string, React.CSSProperties> = {
   lg: { padding: `${spacing.sm + 2}px ${spacing.lg}px`, fontSize: fontSize.lg },
 };
 
-export function Button({ variant = 'primary', size = 'md', loading, children, disabled, style, ...props }: ButtonProps) {
+const buttonFocusStyles = `
+  .connekt-ui-button:focus-visible {
+    outline: 2px solid ${colors.info};
+    outline-offset: 2px;
+  }
+`;
+
+export function Button({ variant = 'primary', size = 'md', loading, children, disabled, style, className, ...props }: ButtonProps) {
+  useInjectStyle('button-focus-styles', buttonFocusStyles);
+
   return (
     <button
       disabled={disabled || loading}
+      className={['connekt-ui-button', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
       style={{
         borderRadius: radius.md,
         fontWeight: fontWeight.medium,

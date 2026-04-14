@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import type { Application, Candidate, CandidateInvite, CandidateRecommendation, Organization, Vacancy } from '../services/types.js';
+import { listManagedCandidates, requestCandidatePasswordReset, resendCandidateInvite, updateManagedCandidate } from '../services/account.js';
+import { hasPermission } from '../services/rbac.js';
+import type { Application, Candidate, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
 import {
   AiTag,
   Badge,
@@ -14,11 +16,13 @@ import {
   CardTitle,
   DataTable,
   InlineMessage,
+  Input,
   PageContent,
   PageHeader,
   SectionTitle,
   Select,
-  Input,
+  Skeleton,
+  StatBox,
   colors,
   fontSize,
   radius,
@@ -45,6 +49,16 @@ export function CandidatesView() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [inviteHistory, setInviteHistory] = useState<CandidateInvite[]>([]);
+  const [managedCandidates, setManagedCandidates] = useState<ManagedCandidate[]>([]);
+  const [selectedManagedCandidateId, setSelectedManagedCandidateId] = useState('');
+  const [managedCandidateEmail, setManagedCandidateEmail] = useState('');
+  const [managedCandidateFeedback, setManagedCandidateFeedback] = useState<CandidatePasswordResetResult | null>(null);
+  const [managedInviteFeedback, setManagedInviteFeedback] = useState<CandidateInviteResendResult | null>(null);
+  const [loadingManagedCandidates, setLoadingManagedCandidates] = useState(false);
+  const [savingManagedCandidate, setSavingManagedCandidate] = useState(false);
+  const [resettingCandidate, setResettingCandidate] = useState(false);
+  const [resendingCandidateInvite, setResendingCandidateInvite] = useState(false);
+  const canManageCandidateAccounts = hasPermission(user, 'users:manage');
 
   const orgOptions = useMemo(() => {
     if (organizations.length > 0) {
@@ -70,12 +84,54 @@ export function CandidatesView() {
     }
   }, [orgId, orgOptions]);
 
+  const loadInviteHistory = async (organizationId: string) => {
+    const data = await apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(organizationId)}`);
+    setInviteHistory(data);
+    return data;
+  };
+
+  const loadManagedCandidates = async (organizationId: string) => {
+    const rows = await listManagedCandidates(organizationId);
+    setManagedCandidates(rows);
+    setSelectedManagedCandidateId((current) => (
+      rows.some((candidate) => candidate.id === current) ? current : (rows[0]?.id ?? '')
+    ));
+    return rows;
+  };
+
   useEffect(() => {
     if (!orgId) return;
-    void apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(orgId)}`)
+    void loadInviteHistory(orgId)
       .then(setInviteHistory)
       .catch(() => setInviteHistory([]));
   }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId || !canManageCandidateAccounts) {
+      setManagedCandidates([]);
+      setSelectedManagedCandidateId('');
+      return;
+    }
+    setLoadingManagedCandidates(true);
+    void loadManagedCandidates(orgId)
+      .catch((err) => {
+        setMsg(String(err));
+        setMsgVariant('error');
+        setManagedCandidates([]);
+      })
+      .finally(() => setLoadingManagedCandidates(false));
+  }, [canManageCandidateAccounts, orgId]);
+
+  const selectedManagedCandidate = useMemo(
+    () => managedCandidates.find((candidate) => candidate.id === selectedManagedCandidateId) ?? null,
+    [managedCandidates, selectedManagedCandidateId],
+  );
+
+  useEffect(() => {
+    setManagedCandidateEmail(selectedManagedCandidate?.email ?? '');
+    setManagedCandidateFeedback(null);
+    setManagedInviteFeedback(null);
+  }, [selectedManagedCandidate]);
 
   const vacancyOptions = useMemo(
     () => vacancies
@@ -96,6 +152,12 @@ export function CandidatesView() {
   );
 
   const inviteUrl = result ? `${candidateWebBase}/?token=${encodeURIComponent(result.token)}` : '';
+  const activeManagedCandidates = managedCandidates.filter((candidate) => candidate.hasLoginAccount).length;
+  const resettableManagedCandidates = managedCandidates.filter((candidate) => candidate.canRequestPasswordReset).length;
+  const normalizedEmail = managedCandidateEmail.trim().toLowerCase();
+  const hasManagedCandidateEmailChanged = selectedManagedCandidate
+    ? normalizedEmail !== selectedManagedCandidate.email.toLowerCase()
+    : false;
 
   const handleRecommendationSelection = (applicationId: string) => {
     const selected = applications.find((item) => item.id === applicationId);
@@ -119,7 +181,8 @@ export function CandidatesView() {
       setResult(invited);
       setMsg('Candidato convidado com sucesso.');
       setMsgVariant('success');
-      setInviteHistory(await apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(orgId)}`));
+      await loadInviteHistory(orgId);
+      if (canManageCandidateAccounts) await loadManagedCandidates(orgId);
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
@@ -146,14 +209,100 @@ export function CandidatesView() {
     return 'danger';
   };
 
-  const copyInviteLink = async (url: string) => {
+  const inviteStatusVariant = (status?: string): 'success' | 'warning' | 'info' | 'neutral' => {
+    if (status === 'sent') return 'success';
+    if (status === 'link_generated') return 'info';
+    if (status) return 'warning';
+    return 'neutral';
+  };
+
+  const inviteChannelLabel = (channel?: string) => {
+    if (channel === 'email') return 'E-mail';
+    if (channel === 'phone') return 'Telefone';
+    if (channel === 'link') return 'Link manual';
+    return channel || 'Não definido';
+  };
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return '—';
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  };
+
+  const copyToClipboard = async (value: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      setMsg('Link do candidato copiado.');
+      await navigator.clipboard.writeText(value);
+      setMsg('Link copiado.');
       setMsgVariant('success');
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
+    }
+  };
+
+  const saveManagedCandidateEmail = async () => {
+    if (!selectedManagedCandidate) return;
+    setSavingManagedCandidate(true);
+    try {
+      const updated = await updateManagedCandidate({
+        candidateId: selectedManagedCandidate.id,
+        email: managedCandidateEmail,
+      });
+      setManagedCandidates((current) => current.map((candidate) => (
+        candidate.id === updated.id ? updated : candidate
+      )));
+      setManagedCandidateEmail(updated.email);
+      setManagedCandidateFeedback(null);
+      setManagedInviteFeedback(null);
+      setMsg('E-mail do candidato atualizado com sucesso.');
+      setMsgVariant('success');
+      if (orgId) await loadInviteHistory(orgId);
+    } catch (err) {
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setSavingManagedCandidate(false);
+    }
+  };
+
+  const requestReset = async () => {
+    if (!selectedManagedCandidate) return;
+    setResettingCandidate(true);
+    try {
+      const response = await requestCandidatePasswordReset(selectedManagedCandidate.id);
+      setManagedCandidateFeedback(response);
+      setMsg(response.message);
+      setMsgVariant(response.status === 'sent' ? 'success' : 'error');
+    } catch (err) {
+      setManagedCandidateFeedback(null);
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setResettingCandidate(false);
+    }
+  };
+
+  const resendInvite = async () => {
+    if (!selectedManagedCandidate) return;
+    setResendingCandidateInvite(true);
+    try {
+      const response = await resendCandidateInvite(selectedManagedCandidate.id);
+      setManagedInviteFeedback(response);
+      setManagedCandidateFeedback(null);
+      setMsg(response.message);
+      setMsgVariant(response.inviteStatus === 'sent' ? 'success' : 'error');
+      if (orgId) {
+        await loadInviteHistory(orgId);
+        await loadManagedCandidates(orgId);
+      }
+    } catch (err) {
+      setManagedInviteFeedback(null);
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setResendingCandidateInvite(false);
     }
   };
 
@@ -247,7 +396,7 @@ export function CandidatesView() {
               {inviteUrl}
             </code>
             <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-              <Button type="button" variant="secondary" onClick={() => { void copyInviteLink(inviteUrl); }}>Copiar link</Button>
+               <Button type="button" variant="secondary" onClick={() => { void copyToClipboard(inviteUrl); }}>Copiar link</Button>
               <a href={inviteUrl} target="_blank" rel="noreferrer">Abrir portal do candidato</a>
             </div>
           </CardContent>
@@ -262,10 +411,42 @@ export function CandidatesView() {
         <CardContent>
           <DataTable
             columns={[
-              { key: 'candidate', header: 'Candidato', render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination },
-              { key: 'vacancy', header: 'Vaga', render: (row: CandidateInvite) => row.vacancy.title },
-              { key: 'channel', header: 'Canal', render: (row: CandidateInvite) => row.channel },
-              { key: 'status', header: 'Status', render: (row: CandidateInvite) => row.status },
+              {
+                key: 'candidate',
+                header: 'Candidato',
+                render: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination,
+                searchValue: (row: CandidateInvite) => `${row.candidate.email ?? ''} ${row.candidate.phone ?? ''} ${row.destination}`.trim(),
+                sortValue: (row: CandidateInvite) => row.candidate.email || row.candidate.phone || row.destination,
+              },
+              {
+                key: 'vacancy',
+                header: 'Vaga',
+                render: (row: CandidateInvite) => row.vacancy.title,
+                searchValue: (row: CandidateInvite) => row.vacancy.title,
+                sortValue: (row: CandidateInvite) => row.vacancy.title,
+              },
+              {
+                key: 'channel',
+                header: 'Canal',
+                render: (row: CandidateInvite) => inviteChannelLabel(row.channel),
+                sortValue: (row: CandidateInvite) => inviteChannelLabel(row.channel),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (row: CandidateInvite) => (
+                  <Badge variant={inviteStatusVariant(row.status)} size="sm">
+                    {row.status}
+                  </Badge>
+                ),
+                sortValue: (row: CandidateInvite) => row.status,
+              },
+              {
+                key: 'createdAt',
+                header: 'Enviado em',
+                render: (row: CandidateInvite) => formatDate(row.createdAt),
+                sortValue: (row: CandidateInvite) => new Date(row.createdAt).getTime(),
+              },
               {
                 key: 'link',
                 header: 'Link',
@@ -274,7 +455,7 @@ export function CandidatesView() {
                   return (
                     <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
                       <a href={historyInviteUrl} target="_blank" rel="noreferrer">Abrir</a>
-                      <Button size="sm" variant="ghost" onClick={() => { void copyInviteLink(historyInviteUrl); }}>Copiar</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { void copyToClipboard(historyInviteUrl); }}>Copiar</Button>
                     </div>
                   );
                 },
@@ -282,11 +463,242 @@ export function CandidatesView() {
             ]}
             data={inviteHistory}
             rowKey={(row) => row.id}
+            searchable
+            searchPlaceholder="Buscar por candidato, vaga ou canal"
             pageSize={6}
             emptyMessage="Nenhum convite emitido"
           />
         </CardContent>
       </Card>
+
+      {canManageCandidateAccounts && (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <CardHeader>
+            <CardTitle>Gestão administrativa do candidato</CardTitle>
+            <CardDescription>Atualize o e-mail cadastrado e solicite redefinição de acesso para candidatos com conta criada.</CardDescription>
+          </CardHeader>
+          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+              <StatBox label="Candidatos no tenant" value={managedCandidates.length} />
+              <StatBox label="Com conta criada" value={activeManagedCandidates} />
+              <StatBox label="Reset disponível" value={resettableManagedCandidates} />
+            </div>
+
+            {loadingManagedCandidates ? (
+              <Skeleton style={{ height: 240, borderRadius: 8 }} />
+            ) : (
+              <>
+                <DataTable
+                  columns={[
+                    {
+                      key: 'candidate',
+                      header: 'Candidato',
+                      render: (row: ManagedCandidate) => row.fullName || row.email,
+                      searchValue: (row: ManagedCandidate) => `${row.fullName ?? ''} ${row.email}`.trim(),
+                      sortValue: (row: ManagedCandidate) => row.fullName || row.email,
+                    },
+                    {
+                      key: 'email',
+                      header: 'E-mail',
+                      render: (row: ManagedCandidate) => row.email,
+                      searchValue: (row: ManagedCandidate) => row.email,
+                    },
+                    {
+                      key: 'account',
+                      header: 'Conta',
+                      render: (row: ManagedCandidate) => (
+                        <Badge variant={row.hasLoginAccount ? 'success' : 'warning'} size="sm">
+                          {row.hasLoginAccount ? 'Criada' : 'Pendente'}
+                        </Badge>
+                      ),
+                    },
+                    {
+                      key: 'reset',
+                      header: 'Reset',
+                      render: (row: ManagedCandidate) => (
+                        <Badge variant={row.canRequestPasswordReset ? 'info' : 'neutral'} size="sm">
+                          {row.canRequestPasswordReset ? 'Disponível' : 'Indisponível'}
+                        </Badge>
+                      ),
+                    },
+                    {
+                      key: 'lastInvite',
+                      header: 'Último convite',
+                      render: (row: ManagedCandidate) => row.lastInvite
+                        ? `${row.lastInvite.channel} • ${row.lastInvite.status}`
+                        : 'Sem convite',
+                    },
+                  ]}
+                  data={managedCandidates}
+                  rowKey={(row) => row.id}
+                  selectedRowKey={selectedManagedCandidateId}
+                  searchable
+                  searchPlaceholder="Buscar candidato por nome ou e-mail"
+                  pageSize={6}
+                  emptyMessage="Nenhum candidato encontrado para este tenant."
+                  onRowClick={(row) => setSelectedManagedCandidateId(row.id)}
+                />
+
+                {selectedManagedCandidate && (
+                  <Card variant="outlined">
+                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+                        <StatBox label="Selecionado" value={selectedManagedCandidate.fullName || selectedManagedCandidate.email} />
+                        <StatBox label="Aplicações" value={selectedManagedCandidate.applicationsCount} />
+                        <StatBox label="Convites" value={selectedManagedCandidate.invitesCount} />
+                        <StatBox label="Provedores" value={selectedManagedCandidate.authProviders.join(', ') || 'Sem conta'} />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                        <Badge variant={selectedManagedCandidate.hasLoginAccount ? 'success' : 'warning'}>
+                          {selectedManagedCandidate.hasLoginAccount ? 'Conta ativa' : 'Conta pendente'}
+                        </Badge>
+                        <Badge variant={selectedManagedCandidate.canRequestPasswordReset ? 'info' : 'neutral'}>
+                          {selectedManagedCandidate.canRequestPasswordReset ? 'Reset habilitado' : 'Reset indisponível'}
+                        </Badge>
+                        {selectedManagedCandidate.lastInvite && (
+                          <>
+                            <Badge variant="neutral">
+                              Último canal: {inviteChannelLabel(selectedManagedCandidate.lastInvite.channel)}
+                            </Badge>
+                            <Badge variant={inviteStatusVariant(selectedManagedCandidate.lastInvite.status)}>
+                              Último status: {selectedManagedCandidate.lastInvite.status}
+                            </Badge>
+                          </>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                          gap: spacing.md,
+                          padding: spacing.md,
+                          borderRadius: radius.md,
+                          background: colors.surfaceAlt,
+                        }}
+                      >
+                        <div>
+                          <SectionTitle>Resumo da conta</SectionTitle>
+                          <p style={{ margin: 0 }}>Criado em: {formatDate(selectedManagedCandidate.createdAt)}</p>
+                          <p style={{ margin: `${spacing.xs}px 0 0` }}>Upgrade convidado: {formatDate(selectedManagedCandidate.guestUpgradeAt)}</p>
+                        </div>
+                        <div>
+                          <SectionTitle>Último acesso compartilhado</SectionTitle>
+                          <p style={{ margin: 0 }}>
+                            Canal: {inviteChannelLabel(selectedManagedCandidate.lastInvite?.channel)}
+                          </p>
+                          <p style={{ margin: `${spacing.xs}px 0 0` }}>
+                            Data: {formatDate(selectedManagedCandidate.lastInvite?.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Input
+                        label="E-mail do candidato"
+                        type="email"
+                        value={managedCandidateEmail}
+                        onChange={(e) => setManagedCandidateEmail(e.target.value)}
+                        placeholder="candidato@email.com"
+                      />
+
+                      <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                        <Button
+                          type="button"
+                          onClick={() => { void saveManagedCandidateEmail(); }}
+                          loading={savingManagedCandidate}
+                          disabled={!normalizedEmail || !hasManagedCandidateEmailChanged}
+                        >
+                          Salvar e-mail
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => { void resendInvite(); }}
+                          loading={resendingCandidateInvite}
+                          disabled={!selectedManagedCandidate.lastInvite}
+                        >
+                          Reenviar acesso
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => { void requestReset(); }}
+                          loading={resettingCandidate}
+                          disabled={!selectedManagedCandidate.canRequestPasswordReset}
+                        >
+                          Solicitar nova senha
+                        </Button>
+                      </div>
+
+                      {!selectedManagedCandidate.canRequestPasswordReset && (
+                        <InlineMessage variant="warning">
+                          O reset só fica disponível quando o candidato já possui conta vinculada e e-mail real configurado.
+                        </InlineMessage>
+                      )}
+
+                      {!selectedManagedCandidate.lastInvite && (
+                        <InlineMessage variant="warning">
+                          O reenvio de acesso fica disponível após o primeiro convite do candidato.
+                        </InlineMessage>
+                      )}
+
+                      {managedInviteFeedback?.accessUrl && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                          <strong>Link de acesso reenviado</strong>
+                          <code
+                            style={{
+                              display: 'block',
+                              background: colors.primary,
+                              color: colors.textInverse,
+                              padding: spacing.md,
+                              borderRadius: radius.md,
+                              fontSize: fontSize.sm,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {managedInviteFeedback.accessUrl}
+                          </code>
+                          <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedInviteFeedback.accessUrl ?? ''); }}>
+                              Copiar link
+                            </Button>
+                            <a href={managedInviteFeedback.accessUrl} target="_blank" rel="noreferrer">Abrir portal</a>
+                          </div>
+                        </div>
+                      )}
+
+                      {managedCandidateFeedback?.resetUrl && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                          <strong>Link de redefinição</strong>
+                          <code
+                            style={{
+                              display: 'block',
+                              background: colors.primary,
+                              color: colors.textInverse,
+                              padding: spacing.md,
+                              borderRadius: radius.md,
+                              fontSize: fontSize.sm,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {managedCandidateFeedback.resetUrl}
+                          </code>
+                          <div>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedCandidateFeedback.resetUrl ?? ''); }}>
+                              Copiar link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

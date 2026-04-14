@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { CandidatesService } from './candidates.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -44,6 +44,38 @@ export class CandidatesController {
   @RequirePermissions('candidates:invite')
   invites(@Query('organizationId') organizationId: string, @CurrentUser() user: AuthUser) {
     return this.candidatesService.listInvites(organizationId, user.id, user.role);
+  }
+
+  @Get('admin/candidates')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('users:manage')
+  listManaged(@Query('organizationId') organizationId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.listManagedCandidates(organizationId, user.id, user.role);
+  }
+
+  @Put('admin/candidates/:candidateId')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('users:manage')
+  updateManaged(
+    @Param('candidateId') candidateId: string,
+    @Body() body: { email: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.candidatesService.updateManagedCandidate(candidateId, user.id, user.role, body);
+  }
+
+  @Post('admin/candidates/:candidateId/request-password-reset')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('users:manage')
+  requestPasswordReset(@Param('candidateId') candidateId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.requestPasswordReset(candidateId, user.id, user.role);
+  }
+
+  @Post('admin/candidates/:candidateId/resend-invite')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('users:manage')
+  resendInvite(@Param('candidateId') candidateId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.resendManagedCandidateInvite(candidateId, user.id, user.role);
   }
 
   @Get('candidate/token/:token')

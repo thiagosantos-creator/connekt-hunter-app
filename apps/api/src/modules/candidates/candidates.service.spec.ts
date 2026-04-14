@@ -163,15 +163,22 @@ describe('CandidatesService', () => {
   });
 
   it('updates a managed candidate email and linked identity', async () => {
-    vi.mocked(prisma.candidate.findUnique)
-      .mockResolvedValueOnce({
-        id: 'c-managed',
-        organizationId: 'org1',
-        email: 'old@test.com',
-        userId: 'user-1',
-        user: { id: 'user-1', email: 'old@test.com' },
-      } as never)
-      .mockResolvedValueOnce({
+    let candidateLookupCalls = 0;
+    vi.mocked(prisma.candidate.findUnique).mockImplementation(async ({ where }: { where: { id?: string; email?: string } }) => {
+      if (where.email === 'new@test.com') {
+        return null as never;
+      }
+      candidateLookupCalls += 1;
+      if (candidateLookupCalls === 1) {
+        return {
+          id: 'c-managed',
+          organizationId: 'org1',
+          email: 'old@test.com',
+          userId: 'user-1',
+          user: { id: 'user-1', email: 'old@test.com' },
+        } as never;
+      }
+      return {
         id: 'c-managed',
         organizationId: 'org1',
         email: 'new@test.com',
@@ -183,7 +190,8 @@ describe('CandidatesService', () => {
         user: { identities: [{ provider: 'candidate-passwordless' }] },
         invites: [],
         _count: { applications: 1, invites: 2 },
-      } as never);
+      } as never;
+    });
     vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'admin-1' } as never);
     vi.mocked(prisma.candidate.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);

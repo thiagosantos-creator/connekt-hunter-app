@@ -341,4 +341,25 @@ describe('CandidatesService', () => {
       inviteChannel: 'phone',
     }));
   });
+
+  it('rejects resend when phone fallback destination is invalid', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c-phone-invalid',
+      organizationId: 'org1',
+      email: 'phone@test.com',
+      phone: null,
+      token: 'tok-phone-invalid',
+      invites: [{
+        id: 'invite-phone-invalid',
+        channel: 'phone',
+        destination: 'invalid-phone',
+        vacancyId: 'v1',
+      }],
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'admin-1' } as never);
+
+    await expect(service.resendManagedCandidateInvite('c-phone-invalid', 'admin-1', 'headhunter'))
+      .rejects
+      .toThrow('invalid_phone');
+  });
 });

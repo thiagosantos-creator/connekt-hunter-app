@@ -29,7 +29,7 @@ export class CandidatesService {
     if (input.channel === 'email' && !this.isValidEmail(input.destination)) {
       throw new BadRequestException('invalid_email');
     }
-    if (input.channel === 'phone' && !/^\+?[1-9]\d{7,14}$/.test(input.destination.replace(/[^\d+]/g, ''))) {
+    if (input.channel === 'phone' && !this.isValidPhone(input.destination)) {
       throw new BadRequestException('invalid_phone');
     }
     const vacancy = await prisma.vacancy.findUnique({
@@ -643,6 +643,7 @@ export class CandidatesService {
     if (latestInvite.channel === 'phone') {
       const phone = candidate.phone ?? latestInvite.destination;
       if (!phone) throw new BadRequestException('candidate_phone_not_available');
+      if (!this.isValidPhone(phone)) throw new BadRequestException('invalid_phone');
       return phone;
     }
     return 'manual';
@@ -659,6 +660,10 @@ export class CandidatesService {
     if (labels.some((label) => !label || label.startsWith('-') || label.endsWith('-'))) return false;
     if (!labels.every((label) => /^[a-z0-9-]+$/i.test(label))) return false;
     return true;
+  }
+
+  private isValidPhone(phone: string) {
+    return /^\+?[1-9]\d{7,14}$/.test(phone.replace(/[^\d+]/g, ''));
   }
 
   private buildCandidateAccessUrl(token: string) {

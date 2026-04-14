@@ -170,13 +170,15 @@ export function DataTable<T>({
                   style={{
                     textAlign: 'left',
                     padding: `${spacing.sm + 2}px ${spacing.md}px`,
-                    fontSize: fontSize.sm,
-                    fontWeight: fontWeight.semibold,
+                    fontSize: fontSize.xs,
+                    fontWeight: fontWeight.bold,
                     color: colors.textSecondary,
-                    borderBottom: `1px solid ${colors.border}`,
+                    borderBottom: `2px solid ${colors.borderLight}`,
                     whiteSpace: 'nowrap',
                     width: col.width,
                     userSelect: 'none',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                   }}
                 >
                   {col.sortValue ? (

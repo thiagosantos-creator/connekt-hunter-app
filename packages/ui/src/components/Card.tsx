@@ -5,17 +5,18 @@ export interface CardProps {
   children: React.ReactNode;
   style?: React.CSSProperties;
   variant?: 'default' | 'outlined' | 'elevated';
+  className?: string;
 }
 
 const variantMap: Record<string, React.CSSProperties> = {
-  default: { background: colors.surface, border: `1px solid ${colors.border}` },
+  default: { background: colors.surface, border: `1px solid ${colors.borderLight}`, boxShadow: shadows.sm },
   outlined: { background: 'transparent', border: `1px solid ${colors.border}` },
-  elevated: { background: colors.surface, border: 'none', boxShadow: shadows.md },
+  elevated: { background: colors.surface, border: `1px solid ${colors.borderLight}`, boxShadow: shadows.xl },
 };
 
-export function Card({ children, style, variant = 'default' }: CardProps) {
+export function Card({ children, style, variant = 'default', className = '' }: CardProps) {
   return (
-    <div style={{ borderRadius: radius.lg, padding: spacing.lg, ...variantMap[variant], ...style }}>
+    <div className={className} style={{ borderRadius: radius.xl, padding: spacing.lg, transition: 'all 0.2s ease', ...variantMap[variant], ...style }}>
       {children}
     </div>
   );

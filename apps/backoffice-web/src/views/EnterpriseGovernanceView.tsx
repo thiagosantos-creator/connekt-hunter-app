@@ -260,7 +260,7 @@ export function EnterpriseGovernanceView() {
       )}
 
       <div style={{ display: 'grid', gap: spacing.md }}>
-        <Card>
+        <Card className="hover-card">
           <CardHeader>
             <CardTitle>Configuração do Tenant</CardTitle>
           </CardHeader>
@@ -269,7 +269,7 @@ export function EnterpriseGovernanceView() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-card">
           <CardHeader>
             <CardTitle>Controle de Acesso</CardTitle>
           </CardHeader>
@@ -306,7 +306,7 @@ export function EnterpriseGovernanceView() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-card">
           <CardHeader>
             <CardTitle>Centro de Comunicação</CardTitle>
           </CardHeader>
@@ -350,7 +350,7 @@ export function EnterpriseGovernanceView() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-card">
           <CardHeader>
             <CardTitle>Status operacional de IA e infraestrutura</CardTitle>
           </CardHeader>
@@ -373,7 +373,7 @@ export function EnterpriseGovernanceView() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover-card">
           <CardHeader>
             <CardTitle>Histórico administrativo</CardTitle>
           </CardHeader>

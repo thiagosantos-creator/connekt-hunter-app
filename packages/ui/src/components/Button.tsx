@@ -11,24 +11,32 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
-  primary: { background: colors.primary, color: colors.textInverse, border: 'none' },
+  primary: { background: colors.accent, color: colors.textInverse, border: 'none' },
   secondary: { background: colors.surfaceAlt, color: colors.text, border: `1px solid ${colors.border}` },
   danger: { background: colors.danger, color: colors.textInverse, border: 'none' },
   ghost: { background: 'transparent', color: colors.textSecondary, border: 'none' },
-  outline: { background: 'transparent', color: colors.primary, border: `1px solid ${colors.border}` },
+  outline: { background: 'transparent', color: colors.accent, border: `1px solid ${colors.border}` },
   success: { background: colors.success, color: colors.textInverse, border: 'none' },
 };
 
 const sizeStyles: Record<string, React.CSSProperties> = {
-  sm: { padding: `${spacing.xs}px ${spacing.sm}px`, fontSize: fontSize.sm },
-  md: { padding: `${spacing.sm}px ${spacing.md}px`, fontSize: fontSize.md },
-  lg: { padding: `${spacing.sm + 2}px ${spacing.lg}px`, fontSize: fontSize.lg },
+  sm: { padding: `${spacing.xs + 2}px ${spacing.sm + 4}px`, fontSize: fontSize.sm, borderRadius: radius.md },
+  md: { padding: `${spacing.sm + 2}px ${spacing.md + 4}px`, fontSize: fontSize.md, borderRadius: radius.lg },
+  lg: { padding: `${spacing.sm + 4}px ${spacing.xl}px`, fontSize: fontSize.lg, borderRadius: radius.lg },
 };
 
 const buttonFocusStyles = `
   .connekt-ui-button:focus-visible {
     outline: 2px solid ${colors.info};
     outline-offset: 2px;
+  }
+  .connekt-ui-button:not(:disabled):hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .connekt-ui-button {
+    transition: all 0.15s ease;
   }
 `;
 
@@ -40,11 +48,10 @@ export function Button({ variant = 'primary', size = 'md', loading, children, di
       disabled={disabled || loading}
       className={['connekt-ui-button', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
       style={{
-        borderRadius: radius.md,
+        borderRadius: radius.lg,
         fontWeight: fontWeight.medium,
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
-        opacity: disabled || loading ? 0.6 : 1,
-        transition: 'opacity 0.15s, background 0.15s',
+        opacity: disabled || loading ? 0.55 : 1,
         display: 'inline-flex',
         alignItems: 'center',
         gap: spacing.sm,

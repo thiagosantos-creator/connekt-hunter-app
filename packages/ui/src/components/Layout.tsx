@@ -80,10 +80,11 @@ export function EmptyState({ title, description, icon, action }: { title: string
 /** Stat box for dashboards */
 export function StatBox({ label, value, subtext }: { label: string; value: string | number; subtext?: string }) {
   return (
-    <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radius.lg, minWidth: 140 }}>
-      <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>{label}</div>
-      <div style={{ fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text }}>{value}</div>
-      {subtext && <div style={{ fontSize: fontSize.xs, color: colors.textMuted, marginTop: 2 }}>{subtext}</div>}
+    <div className="stat-box" style={{ padding: spacing.lg, background: colors.surface, border: `1px solid ${colors.borderLight}`, borderRadius: radius.lg, minWidth: 140, boxShadow: shadows.sm, transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${colors.accent}, ${colors.infoLight})`, opacity: 0.8 }} />
+      <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textSecondary, marginBottom: spacing.xs, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: spacing.xs }}>{label}</div>
+      <div style={{ fontSize: fontSize.xxxl, fontWeight: fontWeight.bold, color: colors.text, lineHeight: 1.1, letterSpacing: '-0.02em' }}>{value}</div>
+      {subtext && <div style={{ fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm }}>{subtext}</div>}
     </div>
   );
 }
@@ -317,20 +318,44 @@ export function StepTimeline({ steps, current }: { steps: string[]; current: num
 export function GlobalStyles() {
   return (
     <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
       @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
       *, *::before, *::after { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         color: ${colors.text};
         background: ${colors.surfaceAlt};
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      a { color: ${colors.accent}; text-decoration: none; }
-      a:hover { text-decoration: underline; }
+      a { color: ${colors.accent}; text-decoration: none; transition: color 0.15s ease; }
+      a:hover { color: ${colors.accentLight}; text-decoration: none; }
+
+      /* Glassmorphism utility classes */
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: ${shadows.glass};
+      }
+        
+      /* Component utilities */
+      .stat-box:hover {
+        transform: translateY(-2px);
+        box-shadow: ${shadows.md};
+        border-color: ${colors.border};
+      }
+      
+      .hover-card:hover {
+        transform: translateY(-4px);
+        box-shadow: ${shadows.lg};
+        border-color: ${colors.border};
+      }
     `}</style>
   );
 }

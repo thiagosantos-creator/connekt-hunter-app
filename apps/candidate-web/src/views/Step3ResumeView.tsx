@@ -82,7 +82,7 @@ export function Step3ResumeView() {
         filename: file.name,
       });
 
-      navigate('/status');
+      navigate('/onboarding/media-check');
     } catch (err) {
       setError(String(err));
     } finally {

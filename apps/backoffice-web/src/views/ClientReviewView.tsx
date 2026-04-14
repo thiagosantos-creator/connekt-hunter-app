@@ -241,12 +241,12 @@ export function ClientReviewView() {
         <div style={{ display: 'grid', gap: spacing.lg }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md }}>
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} style={{ height: 88, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />
+              <div key={i} style={{ height: 88, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.borderLight}` }} />
             ))}
           </div>
           <div style={{ display: 'grid', gap: spacing.md }}>
             {[1, 2, 3].map((i) => (
-              <div key={i} style={{ height: 140, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />
+              <div key={i} style={{ height: 140, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.borderLight}` }} />
             ))}
           </div>
         </div>
@@ -264,7 +264,7 @@ export function ClientReviewView() {
             <StatBox label="Pendentes" value={stats.pending} subtext={stats.pending === 0 ? 'Tudo revisado!' : 'aguardando decisão'} />
             <StatBox label="Aprovados" value={stats.approved} subtext="candidatos aprovados" />
             <StatBox label="Entrevistas" value={stats.interview} subtext="agendamentos solicitados" />
-            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radius.lg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.borderLight}`, borderRadius: radius.lg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: shadows.sm, transition: 'all 0.2s ease', cursor: 'default' }} className="hover-card">
               <ScoreGauge value={stats.progress} size={56} strokeWidth={5} />
               <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }}>Progresso</div>
             </div>
@@ -324,7 +324,7 @@ export function ClientReviewView() {
                 const meta = current ? decisionMeta[current] : null;
 
                 return (
-                  <Card key={item.id} style={{ overflow: 'hidden', transition: 'box-shadow 0.2s', border: current ? `1px solid ${meta!.cardBorder}` : undefined }}>
+                  <Card key={item.id} className="hover-card" style={{ overflow: 'hidden', border: current ? `1px solid ${meta!.cardBorder}` : undefined }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
                       {/* Left: candidate info */}
                       <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>
@@ -440,7 +440,7 @@ export function ClientReviewView() {
               padding: spacing.md,
               borderRadius: radius.lg,
               background: colors.surfaceAlt,
-              border: `1px solid ${colors.border}`,
+              border: `1px solid ${colors.borderLight}`,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -515,7 +515,7 @@ export function ClientReviewView() {
               padding: spacing.md,
               borderRadius: radius.lg,
               background: colors.surfaceAlt,
-              border: `1px solid ${colors.border}`,
+              border: `1px solid ${colors.borderLight}`,
               fontSize: fontSize.sm,
               color: colors.textSecondary,
               lineHeight: 1.6,

@@ -558,7 +558,7 @@ export function CandidatesView() {
                             {managedInviteFeedback.accessUrl}
                           </code>
                           <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedInviteFeedback.accessUrl); }}>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedInviteFeedback.accessUrl ?? ''); }}>
                               Copiar link
                             </Button>
                             <a href={managedInviteFeedback.accessUrl} target="_blank" rel="noreferrer">Abrir portal</a>

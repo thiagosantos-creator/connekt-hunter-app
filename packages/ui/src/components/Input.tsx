@@ -106,8 +106,10 @@ export interface CheckboxProps {
   id?: string;
 }
 
+let checkboxCounter = 0;
+
 export function Checkbox({ label, description, checked, onChange, disabled, id }: CheckboxProps) {
-  const uid = id ?? `cb-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  const uid = id ?? `cb-${++checkboxCounter}`;
   return (
     <label
       htmlFor={uid}

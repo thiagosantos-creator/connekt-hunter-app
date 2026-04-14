@@ -94,7 +94,6 @@ export function NavBar() {
         height: 48,
         boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
         zIndex: zIndex.sticky,
-        position: 'relative',
       }}
     >
       <strong style={{ fontSize: fontSize.lg, marginRight: spacing.xl, letterSpacing: -0.3, whiteSpace: 'nowrap' }}>Connekt Hunter</strong>

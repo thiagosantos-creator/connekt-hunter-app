@@ -173,13 +173,11 @@ export function StatusView() {
                 ))}
               </div>
             ) : null}
-            {(() => {
-              const skills = parsedResume?.parsedData?.skills;
-              return skills && skills.length > 0 ? (
+            {parsedResume?.parsedData?.skills && parsedResume.parsedData.skills.length > 0 && (
               <div>
                 <strong>Habilidades</strong>
                 <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', marginTop: spacing.xs }}>
-                  {skills.map((skill, i) => (
+                  {parsedResume.parsedData.skills.map((skill, i) => (
                     <span key={i} style={{
                       padding: `${spacing.xs}px ${spacing.sm}px`,
                       borderRadius: radius.full,
@@ -192,8 +190,7 @@ export function StatusView() {
                   ))}
                 </div>
               </div>
-              ) : null;
-            })()}
+            )}
           </CardContent>
         </Card>
       )}

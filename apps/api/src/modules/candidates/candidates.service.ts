@@ -490,7 +490,7 @@ export class CandidatesService {
       authProviders: [...new Set(candidate.user?.identities.map((identity) => identity.provider) ?? [])],
       applicationsCount: candidate._count.applications,
       invitesCount: candidate._count.invites,
-      canRequestPasswordReset: Boolean(candidate.userId && this.buildPasswordResetUrl(candidate.email) && this.isResettableEmail(candidate.email)),
+      canRequestPasswordReset: Boolean(candidate.userId && this.hasPasswordResetConfig() && this.isResettableEmail(candidate.email)),
       lastInvite: candidate.invites[0] ?? null,
     };
   }

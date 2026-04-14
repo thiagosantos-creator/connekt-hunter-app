@@ -502,7 +502,7 @@ export function CandidatesView() {
                             {managedCandidateFeedback.resetUrl}
                           </code>
                           <div>
-                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedCandidateFeedback.resetUrl!); }}>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedCandidateFeedback.resetUrl ?? ''); }}>
                               Copiar link
                             </Button>
                           </div>

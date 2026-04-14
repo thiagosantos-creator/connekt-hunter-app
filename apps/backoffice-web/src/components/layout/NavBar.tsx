@@ -23,7 +23,7 @@ const navByRole: Record<string, NavSection[]> = {
     {
       items: [
         { label: 'Shortlist', to: '/shortlist' },
-        { label: 'Revisão Cliente', to: '/client-review' },
+        { label: 'Avaliação do Cliente', to: '/client-review' },
         { label: 'Entrevista', to: '/smart-interview' },
         { label: 'Inteligência', to: '/product-intelligence' },
       ],
@@ -58,7 +58,7 @@ const navByRole: Record<string, NavSection[]> = {
       group: 'Avaliação',
       items: [
         { label: 'Shortlist', to: '/shortlist' },
-        { label: 'Revisão Cliente', to: '/client-review' },
+        { label: 'Avaliação do Cliente', to: '/client-review' },
         { label: 'Entrevista', to: '/smart-interview' },
         { label: 'Inteligência', to: '/product-intelligence' },
       ],
@@ -75,7 +75,7 @@ const navByRole: Record<string, NavSection[]> = {
   client: [
     {
       items: [
-        { label: 'Revisão Cliente', to: '/client-review' },
+        { label: 'Avaliação do Cliente', to: '/client-review' },
         { label: 'Aplicações', to: '/applications' },
         { label: 'Notificações', to: '/notifications' },
         { label: 'Conta', to: '/account' },

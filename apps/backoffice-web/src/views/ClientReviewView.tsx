@@ -225,8 +225,8 @@ export function ClientReviewView() {
     <PageContent>
       {/* Header */}
       <PageHeader
-        title="Revisão de Candidatos"
-        description="Analise o dossiê de cada candidato com inteligência assistiva e registre sua decisão."
+        title="Avaliação de Candidatos"
+        description="Analise o perfil de cada candidato com inteligência assistiva e registre sua decisão."
       />
 
       {/* Feedback message */}
@@ -397,7 +397,7 @@ export function ClientReviewView() {
                         {/* Action buttons */}
                         <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <Button variant="outline" size="sm" onClick={() => navigate(`/applications/${item.applicationId}/dossier`)}>
-                            Ver dossiê
+                            Ver perfil
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => { setCommentDialog({ appId: item.applicationId, candidateName: name }); setCommentText(''); }}>
                             💬 Comentar

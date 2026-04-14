@@ -186,7 +186,7 @@ export function CandidateDossierView() {
         if (cancelled) return;
         setIntelligence({ matching, risk, insights, recommendations, workflowSuggestions });
       } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o dossiê.');
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o perfil.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -227,7 +227,7 @@ export function CandidateDossierView() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg, flexWrap: 'wrap', gap: spacing.sm }}>
         <div>
           <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: spacing.xs }}>
-            Dossiê do candidato
+          Perfil do candidato
           </div>
           <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold }}>
             {loading && !detail ? 'Carregando...' : name}
@@ -243,7 +243,7 @@ export function CandidateDossierView() {
       {loading && !detail ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingTop: spacing.xxl, paddingBottom: spacing.xxl }}>
           <Spinner size={32} />
-          <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando dossiê do candidato...</div>
+          <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando perfil do candidato...</div>
           <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Consolidando dados de IA, matching e avaliações</div>
         </div>
       ) : !detail ? (

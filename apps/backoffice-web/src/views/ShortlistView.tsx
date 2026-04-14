@@ -188,7 +188,7 @@ export function ShortlistView() {
   return (
     <PageContent>
       <PageHeader
-        title="Shortlist & Avaliação"
+        title="Shortlist e Avaliação"
         description="Selecione candidatos para a shortlist, avalie perfis e priorize com assistência de IA."
       />
 
@@ -377,7 +377,7 @@ export function ShortlistView() {
             />
 
             <div style={{ padding: spacing.sm, borderRadius: radius.md, background: colors.infoLight, fontSize: fontSize.xs, color: colors.info, lineHeight: 1.6 }}>
-              💡 Esta avaliação ficará registrada no dossiê do candidato e será visível para o cliente na revisão.
+              💡 Esta avaliação ficará registrada no perfil do candidato e será visível para o cliente na revisão.
             </div>
 
             <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>

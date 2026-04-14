@@ -1,5 +1,6 @@
 import React from 'react';
 import { colors, radius, fontSize, fontWeight, spacing } from '../tokens/tokens.js';
+import { useInjectStyle } from './useInjectStyle.js';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'success';
 
@@ -32,31 +33,30 @@ const buttonFocusStyles = `
 `;
 
 export function Button({ variant = 'primary', size = 'md', loading, children, disabled, style, className, ...props }: ButtonProps) {
+  useInjectStyle('button-focus-styles', buttonFocusStyles);
+
   return (
-    <>
-      <style>{buttonFocusStyles}</style>
-      <button
-        disabled={disabled || loading}
-        className={['connekt-ui-button', className].filter(Boolean).join(' ')}
-        style={{
-          borderRadius: radius.md,
-          fontWeight: fontWeight.medium,
-          cursor: disabled || loading ? 'not-allowed' : 'pointer',
-          opacity: disabled || loading ? 0.6 : 1,
-          transition: 'opacity 0.15s, background 0.15s',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: spacing.sm,
-          lineHeight: 1.4,
-          ...variantStyles[variant],
-          ...sizeStyles[size],
-          ...style,
-        }}
-        {...props}
-      >
-        {loading && <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
-        {children}
-      </button>
-    </>
+    <button
+      disabled={disabled || loading}
+      className={['connekt-ui-button', className].filter(Boolean).join(' ')}
+      style={{
+        borderRadius: radius.md,
+        fontWeight: fontWeight.medium,
+        cursor: disabled || loading ? 'not-allowed' : 'pointer',
+        opacity: disabled || loading ? 0.6 : 1,
+        transition: 'opacity 0.15s, background 0.15s',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: spacing.sm,
+        lineHeight: 1.4,
+        ...variantStyles[variant],
+        ...sizeStyles[size],
+        ...style,
+      }}
+      {...props}
+    >
+      {loading && <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid currentColor', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />}
+      {children}
+    </button>
   );
 }

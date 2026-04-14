@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { colors, radius, fontSize, spacing, fontWeight } from '../tokens/tokens.js';
+import { useInjectStyle } from './useInjectStyle.js';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -66,10 +67,10 @@ export function Input({ label, error, hint, style, id, className, required, ...p
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (
     <div style={{ marginBottom: spacing.md }}>
-      <style>{controlFocusStyles}</style>
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <input
         id={inputId}
@@ -98,10 +99,10 @@ export function Textarea({ label, error, hint, style, id, className, required, .
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (
     <div style={{ marginBottom: spacing.md }}>
-      <style>{controlFocusStyles}</style>
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <textarea
         id={inputId}
@@ -143,10 +144,10 @@ export function Select({ label, error, hint, style, options, placeholder, id, cl
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
   const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (
     <div style={{ marginBottom: spacing.md }}>
-      <style>{controlFocusStyles}</style>
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <select
         id={inputId}

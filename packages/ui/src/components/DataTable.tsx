@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { colors, radius, spacing, fontSize, fontWeight } from '../tokens/tokens.js';
+import { useInjectStyle } from './useInjectStyle.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Data Table — enterprise table with search, sort, pagination               */
@@ -45,6 +46,16 @@ export function DataTable<T>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
   const [page, setPage] = useState(0);
+  useInjectStyle('data-table-focus-styles', `
+    .connekt-data-table__row:hover {
+      background: ${colors.surfaceHover};
+    }
+    .connekt-data-table__row:focus-visible,
+    .connekt-data-table__control:focus-visible {
+      outline: 2px solid ${colors.info};
+      outline-offset: -2px;
+    }
+  `);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -83,17 +94,6 @@ export function DataTable<T>({
 
   return (
     <div style={{ border: `1px solid ${colors.border}`, borderRadius: radius.lg, overflow: 'hidden' }}>
-      <style>{`
-        .connekt-data-table__row:hover {
-          background: ${colors.surfaceHover};
-        }
-        .connekt-data-table__row:focus-visible,
-        .connekt-data-table__control:focus-visible {
-          outline: 2px solid ${colors.info};
-          outline-offset: -2px;
-        }
-      `}</style>
-
       {searchable && (
         <div style={{ padding: `${spacing.sm}px ${spacing.md}px`, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
           <input

@@ -77,13 +77,11 @@ export function InterviewView() {
 
   const uploadAnswer = async (questionId: string) => {
     if (!session) return;
+    const startTime = recordingStartTime ?? Date.now();
     setLoading(true);
-    setRecordingStartTime(Date.now());
     try {
       const presign = await apiPost<PresignResponse>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
-      const durationSec = recordingStartTime
-        ? Math.max(1, Math.round((Date.now() - recordingStartTime) / 1000))
-        : 30; // fallback if timer wasn't started
+      const durationSec = Math.max(1, Math.round((Date.now() - startTime) / 1000));
       await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec });
       setAnsweredIds((prev) => new Set([...prev, questionId]));
       setRecordingStartTime(null);
@@ -216,7 +214,7 @@ export function InterviewView() {
                   ← Anterior
                 </Button>
               )}
-              <Button onClick={() => { void uploadAnswer(q.id); }} disabled={loading}>
+              <Button onClick={() => { setRecordingStartTime(Date.now()); void uploadAnswer(q.id); }} disabled={loading}>
                 {loading ? <><Spinner size={14} /> Gravando…</> : '🎥 Gravar Resposta'}
               </Button>
               {current < totalQuestions - 1 && (

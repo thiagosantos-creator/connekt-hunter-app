@@ -242,9 +242,10 @@ export function VacancyLandingView() {
                   value={applyPhone}
                   onChange={(e) => { setApplyPhone(e.target.value); setPhoneError(''); }}
                   placeholder="+55 11 99999-0000"
-                  hint={phoneError || 'Opcional. Ajuda a acelerar o contato do recrutamento.'}
+                  hint="Opcional. Ajuda a acelerar o contato do recrutamento."
                   autoComplete="tel"
                 />
+                {phoneError && <InlineMessage variant="error">{phoneError}</InlineMessage>}
                 {applyMsg && <InlineMessage variant={applyVariant}>{applyMsg}</InlineMessage>}
                 <Button type="submit" loading={applying}>
                   {applying ? 'Enviando...' : 'Candidatar-se'}

@@ -25,7 +25,8 @@ export function Step3ResumeView() {
   const [loading, setLoading] = useState(false);
 
   const validateFile = (f: File): string | null => {
-    const ext = f.name.toLowerCase().slice(f.name.lastIndexOf('.'));
+    const dotIndex = f.name.lastIndexOf('.');
+    const ext = dotIndex === -1 ? '' : f.name.toLowerCase().slice(dotIndex);
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       return `Formato não suportado. Use: ${ALLOWED_EXTENSIONS.join(', ')}`;
     }
@@ -111,7 +112,7 @@ export function Step3ResumeView() {
                 style={{ display: 'block', margin: '0 auto' }}
               />
               <p style={{ marginTop: spacing.xs, color: colors.textSecondary, fontSize: fontSize.xs }}>
-                Formatos aceitos: PDF, DOC, DOCX — Máx. {MAX_FILE_SIZE_MB} MB
+                Formatos aceitos: {ALLOWED_EXTENSIONS.map((e) => e.slice(1).toUpperCase()).join(', ')} — Máx. {MAX_FILE_SIZE_MB} MB
               </p>
               {file && (
                 <p style={{ marginTop: spacing.sm, color: colors.text, fontSize: fontSize.sm }}>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
+import { extractErrorMessage } from '../services/error-messages.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { Application, CandidateRecommendation, RankingItem, Vacancy, WorkflowSuggestion } from '../services/types.js';
 import {
@@ -198,7 +199,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Matching calculado com breakdown, evidências e explicação.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -208,7 +209,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Insights gerados.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -222,7 +223,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Comparativo assistido gerado.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -232,7 +233,7 @@ export function ProductIntelligenceView() {
       setRanking(data);
       feedback('Ranking assistido gerado.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -242,7 +243,7 @@ export function ProductIntelligenceView() {
       setRecommendations(data);
       feedback('Recomendações geradas com explicações.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -252,7 +253,7 @@ export function ProductIntelligenceView() {
       setRisk(data);
       feedback('Risco identificado com explicação assistiva.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -262,7 +263,7 @@ export function ProductIntelligenceView() {
       setSuggestions(data);
       feedback('Ações sugeridas carregadas.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -272,7 +273,7 @@ export function ProductIntelligenceView() {
       setResult(data);
       feedback('Automação assistida executada com override humano.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 
@@ -291,7 +292,7 @@ export function ProductIntelligenceView() {
       setRanking(data);
       feedback('Ordem atualizada com override humano.', 'success');
     } catch (err) {
-      feedback(String(err), 'error');
+      feedback(extractErrorMessage(err), 'error');
     }
   };
 

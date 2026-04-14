@@ -28,6 +28,11 @@ export class StorageGateway {
   private readonly bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
   private readonly region = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
   private readonly endpoint = process.env.S3_ENDPOINT;
+  /** Public-facing endpoint used in presigned URLs returned to browsers.
+   *  When running in Docker, the internal endpoint (e.g. http://minio:9000) is
+   *  unreachable from the browser. Set S3_PUBLIC_ENDPOINT=http://localhost:9000
+   *  so browsers can upload directly to MinIO. Defaults to S3_ENDPOINT. */
+  private readonly publicEndpoint = process.env.S3_PUBLIC_ENDPOINT ?? process.env.S3_ENDPOINT;
   private readonly s3: S3Client;
   private bucketReady = false;
 
@@ -37,6 +42,27 @@ export class StorageGateway {
       endpoint: this.endpoint,
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' || Boolean(this.endpoint),
     });
+  }
+
+  /** Rewrites an internally-generated presigned URL to use the public endpoint.
+   *  This is a no-op when there is no internal/public endpoint mismatch. */
+  private toPublicUrl(internalUrl: string): string {
+    if (!this.publicEndpoint || !this.endpoint || this.publicEndpoint === this.endpoint) {
+      return internalUrl;
+    }
+    try {
+      const parsed = new URL(internalUrl);
+      const pub = new URL(this.publicEndpoint);
+      parsed.protocol = pub.protocol;
+      parsed.hostname = pub.hostname;
+      parsed.port = pub.port;
+      return parsed.toString();
+    } catch {
+      // If the URL cannot be parsed (e.g. relative or malformed), return it unchanged.
+      // This is safe because the presigned URL will still work from the server side;
+      // only the browser upload may fail, which the caller handles with a user-facing error.
+      return internalUrl;
+    }
   }
 
   async createPresignedUpload(input: {
@@ -63,7 +89,8 @@ export class StorageGateway {
       },
     });
 
-    const url = await getSignedUrl(this.s3, command, { expiresIn: 900 });
+    const internalUrl = await getSignedUrl(this.s3, command, { expiresIn: 900 });
+    const url = this.toPublicUrl(internalUrl);
 
     await prisma.providerExecutionLog.create({
       data: {

@@ -13,7 +13,23 @@ export class EvaluationsController {
 
   @Post()
   @RequirePermissions('shortlist:write')
-  create(@Body() body: { applicationId: string; comment: string }, @CurrentUser() user: AuthUser) {
-    return this.evaluationsService.create(body.applicationId, user.id, body.comment);
+  create(
+    @Body()
+    body: {
+      applicationId: string;
+      comment: string;
+      ratingTechnical?: number;
+      ratingBehavioral?: number;
+      ratingInterviewer?: number;
+      ratingAi?: number;
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.evaluationsService.create(body.applicationId, user.id, body.comment, {
+      ratingTechnical: body.ratingTechnical,
+      ratingBehavioral: body.ratingBehavioral,
+      ratingInterviewer: body.ratingInterviewer,
+      ratingAi: body.ratingAi,
+    });
   }
 }

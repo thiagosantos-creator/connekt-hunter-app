@@ -1,9 +1,35 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
+interface RatingInput {
+  ratingTechnical?: number;
+  ratingBehavioral?: number;
+  ratingInterviewer?: number;
+  ratingAi?: number;
+}
+
+function computeOverall(ratings: RatingInput): number | undefined {
+  const values = [
+    ratings.ratingTechnical,
+    ratings.ratingBehavioral,
+    ratings.ratingInterviewer,
+    ratings.ratingAi,
+  ].filter((v): v is number => typeof v === 'number' && v >= 1 && v <= 5);
+
+  if (values.length === 0) return undefined;
+  const avg = values.reduce((s, v) => s + v, 0) / values.length;
+  // Convert 1-5 avg to 0-100 score
+  return Math.round(((avg - 1) / 4) * 100);
+}
+
 @Injectable()
 export class EvaluationsService {
-  async create(applicationId: string, evaluatorId: string, comment: string) {
+  async create(
+    applicationId: string,
+    evaluatorId: string,
+    comment: string,
+    ratings: RatingInput = {},
+  ) {
     const application = await prisma.application.findUnique({
       where: { id: applicationId },
       include: { vacancy: true },
@@ -15,7 +41,20 @@ export class EvaluationsService {
     });
     if (!membership) throw new ForbiddenException('user_not_member_of_org');
 
-    const evaluation = await prisma.evaluation.create({ data: { applicationId, evaluatorId, comment } });
+    const overallRating = computeOverall(ratings);
+
+    const evaluation = await prisma.evaluation.create({
+      data: {
+        applicationId,
+        evaluatorId,
+        comment,
+        ratingTechnical: ratings.ratingTechnical,
+        ratingBehavioral: ratings.ratingBehavioral,
+        ratingInterviewer: ratings.ratingInterviewer,
+        ratingAi: ratings.ratingAi,
+        overallRating,
+      },
+    });
 
     await prisma.auditEvent.create({
       data: {
@@ -23,7 +62,7 @@ export class EvaluationsService {
         action: 'evaluation.created',
         entityType: 'Application',
         entityId: applicationId,
-        metadata: { evaluationId: evaluation.id } as never,
+        metadata: { evaluationId: evaluation.id, overallRating } as never,
       },
     });
 

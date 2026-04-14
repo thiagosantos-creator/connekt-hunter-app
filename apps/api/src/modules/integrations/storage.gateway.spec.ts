@@ -29,12 +29,16 @@ vi.mock('@aws-sdk/client-s3', () => {
   class CreateBucketCommand {
     constructor(readonly input: unknown) {}
   }
+  class PutBucketCorsCommand {
+    constructor(readonly input: unknown) {}
+  }
   return {
     S3Client,
     PutObjectCommand,
     GetObjectCommand,
     HeadBucketCommand,
     CreateBucketCommand,
+    PutBucketCorsCommand,
     S3ServiceException,
   };
 });
@@ -74,12 +78,16 @@ describe('StorageGateway', () => {
   });
 
   it('loads object content from storage', async () => {
-    sendMock.mockResolvedValueOnce({})
+    // send calls during createPresignedUpload: HeadBucketCommand, PutBucketCorsCommand
+    // send call during getObjectBuffer: GetObjectCommand
+    sendMock
+      .mockResolvedValueOnce({}) // HeadBucketCommand
+      .mockResolvedValueOnce({}) // PutBucketCorsCommand
       .mockResolvedValueOnce({
         Body: {
           transformToByteArray: vi.fn().mockResolvedValue(Uint8Array.from(Buffer.from('hello world', 'utf-8'))),
         },
-      });
+      }); // GetObjectCommand
 
     const service = new StorageGateway({
       isIntegrationEnabled: () => true,

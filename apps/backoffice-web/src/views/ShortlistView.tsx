@@ -53,6 +53,50 @@ const bandMeta: Record<string, { variant: 'success' | 'warning' | 'danger' | 'in
   low: { variant: 'info', label: 'Baixa prioridade' },
 };
 
+/* ── StarRating inline component ──────────────────────────────────────── */
+
+interface StarRatingProps {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}
+
+function StarRating({ label, value, onChange, disabled }: StarRatingProps) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+      <span style={{ fontSize: fontSize.sm, color: colors.textSecondary, minWidth: 180 }}>{label}</span>
+      <div style={{ display: 'flex', gap: 4 }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            disabled={disabled}
+            aria-label={`${star} estrela${star > 1 ? 's' : ''}`}
+            onClick={() => onChange(star)}
+            onMouseEnter={() => setHovered(star)}
+            onMouseLeave={() => setHovered(0)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: disabled ? 'default' : 'pointer',
+              fontSize: 22,
+              lineHeight: 1,
+              padding: '0 2px',
+              color: star <= (hovered || value) ? colors.warning : colors.border,
+              transition: 'color 0.1s',
+            }}
+          >
+            ★
+          </button>
+        ))}
+      </div>
+      {value > 0 && <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{value}/5</span>}
+    </div>
+  );
+}
+
 export function ShortlistView() {
   const { user } = useAuth();
 
@@ -74,7 +118,14 @@ export function ShortlistView() {
   /* eval dialog */
   const [evalDialog, setEvalDialog] = useState<{ appId: string; name: string } | null>(null);
   const [evalComment, setEvalComment] = useState('');
+  const [evalRatings, setEvalRatings] = useState({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
   const [evalSaving, setEvalSaving] = useState(false);
+
+  const resetEvalDialog = () => {
+    setEvalComment('');
+    setEvalRatings({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
+    setEvalDialog(null);
+  };
 
   /* priority */
   const [priorityVacancyId, setPriorityVacancyId] = useState('');
@@ -149,10 +200,13 @@ export function ShortlistView() {
         applicationId: evalDialog.appId,
         evaluatorId: user.id,
         comment: evalComment,
+        ratingTechnical: evalRatings.technical || undefined,
+        ratingBehavioral: evalRatings.behavioral || undefined,
+        ratingInterviewer: evalRatings.interviewer || undefined,
+        ratingAi: evalRatings.ai || undefined,
       });
       setEvals((prev) => [...prev, r]);
-      setEvalComment('');
-      setEvalDialog(null);
+      resetEvalDialog();
       setMsg('Avaliação registrada com sucesso!');
       setMsgVariant('success');
     } catch (err) {
@@ -161,7 +215,8 @@ export function ShortlistView() {
     } finally {
       setEvalSaving(false);
     }
-  }, [user, evalDialog, evalComment]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, evalDialog, evalComment, evalRatings]);
 
   const calculatePriority = useCallback(async () => {
     if (!priorityVacancyId) return;
@@ -188,7 +243,7 @@ export function ShortlistView() {
   return (
     <PageContent>
       <PageHeader
-        title="Shortlist & Avaliação"
+        title="Shortlist e Avaliação"
         description="Selecione candidatos para a shortlist, avalie perfis e priorize com assistência de IA."
       />
 
@@ -353,11 +408,11 @@ export function ShortlistView() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="eval-dialog-title"
-          onClick={() => !evalSaving && setEvalDialog(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape' && !evalSaving) setEvalDialog(null); }}
+          onClick={() => !evalSaving && resetEvalDialog()}
+          onKeyDown={(e) => { if (e.key === 'Escape' && !evalSaving) resetEvalDialog(); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: zIndex.modal }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: colors.surface, padding: spacing.xl, borderRadius: radius.xl, width: '100%', maxWidth: 520, boxShadow: shadows.lg, display: 'grid', gap: spacing.md }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: colors.surface, padding: spacing.xl, borderRadius: radius.xl, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: shadows.lg, display: 'grid', gap: spacing.md }}>
             <div>
               <h3 id="eval-dialog-title" style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
                 Avaliação profissional
@@ -367,21 +422,65 @@ export function ShortlistView() {
               </p>
             </div>
 
+            {/* Star ratings */}
+            <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'grid', gap: spacing.sm }}>
+              <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: spacing.xs }}>
+                Avaliações por dimensão (opcional)
+              </div>
+              <StarRating
+                label="🔧 Técnica"
+                value={evalRatings.technical}
+                onChange={(v) => setEvalRatings((r) => ({ ...r, technical: v }))}
+                disabled={evalSaving}
+              />
+              <StarRating
+                label="🤝 Comportamental"
+                value={evalRatings.behavioral}
+                onChange={(v) => setEvalRatings((r) => ({ ...r, behavioral: v }))}
+                disabled={evalSaving}
+              />
+              <StarRating
+                label="🎙️ Entrevistador"
+                value={evalRatings.interviewer}
+                onChange={(v) => setEvalRatings((r) => ({ ...r, interviewer: v }))}
+                disabled={evalSaving}
+              />
+              <StarRating
+                label="🤖 IA"
+                value={evalRatings.ai}
+                onChange={(v) => setEvalRatings((r) => ({ ...r, ai: v }))}
+                disabled={evalSaving}
+              />
+              {/* Overall preview */}
+              {Object.values(evalRatings).some((v) => v > 0) && (() => {
+                const vals = Object.values(evalRatings).filter((v) => v > 0);
+                const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+                const score = Math.round(((avg - 1) / 4) * 100);
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, paddingTop: spacing.xs, borderTop: `1px solid ${colors.border}` }}>
+                    <span style={{ fontSize: fontSize.sm, color: colors.textSecondary, minWidth: 180 }}>⭐ Geral (média)</span>
+                    <span style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text }}>{avg.toFixed(1)}/5</span>
+                    <span style={{ fontSize: fontSize.sm, color: colors.textMuted }}>= {score}% no ranking</span>
+                  </div>
+                );
+              })()}
+            </div>
+
             <Textarea
               label="Seu parecer"
               value={evalComment}
               onChange={(e) => setEvalComment(e.target.value)}
               placeholder="Adicione sua avaliação profissional sobre o candidato..."
-              rows={5}
+              rows={4}
               required
             />
 
             <div style={{ padding: spacing.sm, borderRadius: radius.md, background: colors.infoLight, fontSize: fontSize.xs, color: colors.info, lineHeight: 1.6 }}>
-              💡 Esta avaliação ficará registrada no dossiê do candidato e será visível para o cliente na revisão.
+              💡 Esta avaliação ficará registrada no perfil do candidato e será visível para o cliente na revisão. Os scores não são visíveis para os candidatos.
             </div>
 
             <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
-              <Button variant="ghost" onClick={() => setEvalDialog(null)} disabled={evalSaving}>Cancelar</Button>
+              <Button variant="ghost" onClick={resetEvalDialog} disabled={evalSaving}>Cancelar</Button>
               <Button onClick={() => { void submitEval(); }} loading={evalSaving} disabled={!evalComment.trim()}>
                 Salvar avaliação
               </Button>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { listManagedCandidates, requestCandidatePasswordReset, resendCandidateInvite, updateManagedCandidate } from '../services/account.js';
+import { extractErrorMessage } from '../services/error-messages.js';
 import { hasPermission } from '../services/rbac.js';
 import type { Application, Candidate, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
 import {
@@ -25,6 +26,7 @@ import {
   StatBox,
   colors,
   fontSize,
+  fontWeight,
   radius,
   spacing,
 } from '@connekt/ui';
@@ -115,7 +117,7 @@ export function CandidatesView() {
     setLoadingManagedCandidates(true);
     void loadManagedCandidates(orgId)
       .catch((err) => {
-        setMsg(String(err));
+        setMsg(extractErrorMessage(err));
         setMsgVariant('error');
         setManagedCandidates([]);
       })
@@ -184,7 +186,7 @@ export function CandidatesView() {
       await loadInviteHistory(orgId);
       if (canManageCandidateAccounts) await loadManagedCandidates(orgId);
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setLoading(false);
@@ -198,7 +200,7 @@ export function CandidatesView() {
       setMsg('Recomendações carregadas para o candidato.');
       setMsgVariant('success');
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     }
   };
@@ -237,7 +239,7 @@ export function CandidatesView() {
       setMsg('Link copiado.');
       setMsgVariant('success');
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     }
   };
@@ -260,7 +262,7 @@ export function CandidatesView() {
       setMsgVariant('success');
       if (orgId) await loadInviteHistory(orgId);
     } catch (err) {
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setSavingManagedCandidate(false);
@@ -277,7 +279,7 @@ export function CandidatesView() {
       setMsgVariant(response.status === 'sent' ? 'success' : 'error');
     } catch (err) {
       setManagedCandidateFeedback(null);
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setResettingCandidate(false);
@@ -299,7 +301,7 @@ export function CandidatesView() {
       }
     } catch (err) {
       setManagedInviteFeedback(null);
-      setMsg(String(err));
+      setMsg(extractErrorMessage(err));
       setMsgVariant('error');
     } finally {
       setResendingCandidateInvite(false);

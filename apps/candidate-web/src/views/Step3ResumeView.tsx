@@ -73,18 +73,20 @@ export function Step3ResumeView() {
       const uploadHeaders = result.upload?.headers ?? result.upload?.uploadHeaders ?? {};
 
       if (!uploadUrl) {
-        throw new Error('Upload do currículo indisponível no momento. Tente novamente.');
+        throw new Error('Upload do currículo indisponível no momento. Tente novamente mais tarde.');
       }
 
-      if (uploadUrl) {
-        const uploadRes = await fetch(uploadUrl, {
-          method: uploadMethod,
-          headers: uploadHeaders,
-          body: file,
-        });
-        if (!uploadRes.ok) {
-          throw new Error('Falha ao enviar currículo para o storage. Tente novamente.');
-        }
+      const uploadRes = await fetch(uploadUrl, {
+        method: uploadMethod,
+        headers: uploadHeaders,
+        body: file,
+      });
+      if (!uploadRes.ok) {
+        throw new Error(
+          uploadRes.status === 403
+            ? 'Acesso negado ao armazenamento. O link de upload pode ter expirado. Recarregue a página e tente novamente.'
+            : 'Falha ao enviar currículo para o armazenamento. Tente novamente.',
+        );
       }
 
       await apiPost('/candidate/onboarding/resume/complete', {
@@ -95,7 +97,14 @@ export function Step3ResumeView() {
 
       navigate('/onboarding/media-check');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro inesperado ao enviar currículo.');
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('storage_object_empty')) {
+        setError('O arquivo enviado não pôde ser processado. Verifique sua conexão e tente novamente.');
+      } else if (err instanceof TypeError || message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
+        setError('Não foi possível conectar ao servidor de armazenamento. Verifique sua conexão e tente novamente.');
+      } else {
+        setError(message || 'Erro inesperado ao enviar currículo. Tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

@@ -1,0 +1,6 @@
+ALTER TABLE "Evaluation"
+  ADD COLUMN IF NOT EXISTS "ratingTechnical"   INTEGER,
+  ADD COLUMN IF NOT EXISTS "ratingBehavioral"  INTEGER,
+  ADD COLUMN IF NOT EXISTS "ratingInterviewer" INTEGER,
+  ADD COLUMN IF NOT EXISTS "ratingAi"          INTEGER,
+  ADD COLUMN IF NOT EXISTS "overallRating"     DOUBLE PRECISION;

@@ -214,7 +214,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
       <div onClick={(event) => event.stopPropagation()} style={{ width: 'min(1240px, 100%)', maxHeight: '92vh', overflowY: 'auto', margin: '0 auto', background: colors.surface, borderRadius: radius.xl, boxShadow: '0 30px 90px rgba(15,23,42,0.28)' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.md}px ${spacing.lg}px`, background: 'rgba(255,255,255,0.92)', borderBottom: `1px solid ${colors.border}`, backdropFilter: 'blur(12px)' }}>
           <div>
-            <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Dossiê do candidato</div>
+            <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Perfil do candidato</div>
             <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{name}</div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
@@ -225,7 +225,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
         {loading && !detail ? (
           <div style={{ padding: spacing.xxl, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: spacing.md, minHeight: 300 }}>
             <div style={{ width: 32, height: 32, border: `3px solid ${colors.border}`, borderTopColor: colors.info, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-            <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando dossiê do candidato...</div>
+            <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando perfil do candidato...</div>
             <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Consolidando dados de IA, matching e avaliações</div>
           </div>
         ) : detail ? (

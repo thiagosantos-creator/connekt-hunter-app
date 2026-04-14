@@ -83,8 +83,6 @@ export function StatusView() {
     hold: '⏳ Em espera',
   };
 
-  const skills = parsedResume?.parsedData?.skills;
-
   return (
     <div style={{ maxWidth: 520, margin: '60px auto', padding: `0 ${spacing.md}px` }}>
       <Card variant="elevated" style={{ textAlign: 'center' }}>
@@ -175,7 +173,9 @@ export function StatusView() {
                 ))}
               </div>
             ) : null}
-            {skills && skills.length > 0 && (
+            {(() => {
+              const skills = parsedResume?.parsedData?.skills;
+              return skills && skills.length > 0 ? (
               <div>
                 <strong>Habilidades</strong>
                 <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', marginTop: spacing.xs }}>
@@ -192,7 +192,8 @@ export function StatusView() {
                   ))}
                 </div>
               </div>
-            )}
+              ) : null;
+            })()}
           </CardContent>
         </Card>
       )}

@@ -1,5 +1,31 @@
 import { prisma } from '@connekt/db';
 import { withWorkerSpan } from './telemetry.js';
+import {
+  TranscribeClient,
+  StartTranscriptionJobCommand,
+  GetTranscriptionJobCommand,
+  type LanguageCode as TranscribeLanguageCode,
+} from '@aws-sdk/client-transcribe';
+import {
+  ComprehendClient,
+  DetectSentimentCommand,
+  DetectKeyPhrasesCommand,
+  DetectEntitiesCommand,
+  type LanguageCode as ComprehendLanguageCode,
+} from '@aws-sdk/client-comprehend';
+
+function isTranscriptionReal(): boolean {
+  return process.env.FF_TRANSCRIPTION_REAL === 'true';
+}
+
+function isAiReal(): boolean {
+  return process.env.FF_AI_REAL === 'true';
+}
+
+function shouldFallbackToMock(key: string): boolean {
+  const envKey = `${key.toUpperCase().replace(/-/g, '_')}_FALLBACK_TO_MOCK`;
+  return process.env[envKey] !== 'false';
+}
 
 async function safeProcess(label: string, eventId: string, fn: () => Promise<void>): Promise<boolean> {
   try {
@@ -77,10 +103,74 @@ export async function processSmartInterviewVideoJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { answerId: string; sessionId: string };
     const ok = await safeProcess('smart-interview.video-uploaded', evt.id, async () => {
+      let transcriptContent = 'Transcrição mock gerada pelo worker.';
+      let language = 'pt-BR';
+      let provider = 'transcription-mock';
+
+      if (isTranscriptionReal()) {
+        try {
+          const answer = await prisma.smartInterviewAnswer.findUnique({ where: { id: payload.answerId } });
+          if (answer?.objectKey) {
+            const bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
+            const region = process.env.AWS_TRANSCRIBE_REGION ?? process.env.S3_REGION ?? 'us-east-1';
+            const mediaUri = `s3://${bucket}/${answer.objectKey}`;
+            const jobName = `connekt-${payload.answerId}-${Date.now()}`;
+
+            const transcribeClient = new TranscribeClient({ region });
+
+            await transcribeClient.send(new StartTranscriptionJobCommand({
+              TranscriptionJobName: jobName,
+              LanguageCode: 'pt-BR' as TranscribeLanguageCode,
+              MediaFormat: 'webm',
+              Media: { MediaFileUri: mediaUri },
+              OutputBucketName: bucket,
+              OutputKey: `transcriptions/${jobName}.json`,
+            }));
+
+            // Poll until complete
+            let jobStatus = 'IN_PROGRESS';
+            let transcriptUri = '';
+            for (let i = 0; i < 60; i++) {
+              await new Promise((r) => setTimeout(r, 5000));
+              const result = await transcribeClient.send(new GetTranscriptionJobCommand({ TranscriptionJobName: jobName }));
+              const job = result.TranscriptionJob;
+              jobStatus = job?.TranscriptionJobStatus ?? 'FAILED';
+              if (jobStatus === 'COMPLETED') {
+                transcriptUri = job?.Transcript?.TranscriptFileUri ?? '';
+                language = job?.LanguageCode ?? 'pt-BR';
+                break;
+              }
+              if (jobStatus === 'FAILED') {
+                throw new Error(`Transcribe job failed: ${job?.FailureReason ?? 'unknown'}`);
+              }
+            }
+
+            if (jobStatus === 'COMPLETED' && transcriptUri) {
+              const response = await fetch(transcriptUri);
+              const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
+              transcriptContent = data.results?.transcripts?.map((t) => t.transcript).join(' ') ?? '';
+              provider = 'aws-transcribe';
+
+              console.log(JSON.stringify({ source: 'worker', event: 'transcription_real_completed', answerId: payload.answerId, jobName, transcriptLength: transcriptContent.length }));
+            }
+          }
+        } catch (err) {
+          console.error(JSON.stringify({ source: 'worker', event: 'transcription_real_failed', answerId: payload.answerId, error: String(err) }));
+          if (!shouldFallbackToMock('transcription')) throw err;
+          console.log(JSON.stringify({ source: 'worker', event: 'transcription_fallback_to_mock', answerId: payload.answerId }));
+        }
+      }
+
       await prisma.smartInterviewTranscript.upsert({
         where: { answerId: payload.answerId },
-        update: { status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
-        create: { answerId: payload.answerId, status: 'completed', content: 'Transcrição mock gerada pelo worker.' },
+        update: { status: 'completed', content: transcriptContent, language },
+        create: { answerId: payload.answerId, status: 'completed', content: transcriptContent, language },
+      });
+
+      await prisma.transcriptMetadata.upsert({
+        where: { answerId: payload.answerId },
+        update: { provider, status: 'completed', processedAt: new Date() },
+        create: { answerId: payload.answerId, provider, status: 'completed', processedAt: new Date() },
       });
 
       await prisma.smartInterviewAnswer.update({
@@ -110,20 +200,103 @@ export async function processSmartInterviewAnalysisJobs(): Promise<number> {
   for (const evt of events) {
     const payload = evt.payload as { sessionId: string; answerId: string };
     const ok = await safeProcess('smart-interview.transcribed', evt.id, async () => {
+      let summary = 'Análise mock: comunicação clara e exemplos práticos relevantes.';
+      let highlights: string[] = ['clareza', 'objetividade'];
+      let risks: string[] = ['aprofundar detalhes técnicos'];
+      let evidence: string[] = [];
+      let sentimentJson: Record<string, unknown> | null = null;
+      let entitiesJson: Array<Record<string, unknown>> | null = null;
+      let keyPhrasesJson: Array<Record<string, unknown>> | null = null;
+      let provider = 'ai-mock';
+      let modelVersion = 'mock-v1';
+
+      // Fetch transcript text for enrichment
+      const transcripts = await prisma.smartInterviewTranscript.findMany({
+        where: { answer: { sessionId: payload.sessionId } },
+      });
+      const transcriptText = transcripts.map((t) => t.content).join('\n').trim();
+
+      // Run AWS Comprehend for sentiment analysis when enabled
+      if (isAiReal() && transcriptText && transcriptText !== 'Transcrição mock gerada pelo worker.') {
+        try {
+          const comprehendRegion = process.env.AWS_COMPREHEND_REGION ?? process.env.S3_REGION ?? 'us-east-1';
+          const comprehendClient = new ComprehendClient({ region: comprehendRegion });
+          const truncated = transcriptText.slice(0, 5000);
+
+          const [sentimentResult, keyPhrasesResult, entitiesResult] = await Promise.all([
+            comprehendClient.send(new DetectSentimentCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectKeyPhrasesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectEntitiesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+          ]);
+
+          sentimentJson = {
+            sentiment: sentimentResult.Sentiment ?? 'NEUTRAL',
+            scores: {
+              positive: sentimentResult.SentimentScore?.Positive ?? 0,
+              negative: sentimentResult.SentimentScore?.Negative ?? 0,
+              neutral: sentimentResult.SentimentScore?.Neutral ?? 0,
+              mixed: sentimentResult.SentimentScore?.Mixed ?? 0,
+            },
+          };
+
+          keyPhrasesJson = (keyPhrasesResult.KeyPhrases ?? []).map((p) => ({
+            text: p.Text ?? '',
+            score: p.Score ?? 0,
+            beginOffset: p.BeginOffset ?? 0,
+            endOffset: p.EndOffset ?? 0,
+          }));
+
+          entitiesJson = (entitiesResult.Entities ?? []).map((e) => ({
+            text: e.Text ?? '',
+            type: e.Type ?? 'OTHER',
+            score: e.Score ?? 0,
+            beginOffset: e.BeginOffset ?? 0,
+            endOffset: e.EndOffset ?? 0,
+          }));
+
+          provider = 'aws-comprehend+ai';
+          modelVersion = process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini';
+
+          console.log(JSON.stringify({
+            source: 'worker',
+            event: 'comprehend_analysis_completed',
+            sessionId: payload.sessionId,
+            sentiment: sentimentJson.sentiment,
+            keyPhrasesCount: keyPhrasesJson.length,
+            entitiesCount: entitiesJson.length,
+          }));
+        } catch (err) {
+          console.error(JSON.stringify({ source: 'worker', event: 'comprehend_analysis_failed', sessionId: payload.sessionId, error: String(err) }));
+          if (!shouldFallbackToMock('ai')) throw err;
+        }
+      }
+
       await prisma.smartInterviewAiAnalysis.upsert({
         where: { sessionId: payload.sessionId },
         update: {
           status: 'completed',
-          summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
-          highlights: ['clareza', 'objetividade'],
-          risks: ['aprofundar detalhes técnicos'],
+          summary,
+          highlights: highlights as never,
+          risks: risks as never,
+          evidence: evidence as never,
+          sentimentJson: sentimentJson as never,
+          entitiesJson: entitiesJson as never,
+          keyPhrasesJson: keyPhrasesJson as never,
+          provider,
+          modelVersion,
         },
         create: {
           sessionId: payload.sessionId,
           status: 'completed',
-          summary: 'Análise mock: comunicação clara e exemplos práticos relevantes.',
-          highlights: ['clareza', 'objetividade'],
-          risks: ['aprofundar detalhes técnicos'],
+          summary,
+          highlights: highlights as never,
+          risks: risks as never,
+          evidence: evidence as never,
+          sentimentJson: sentimentJson as never,
+          entitiesJson: entitiesJson as never,
+          keyPhrasesJson: keyPhrasesJson as never,
+          provider,
+          modelVersion,
         },
       });
 

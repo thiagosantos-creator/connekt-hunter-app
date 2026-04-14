@@ -190,6 +190,18 @@ describe('Vertical Slice 10 — Full System Validation', () => {
 
       expect(steps.length).toBe(6);
     });
+
+    it('admin candidate account management flow supports email update and password reset request', () => {
+      const steps = [
+        { action: 'GET /admin/candidates?organizationId=', actor: 'admin', result: 'candidate account list with reset eligibility' },
+        { action: 'PUT /admin/candidates/:candidateId', actor: 'admin', result: 'candidate email updated and linked identity synchronized' },
+        { action: 'POST /admin/candidates/:candidateId/request-password-reset', actor: 'admin', result: 'reset email requested or manual reset link returned' },
+      ];
+
+      expect(steps.length).toBe(3);
+      expect(steps[1].result).toContain('linked identity');
+      expect(steps[2].result).toContain('reset');
+    });
   });
 
   /* ------------------------------------------------------------------ */

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import type { Application, Candidate, CandidateInvite, CandidateRecommendation, Organization, Vacancy } from '../services/types.js';
+import { listManagedCandidates, requestCandidatePasswordReset, updateManagedCandidate } from '../services/account.js';
+import { hasPermission } from '../services/rbac.js';
+import type { Application, Candidate, CandidateInvite, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
 import {
   AiTag,
   Badge,
@@ -14,11 +16,13 @@ import {
   CardTitle,
   DataTable,
   InlineMessage,
+  Input,
   PageContent,
   PageHeader,
   SectionTitle,
   Select,
-  Input,
+  Skeleton,
+  StatBox,
   colors,
   fontSize,
   radius,
@@ -45,6 +49,14 @@ export function CandidatesView() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [inviteHistory, setInviteHistory] = useState<CandidateInvite[]>([]);
+  const [managedCandidates, setManagedCandidates] = useState<ManagedCandidate[]>([]);
+  const [selectedManagedCandidateId, setSelectedManagedCandidateId] = useState('');
+  const [managedCandidateEmail, setManagedCandidateEmail] = useState('');
+  const [managedCandidateFeedback, setManagedCandidateFeedback] = useState<CandidatePasswordResetResult | null>(null);
+  const [loadingManagedCandidates, setLoadingManagedCandidates] = useState(false);
+  const [savingManagedCandidate, setSavingManagedCandidate] = useState(false);
+  const [resettingCandidate, setResettingCandidate] = useState(false);
+  const canManageCandidateAccounts = hasPermission(user, 'users:manage');
 
   const orgOptions = useMemo(() => {
     if (organizations.length > 0) {
@@ -77,6 +89,38 @@ export function CandidatesView() {
       .catch(() => setInviteHistory([]));
   }, [orgId]);
 
+  useEffect(() => {
+    if (!orgId || !canManageCandidateAccounts) {
+      setManagedCandidates([]);
+      setSelectedManagedCandidateId('');
+      return;
+    }
+    setLoadingManagedCandidates(true);
+    void listManagedCandidates(orgId)
+      .then((rows) => {
+        setManagedCandidates(rows);
+        setSelectedManagedCandidateId((current) => (
+          rows.some((candidate) => candidate.id === current) ? current : (rows[0]?.id ?? '')
+        ));
+      })
+      .catch((err) => {
+        setMsg(String(err));
+        setMsgVariant('error');
+        setManagedCandidates([]);
+      })
+      .finally(() => setLoadingManagedCandidates(false));
+  }, [canManageCandidateAccounts, orgId]);
+
+  const selectedManagedCandidate = useMemo(
+    () => managedCandidates.find((candidate) => candidate.id === selectedManagedCandidateId) ?? null,
+    [managedCandidates, selectedManagedCandidateId],
+  );
+
+  useEffect(() => {
+    setManagedCandidateEmail(selectedManagedCandidate?.email ?? '');
+    setManagedCandidateFeedback(null);
+  }, [selectedManagedCandidate]);
+
   const vacancyOptions = useMemo(
     () => vacancies
       .filter((item) => item.organizationId === orgId)
@@ -96,6 +140,8 @@ export function CandidatesView() {
   );
 
   const inviteUrl = result ? `${candidateWebBase}/?token=${encodeURIComponent(result.token)}` : '';
+  const activeManagedCandidates = managedCandidates.filter((candidate) => candidate.hasLoginAccount).length;
+  const resettableManagedCandidates = managedCandidates.filter((candidate) => candidate.canRequestPasswordReset).length;
 
   const handleRecommendationSelection = (applicationId: string) => {
     const selected = applications.find((item) => item.id === applicationId);
@@ -154,6 +200,46 @@ export function CandidatesView() {
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
+    }
+  };
+
+  const saveManagedCandidateEmail = async () => {
+    if (!selectedManagedCandidate) return;
+    setSavingManagedCandidate(true);
+    try {
+      const updated = await updateManagedCandidate({
+        candidateId: selectedManagedCandidate.id,
+        email: managedCandidateEmail,
+      });
+      setManagedCandidates((current) => current.map((candidate) => (
+        candidate.id === updated.id ? updated : candidate
+      )));
+      setManagedCandidateEmail(updated.email);
+      setManagedCandidateFeedback(null);
+      setMsg('E-mail do candidato atualizado com sucesso.');
+      setMsgVariant('success');
+    } catch (err) {
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setSavingManagedCandidate(false);
+    }
+  };
+
+  const requestReset = async () => {
+    if (!selectedManagedCandidate) return;
+    setResettingCandidate(true);
+    try {
+      const response = await requestCandidatePasswordReset(selectedManagedCandidate.id);
+      setManagedCandidateFeedback(response);
+      setMsg(response.message);
+      setMsgVariant(response.status === 'sent' ? 'success' : 'error');
+    } catch (err) {
+      setManagedCandidateFeedback(null);
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setResettingCandidate(false);
     }
   };
 
@@ -287,6 +373,149 @@ export function CandidatesView() {
           />
         </CardContent>
       </Card>
+
+      {canManageCandidateAccounts && (
+        <Card style={{ marginBottom: spacing.lg }}>
+          <CardHeader>
+            <CardTitle>Gestão administrativa do candidato</CardTitle>
+            <CardDescription>Atualize o e-mail cadastrado e solicite redefinição de acesso para candidatos com conta criada.</CardDescription>
+          </CardHeader>
+          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+              <StatBox label="Candidatos no tenant" value={managedCandidates.length} />
+              <StatBox label="Com conta criada" value={activeManagedCandidates} />
+              <StatBox label="Reset disponível" value={resettableManagedCandidates} />
+            </div>
+
+            {loadingManagedCandidates ? (
+              <Skeleton style={{ height: 240, borderRadius: 8 }} />
+            ) : (
+              <>
+                <DataTable
+                  columns={[
+                    {
+                      key: 'candidate',
+                      header: 'Candidato',
+                      render: (row: ManagedCandidate) => row.fullName || row.email,
+                      searchValue: (row: ManagedCandidate) => `${row.fullName ?? ''} ${row.email}`.trim(),
+                      sortValue: (row: ManagedCandidate) => row.fullName || row.email,
+                    },
+                    {
+                      key: 'email',
+                      header: 'E-mail',
+                      render: (row: ManagedCandidate) => row.email,
+                      searchValue: (row: ManagedCandidate) => row.email,
+                    },
+                    {
+                      key: 'account',
+                      header: 'Conta',
+                      render: (row: ManagedCandidate) => (
+                        <Badge variant={row.hasLoginAccount ? 'success' : 'warning'} size="sm">
+                          {row.hasLoginAccount ? 'Criada' : 'Pendente'}
+                        </Badge>
+                      ),
+                    },
+                    {
+                      key: 'reset',
+                      header: 'Reset',
+                      render: (row: ManagedCandidate) => (
+                        <Badge variant={row.canRequestPasswordReset ? 'info' : 'neutral'} size="sm">
+                          {row.canRequestPasswordReset ? 'Disponível' : 'Indisponível'}
+                        </Badge>
+                      ),
+                    },
+                    {
+                      key: 'lastInvite',
+                      header: 'Último convite',
+                      render: (row: ManagedCandidate) => row.lastInvite
+                        ? `${row.lastInvite.channel} • ${row.lastInvite.status}`
+                        : 'Sem convite',
+                    },
+                  ]}
+                  data={managedCandidates}
+                  rowKey={(row) => row.id}
+                  searchable
+                  searchPlaceholder="Buscar candidato por nome ou e-mail"
+                  pageSize={6}
+                  emptyMessage="Nenhum candidato encontrado para este tenant."
+                  onRowClick={(row) => setSelectedManagedCandidateId(row.id)}
+                />
+
+                {selectedManagedCandidate && (
+                  <Card variant="outlined">
+                    <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+                        <StatBox label="Selecionado" value={selectedManagedCandidate.fullName || selectedManagedCandidate.email} />
+                        <StatBox label="Aplicações" value={selectedManagedCandidate.applicationsCount} />
+                        <StatBox label="Convites" value={selectedManagedCandidate.invitesCount} />
+                        <StatBox label="Provedores" value={selectedManagedCandidate.authProviders.join(', ') || 'Sem conta'} />
+                      </div>
+
+                      <Input
+                        label="E-mail do candidato"
+                        type="email"
+                        value={managedCandidateEmail}
+                        onChange={(e) => setManagedCandidateEmail(e.target.value)}
+                        placeholder="candidato@email.com"
+                      />
+
+                      <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                        <Button
+                          type="button"
+                          onClick={() => { void saveManagedCandidateEmail(); }}
+                          loading={savingManagedCandidate}
+                          disabled={!managedCandidateEmail.trim() || managedCandidateEmail.trim().toLowerCase() === selectedManagedCandidate.email.toLowerCase()}
+                        >
+                          Salvar e-mail
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => { void requestReset(); }}
+                          loading={resettingCandidate}
+                          disabled={!selectedManagedCandidate.canRequestPasswordReset}
+                        >
+                          Solicitar nova senha
+                        </Button>
+                      </div>
+
+                      {!selectedManagedCandidate.canRequestPasswordReset && (
+                        <InlineMessage variant="warning">
+                          O reset só fica disponível quando o candidato já possui conta vinculada e e-mail real configurado.
+                        </InlineMessage>
+                      )}
+
+                      {managedCandidateFeedback?.resetUrl && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                          <strong>Link de redefinição</strong>
+                          <code
+                            style={{
+                              display: 'block',
+                              background: colors.primary,
+                              color: colors.textInverse,
+                              padding: spacing.md,
+                              borderRadius: radius.md,
+                              fontSize: fontSize.sm,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {managedCandidateFeedback.resetUrl}
+                          </code>
+                          <div>
+                            <Button type="button" variant="ghost" onClick={() => { void copyInviteLink(managedCandidateFeedback.resetUrl!); }}>
+                              Copiar link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

@@ -1,9 +1,10 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { EmailGateway } from '../integrations/email.gateway.js';
 import { InviteFollowUpService } from '../invite-follow-up/invite-follow-up.service.js';
 import { NotificationDispatchService } from '../notification-preferences/notification-dispatch.service.js';
+import { AuthService } from '../auth/auth.service.js';
 
 @Injectable()
 export class CandidatesService {
@@ -13,6 +14,7 @@ export class CandidatesService {
     @Inject(EmailGateway) private readonly emailGateway: EmailGateway,
     @Inject(InviteFollowUpService) private readonly inviteFollowUpService: InviteFollowUpService,
     @Inject(NotificationDispatchService) private readonly notificationDispatchService: NotificationDispatchService,
+    @Inject(AuthService) private readonly authService: AuthService,
   ) {}
 
   async invite(input: {
@@ -192,12 +194,7 @@ export class CandidatesService {
   }
 
   async listInvites(organizationId: string, actorUserId: string, role: string) {
-    if (role !== 'admin') {
-      const membership = await prisma.membership.findUnique({
-        where: { organizationId_userId: { organizationId, userId: actorUserId } },
-      });
-      if (!membership) throw new ForbiddenException('user_not_member_of_org');
-    }
+    await this.assertAccess(organizationId, actorUserId, role);
 
     return prisma.candidateInvite.findMany({
       where: { organizationId },
@@ -208,5 +205,314 @@ export class CandidatesService {
         vacancy: { select: { id: true, title: true } },
       },
     });
+  }
+
+  async listManagedCandidates(organizationId: string, actorUserId: string, role: string) {
+    await this.assertAccess(organizationId, actorUserId, role);
+
+    const resetBaseUrl = this.buildPasswordResetUrl('candidate@example.com');
+    const candidates = await prisma.candidate.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        profile: {
+          select: {
+            fullName: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            identities: {
+              select: {
+                provider: true,
+                email: true,
+              },
+            },
+          },
+        },
+        invites: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            channel: true,
+            destination: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+        _count: {
+          select: {
+            applications: true,
+            invites: true,
+          },
+        },
+      },
+    });
+
+    return candidates.map((candidate) => ({
+      id: candidate.id,
+      organizationId: candidate.organizationId,
+      email: candidate.email,
+      phone: candidate.phone,
+      fullName: candidate.profile?.fullName ?? null,
+      createdAt: candidate.createdAt,
+      guestUpgradeAt: candidate.guestUpgradeAt,
+      userId: candidate.userId,
+      hasLoginAccount: Boolean(candidate.userId),
+      authProviders: [...new Set(candidate.user?.identities.map((identity) => identity.provider) ?? [])],
+      applicationsCount: candidate._count.applications,
+      invitesCount: candidate._count.invites,
+      canRequestPasswordReset: Boolean(candidate.userId && resetBaseUrl && !candidate.email.endsWith('@placeholder.local')),
+      lastInvite: candidate.invites[0] ?? null,
+    }));
+  }
+
+  async updateManagedCandidate(
+    candidateId: string,
+    actorUserId: string,
+    role: string,
+    payload: { email: string },
+  ) {
+    const normalizedEmail = payload.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      throw new BadRequestException('invalid_email');
+    }
+
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: { user: true },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    await this.assertAccess(candidate.organizationId, actorUserId, role);
+
+    if (normalizedEmail === candidate.email) {
+      return this.getManagedCandidate(candidateId);
+    }
+
+    const conflictingCandidate = await prisma.candidate.findUnique({ where: { email: normalizedEmail } });
+    if (conflictingCandidate && conflictingCandidate.id !== candidateId) {
+      throw new BadRequestException('candidate_email_already_in_use');
+    }
+
+    if (candidate.userId) {
+      const conflictingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+      if (conflictingUser && conflictingUser.id !== candidate.userId) {
+        throw new BadRequestException('user_email_already_in_use');
+      }
+
+      const conflictingIdentity = await prisma.authIdentity.findFirst({
+        where: {
+          provider: { in: ['candidate-passwordless', 'candidate-local'] },
+          subject: normalizedEmail,
+          NOT: { userId: candidate.userId },
+        },
+      });
+      if (conflictingIdentity) {
+        throw new BadRequestException('candidate_identity_email_already_in_use');
+      }
+    }
+
+    await prisma.candidate.update({
+      where: { id: candidateId },
+      data: { email: normalizedEmail },
+    });
+
+    if (candidate.userId) {
+      await prisma.user.update({
+        where: { id: candidate.userId },
+        data: { email: normalizedEmail },
+      });
+      await prisma.authIdentity.updateMany({
+        where: {
+          userId: candidate.userId,
+          email: candidate.email,
+        },
+        data: { email: normalizedEmail },
+      });
+      await prisma.authIdentity.updateMany({
+        where: {
+          userId: candidate.userId,
+          provider: { in: ['candidate-passwordless', 'candidate-local'] },
+          subject: candidate.email,
+        },
+        data: { subject: normalizedEmail },
+      });
+    }
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: actorUserId,
+        action: 'candidate.admin-email-updated',
+        entityType: 'candidate',
+        entityId: candidateId,
+        metadata: {
+          organizationId: candidate.organizationId,
+          before: candidate.email,
+          after: normalizedEmail,
+        } as never,
+      },
+    });
+
+    return this.getManagedCandidate(candidateId);
+  }
+
+  async requestPasswordReset(candidateId: string, actorUserId: string, role: string) {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            identities: {
+              select: {
+                provider: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    await this.assertAccess(candidate.organizationId, actorUserId, role);
+
+    if (!candidate.userId || candidate.user?.identities.length === 0) {
+      throw new BadRequestException('candidate_has_no_login_account');
+    }
+    if (candidate.email.endsWith('@placeholder.local')) {
+      throw new BadRequestException('candidate_email_not_resettable');
+    }
+
+    const resetUrl = this.buildPasswordResetUrl(candidate.email);
+    if (!resetUrl) {
+      throw new BadRequestException('candidate_password_reset_unavailable');
+    }
+
+    let status: 'sent' | 'manual_action_required' = 'sent';
+    let message = 'Solicitação de redefinição enviada para o e-mail do candidato.';
+
+    try {
+      await this.emailGateway.sendTemplated({
+        tenantId: candidate.organizationId,
+        to: candidate.email,
+        templateKey: 'candidate-password-reset',
+        templateVersion: 'v1',
+        payload: {
+          candidateId: candidate.id,
+          candidateEmail: candidate.email,
+          resetUrl,
+        },
+        correlationId: `candidate-password-reset:${candidate.id}`,
+      });
+    } catch (error) {
+      status = 'manual_action_required';
+      message = 'Não foi possível enviar o e-mail automaticamente. Compartilhe o link manualmente com o candidato.';
+      this.logger.warn({ message: 'Candidate password reset email failed', error: String(error), candidateId });
+    }
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: actorUserId,
+        action: 'candidate.password-reset-requested',
+        entityType: 'candidate',
+        entityId: candidateId,
+        metadata: {
+          organizationId: candidate.organizationId,
+          email: candidate.email,
+          status,
+        } as never,
+      },
+    });
+
+    return {
+      status,
+      provider: this.authService.getCandidateAuthConfig().provider,
+      email: candidate.email,
+      message,
+      resetUrl,
+    };
+  }
+
+  private async getManagedCandidate(candidateId: string) {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: {
+        profile: {
+          select: {
+            fullName: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            identities: {
+              select: {
+                provider: true,
+              },
+            },
+          },
+        },
+        invites: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            channel: true,
+            destination: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+        _count: {
+          select: {
+            applications: true,
+            invites: true,
+          },
+        },
+      },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    return {
+      id: candidate.id,
+      organizationId: candidate.organizationId,
+      email: candidate.email,
+      phone: candidate.phone,
+      fullName: candidate.profile?.fullName ?? null,
+      createdAt: candidate.createdAt,
+      guestUpgradeAt: candidate.guestUpgradeAt,
+      userId: candidate.userId,
+      hasLoginAccount: Boolean(candidate.userId),
+      authProviders: [...new Set(candidate.user?.identities.map((identity) => identity.provider) ?? [])],
+      applicationsCount: candidate._count.applications,
+      invitesCount: candidate._count.invites,
+      canRequestPasswordReset: Boolean(candidate.userId && this.buildPasswordResetUrl(candidate.email) && !candidate.email.endsWith('@placeholder.local')),
+      lastInvite: candidate.invites[0] ?? null,
+    };
+  }
+
+  private async assertAccess(organizationId: string, actorUserId: string, role: string) {
+    if (role === 'admin') return;
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId, userId: actorUserId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+  }
+
+  private buildPasswordResetUrl(candidateEmail: string) {
+    const config = this.authService.getCandidateAuthConfig();
+    if (!config.changePasswordUrl) return null;
+    try {
+      const url = new URL(config.changePasswordUrl);
+      url.searchParams.set('login_hint', candidateEmail);
+      url.searchParams.set('email', candidateEmail);
+      return url.toString();
+    } catch {
+      return null;
+    }
   }
 }

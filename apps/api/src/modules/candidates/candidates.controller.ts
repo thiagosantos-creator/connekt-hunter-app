@@ -71,6 +71,13 @@ export class CandidatesController {
     return this.candidatesService.requestPasswordReset(candidateId, user.id, user.role);
   }
 
+  @Post('admin/candidates/:candidateId/resend-invite')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('users:manage')
+  resendInvite(@Param('candidateId') candidateId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.resendManagedCandidateInvite(candidateId, user.id, user.role);
+  }
+
   @Get('candidate/token/:token')
   @UseGuards(RateLimitGuard, PublicTokenGuard)
   @RateLimit({ scope: 'candidate-token', windowSec: 60, maxRequests: 20 })

@@ -152,6 +152,16 @@ export interface CandidatePasswordResetResult {
   resetUrl?: string | null;
 }
 
+export interface CandidateInviteResendResult {
+  inviteId: string;
+  inviteStatus: string;
+  inviteChannel: string;
+  inviteDestination: string;
+  token: string;
+  accessUrl: string;
+  message: string;
+}
+
 export interface CandidateRecommendation {
   id: string;
   candidateId: string;

@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPut } from './api.js';
-import type { AuditEvent, AuthUser, CandidateInvite, CandidatePasswordResetResult, ManagedCandidate, ManagedUser } from './types.js';
+import type { AuditEvent, AuthUser, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, ManagedCandidate, ManagedUser } from './types.js';
 
 const PROFILE_KEY = 'bo_user';
 
@@ -58,6 +58,10 @@ export async function updateManagedCandidate(input: {
 
 export async function requestCandidatePasswordReset(candidateId: string): Promise<CandidatePasswordResetResult> {
   return apiPost<CandidatePasswordResetResult>(`/admin/candidates/${candidateId}/request-password-reset`, {});
+}
+
+export async function resendCandidateInvite(candidateId: string): Promise<CandidateInviteResendResult> {
+  return apiPost<CandidateInviteResendResult>(`/admin/candidates/${candidateId}/resend-invite`, {});
 }
 
 export function generateMockMfaQr(email: string): string {

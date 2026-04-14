@@ -77,6 +77,7 @@ pnpm --filter candidate-web dev
 - `GET /admin/candidates?organizationId=`
 - `PUT /admin/candidates/:candidateId`
 - `POST /admin/candidates/:candidateId/request-password-reset`
+- `POST /admin/candidates/:candidateId/resend-invite`
 - `GET /candidate/token/:token`
 - `POST /candidate/onboarding/basic`
 - `POST /candidate/onboarding/consent`

@@ -68,97 +68,18 @@ export class CandidatesService {
       update: {},
       create: { candidateId: candidate.id },
     });
-
-    const application = await prisma.application.upsert({
-      where: { candidateId_vacancyId: { candidateId: candidate.id, vacancyId: input.vacancyId } },
-      update: {},
-      create: { candidateId: candidate.id, vacancyId: input.vacancyId },
-    });
-
-    let dispatchId: string | undefined;
-    let inviteStatus = 'link_generated';
-
-    if (input.channel === 'email') {
-      try {
-        const dispatch = await this.emailGateway.sendTemplated({
-          tenantId: input.organizationId,
-          to: email,
-          templateKey: 'candidate-invite',
-          templateVersion: 'v1',
-          payload: { token: candidate.token, vacancyId: input.vacancyId },
-          correlationId: candidate.id,
-        });
-        dispatchId = dispatch.dispatchId;
-        inviteStatus = 'sent';
-      } catch (err) {
-        this.logger.warn({ message: 'Email dispatch failed for invite, link still generated', error: String(err) });
-        inviteStatus = 'link_generated';
-      }
-    } else if (input.channel === 'phone') {
-      try {
-        const phoneDispatch = await prisma.messageDispatch.create({
-          data: {
-            channel: 'phone-gateway',
-            destination: input.destination,
-            content: JSON.stringify({ type: 'candidate-invite', token: candidate.token, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
-            status: 'sent',
-          },
-        });
-        dispatchId = phoneDispatch.id;
-        inviteStatus = 'sent';
-      } catch (err) {
-        this.logger.warn({ message: 'Phone dispatch failed for invite, link still generated', error: String(err) });
-        inviteStatus = 'link_generated';
-      }
-    }
-
-    const invite = await prisma.candidateInvite.create({
-      data: {
-        organizationId: input.organizationId,
-        vacancyId: input.vacancyId,
-        candidateId: candidate.id,
-        channel: input.channel,
-        destination: input.channel === 'link' ? 'manual' : input.destination,
-        status: inviteStatus,
-        dispatchId,
-        invitedByUserId: input.actorUserId,
-        sentAt: inviteStatus === 'sent' ? new Date() : undefined,
-        metadata: { applicationId: application.id, vacancyTitle: vacancy.title } as never,
-      },
-    });
-
-    await prisma.auditEvent.create({
-      data: {
-        action: 'candidate.invited',
-        actorId: input.actorUserId,
-        entityType: 'candidate-invite',
-        entityId: invite.id,
-        metadata: { candidateId: candidate.id, vacancyId: input.vacancyId, channel: input.channel, destination: input.destination, consent: input.consent } as never,
-      },
-    });
-
-    const recipients = await prisma.membership.findMany({
-      where: { organizationId: input.organizationId, role: { in: ['admin', 'headhunter'] } },
-      select: { userId: true },
-    });
-
-    await this.notificationDispatchService.dispatchToUsers({
-      organizationId: input.organizationId,
-      userIds: recipients.map((item) => item.userId),
-      actorId: input.actorUserId,
-      eventKey: 'candidate.invited',
-      metadata: {
-        inviteId: invite.id,
-        candidateId: candidate.id,
-        vacancyId: input.vacancyId,
-        channel: input.channel,
-      },
-    });
-
-    await this.inviteFollowUpService.configure(input.actorUserId, {
+    const invite = await this.createInviteDispatch({
       organizationId: input.organizationId,
       vacancyId: input.vacancyId,
+      vacancyTitle: vacancy.title,
       candidateId: candidate.id,
+      candidateToken: candidate.token,
+      channel: input.channel,
+      destination: input.destination,
+      actorUserId: input.actorUserId,
+      auditAction: 'candidate.invited',
+      auditMetadata: { consent: input.consent },
+      notificationMetadata: {},
     });
 
     return {
@@ -437,6 +358,72 @@ export class CandidatesService {
     };
   }
 
+  async resendManagedCandidateInvite(candidateId: string, actorUserId: string, role: string) {
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId },
+      include: {
+        invites: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            channel: true,
+            destination: true,
+            vacancyId: true,
+          },
+        },
+      },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    await this.assertAccess(candidate.organizationId, actorUserId, role);
+
+    const latestInvite = candidate.invites[0];
+    if (!latestInvite) throw new BadRequestException('candidate_has_no_invite_history');
+
+    const channel = this.normalizeInviteChannel(latestInvite.channel);
+    const destination = this.resolveManagedInviteDestination(candidate, latestInvite);
+    const vacancy = await prisma.vacancy.findUnique({
+      where: { id: latestInvite.vacancyId },
+      select: { id: true, organizationId: true, title: true },
+    });
+    if (!vacancy || vacancy.organizationId !== candidate.organizationId) {
+      throw new BadRequestException('vacancy_not_found_for_organization');
+    }
+
+    const invite = await this.createInviteDispatch({
+      organizationId: candidate.organizationId,
+      vacancyId: vacancy.id,
+      vacancyTitle: vacancy.title,
+      candidateId: candidate.id,
+      candidateToken: candidate.token,
+      channel,
+      destination,
+      actorUserId,
+      auditAction: 'candidate.invite-resent',
+      auditMetadata: {
+        sourceInviteId: latestInvite.id,
+        resend: true,
+      },
+      notificationMetadata: {
+        resend: true,
+        sourceInviteId: latestInvite.id,
+      },
+    });
+
+    return {
+      inviteId: invite.id,
+      inviteStatus: invite.status,
+      inviteChannel: invite.channel,
+      inviteDestination: invite.destination,
+      token: candidate.token,
+      accessUrl: this.buildCandidateAccessUrl(candidate.token),
+      message: invite.status === 'sent'
+        ? 'Convite reenviado com sucesso.'
+        : 'Não foi possível reenviar automaticamente. Compartilhe o link manualmente com o candidato.',
+    };
+  }
+
   private async getManagedCandidate(candidateId: string) {
     const candidate = await prisma.candidate.findUnique({
       where: { id: candidateId },
@@ -495,6 +482,119 @@ export class CandidatesService {
     };
   }
 
+  private async createInviteDispatch(input: {
+    organizationId: string;
+    vacancyId: string;
+    vacancyTitle: string;
+    candidateId: string;
+    candidateToken: string;
+    channel: 'email' | 'phone' | 'link';
+    destination: string;
+    actorUserId: string;
+    auditAction: string;
+    auditMetadata?: Record<string, unknown>;
+    notificationMetadata?: Record<string, unknown>;
+  }) {
+    const application = await prisma.application.upsert({
+      where: { candidateId_vacancyId: { candidateId: input.candidateId, vacancyId: input.vacancyId } },
+      update: {},
+      create: { candidateId: input.candidateId, vacancyId: input.vacancyId },
+    });
+
+    let dispatchId: string | undefined;
+    let inviteStatus = 'link_generated';
+
+    if (input.channel === 'email') {
+      try {
+        const dispatch = await this.emailGateway.sendTemplated({
+          tenantId: input.organizationId,
+          to: input.destination,
+          templateKey: 'candidate-invite',
+          templateVersion: 'v1',
+          payload: { token: input.candidateToken, vacancyId: input.vacancyId },
+          correlationId: input.candidateId,
+        });
+        dispatchId = dispatch.dispatchId;
+        inviteStatus = 'sent';
+      } catch (err) {
+        this.logger.warn({ message: 'Email dispatch failed for invite, link still generated', error: String(err), candidateId: input.candidateId });
+      }
+    } else if (input.channel === 'phone') {
+      try {
+        const phoneDispatch = await prisma.messageDispatch.create({
+          data: {
+            channel: 'phone-gateway',
+            destination: input.destination,
+            content: JSON.stringify({ type: 'candidate-invite', token: input.candidateToken, vacancyId: input.vacancyId, providerHint: 'sms|whatsapp' }),
+            status: 'sent',
+          },
+        });
+        dispatchId = phoneDispatch.id;
+        inviteStatus = 'sent';
+      } catch (err) {
+        this.logger.warn({ message: 'Phone dispatch failed for invite, link still generated', error: String(err), candidateId: input.candidateId });
+      }
+    }
+
+    const invite = await prisma.candidateInvite.create({
+      data: {
+        organizationId: input.organizationId,
+        vacancyId: input.vacancyId,
+        candidateId: input.candidateId,
+        channel: input.channel,
+        destination: input.channel === 'link' ? 'manual' : input.destination,
+        status: inviteStatus,
+        dispatchId,
+        invitedByUserId: input.actorUserId,
+        sentAt: inviteStatus === 'sent' ? new Date() : undefined,
+        metadata: { applicationId: application.id, vacancyTitle: input.vacancyTitle, ...input.auditMetadata } as never,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        action: input.auditAction,
+        actorId: input.actorUserId,
+        entityType: 'candidate-invite',
+        entityId: invite.id,
+        metadata: {
+          candidateId: input.candidateId,
+          vacancyId: input.vacancyId,
+          channel: input.channel,
+          destination: input.destination,
+          ...input.auditMetadata,
+        } as never,
+      },
+    });
+
+    const recipients = await prisma.membership.findMany({
+      where: { organizationId: input.organizationId, role: { in: ['admin', 'headhunter'] } },
+      select: { userId: true },
+    });
+
+    await this.notificationDispatchService.dispatchToUsers({
+      organizationId: input.organizationId,
+      userIds: recipients.map((item) => item.userId),
+      actorId: input.actorUserId,
+      eventKey: 'candidate.invited',
+      metadata: {
+        inviteId: invite.id,
+        candidateId: input.candidateId,
+        vacancyId: input.vacancyId,
+        channel: input.channel,
+        ...input.notificationMetadata,
+      },
+    });
+
+    await this.inviteFollowUpService.configure(input.actorUserId, {
+      organizationId: input.organizationId,
+      vacancyId: input.vacancyId,
+      candidateId: input.candidateId,
+    });
+
+    return invite;
+  }
+
   private async assertAccess(organizationId: string, actorUserId: string, role: string) {
     if (role === 'admin') return;
     const membership = await prisma.membership.findUnique({
@@ -530,6 +630,24 @@ export class CandidatesService {
     return this.isValidEmail(email) && !email.endsWith('@placeholder.local');
   }
 
+  private normalizeInviteChannel(channel: string): 'email' | 'phone' | 'link' {
+    if (channel === 'email' || channel === 'phone' || channel === 'link') return channel;
+    throw new BadRequestException('candidate_invite_channel_unsupported');
+  }
+
+  private resolveManagedInviteDestination(
+    candidate: { email: string; phone: string | null },
+    latestInvite: { channel: string; destination: string },
+  ) {
+    if (latestInvite.channel === 'email') return candidate.email;
+    if (latestInvite.channel === 'phone') {
+      const phone = candidate.phone ?? latestInvite.destination;
+      if (!phone) throw new BadRequestException('candidate_phone_not_available');
+      return phone;
+    }
+    return 'manual';
+  }
+
   private isValidEmail(email: string) {
     if (!email || email.length > 254 || /\s/.test(email)) return false;
     const parts = email.split('@');
@@ -541,5 +659,10 @@ export class CandidatesService {
     if (labels.some((label) => !label || label.startsWith('-') || label.endsWith('-'))) return false;
     if (!labels.every((label) => /^[a-z0-9-]+$/i.test(label))) return false;
     return true;
+  }
+
+  private buildCandidateAccessUrl(token: string) {
+    const candidateWebBase = process.env.CANDIDATE_WEB_URL ?? process.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+    return `${candidateWebBase}/?token=${encodeURIComponent(token)}`;
   }
 }

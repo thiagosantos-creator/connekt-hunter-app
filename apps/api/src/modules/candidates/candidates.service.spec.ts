@@ -228,4 +228,117 @@ describe('CandidatesService', () => {
     }));
     expect(result.resetUrl).toContain('login_hint=candidate%40test.com');
   });
+
+  it('rejects invalid email when updating a managed candidate', async () => {
+    await expect(service.updateManagedCandidate('c-invalid', 'admin-1', 'admin', { email: 'invalid-email' }))
+      .rejects
+      .toThrow('invalid_email');
+  });
+
+  it('marks password reset as unavailable when candidate auth config has invalid reset url', async () => {
+    authService.getCandidateAuthConfig.mockReturnValueOnce({
+      provider: 'aws-cognito',
+      hostedUiUrl: null,
+      changePasswordUrl: 'not-a-valid-url',
+      socialProviders: [],
+    });
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'admin-1' } as never);
+    vi.mocked(prisma.candidate.findMany).mockResolvedValue([{
+      id: 'c1',
+      organizationId: 'org1',
+      email: 'candidate@test.com',
+      phone: null,
+      createdAt: new Date('2026-04-14T00:00:00.000Z'),
+      guestUpgradeAt: null,
+      userId: 'user-1',
+      profile: { fullName: 'Candidate' },
+      user: { identities: [{ provider: 'candidate-passwordless', email: 'candidate@test.com' }] },
+      invites: [],
+      _count: { applications: 1, invites: 0 },
+    }] as never);
+
+    const result = await service.listManagedCandidates('org1', 'admin-1', 'headhunter');
+
+    expect(result[0]?.canRequestPasswordReset).toBe(false);
+  });
+
+  it('re-sends the latest candidate invite using the current candidate email', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c-resend',
+      organizationId: 'org1',
+      email: 'updated@test.com',
+      phone: null,
+      token: 'tok-resend',
+      invites: [{
+        id: 'invite-old',
+        channel: 'email',
+        destination: 'old@test.com',
+        vacancyId: 'v1',
+      }],
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'admin-1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);
+    vi.mocked(prisma.application.upsert).mockResolvedValue({ id: 'app-resend' } as never);
+    vi.mocked(prisma.candidateInvite.create).mockResolvedValue({
+      id: 'invite-new',
+      status: 'sent',
+      channel: 'email',
+      destination: 'updated@test.com',
+    } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.membership.findMany).mockResolvedValue([{ userId: 'admin-1' }] as never);
+    emailGateway.sendTemplated.mockResolvedValue({ dispatchId: 'dispatch-resend' });
+    notificationDispatchService.dispatchToUsers.mockResolvedValue([]);
+
+    const result = await service.resendManagedCandidateInvite('c-resend', 'admin-1', 'headhunter');
+
+    expect(emailGateway.sendTemplated).toHaveBeenCalledWith(expect.objectContaining({
+      to: 'updated@test.com',
+      payload: expect.objectContaining({ token: 'tok-resend', vacancyId: 'v1' }),
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      inviteId: 'invite-new',
+      inviteStatus: 'sent',
+      accessUrl: 'http://localhost:5174/?token=tok-resend',
+    }));
+  });
+
+  it('re-sends phone invite using the last invite destination when candidate phone is missing', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c-phone',
+      organizationId: 'org1',
+      email: 'phone@test.com',
+      phone: null,
+      token: 'tok-phone',
+      invites: [{
+        id: 'invite-phone-old',
+        channel: 'phone',
+        destination: '+5511999999999',
+        vacancyId: 'v1',
+      }],
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ organizationId: 'org1', userId: 'admin-1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1', title: 'Engineer' } as never);
+    vi.mocked(prisma.application.upsert).mockResolvedValue({ id: 'app-phone-resend' } as never);
+    vi.mocked(prisma.messageDispatch.create).mockResolvedValue({ id: 'dispatch-phone-resend' } as never);
+    vi.mocked(prisma.candidateInvite.create).mockResolvedValue({
+      id: 'invite-phone-new',
+      status: 'sent',
+      channel: 'phone',
+      destination: '+5511999999999',
+    } as never);
+    vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.membership.findMany).mockResolvedValue([{ userId: 'admin-1' }] as never);
+    notificationDispatchService.dispatchToUsers.mockResolvedValue([]);
+
+    const result = await service.resendManagedCandidateInvite('c-phone', 'admin-1', 'headhunter');
+
+    expect(prisma.messageDispatch.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ destination: '+5511999999999' }),
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      inviteId: 'invite-phone-new',
+      inviteChannel: 'phone',
+    }));
+  });
 });

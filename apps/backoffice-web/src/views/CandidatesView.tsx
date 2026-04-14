@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import { listManagedCandidates, requestCandidatePasswordReset, updateManagedCandidate } from '../services/account.js';
+import { listManagedCandidates, requestCandidatePasswordReset, resendCandidateInvite, updateManagedCandidate } from '../services/account.js';
 import { hasPermission } from '../services/rbac.js';
-import type { Application, Candidate, CandidateInvite, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
+import type { Application, Candidate, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
 import {
   AiTag,
   Badge,
@@ -53,9 +53,11 @@ export function CandidatesView() {
   const [selectedManagedCandidateId, setSelectedManagedCandidateId] = useState('');
   const [managedCandidateEmail, setManagedCandidateEmail] = useState('');
   const [managedCandidateFeedback, setManagedCandidateFeedback] = useState<CandidatePasswordResetResult | null>(null);
+  const [managedInviteFeedback, setManagedInviteFeedback] = useState<CandidateInviteResendResult | null>(null);
   const [loadingManagedCandidates, setLoadingManagedCandidates] = useState(false);
   const [savingManagedCandidate, setSavingManagedCandidate] = useState(false);
   const [resettingCandidate, setResettingCandidate] = useState(false);
+  const [resendingCandidateInvite, setResendingCandidateInvite] = useState(false);
   const canManageCandidateAccounts = hasPermission(user, 'users:manage');
 
   const orgOptions = useMemo(() => {
@@ -82,9 +84,24 @@ export function CandidatesView() {
     }
   }, [orgId, orgOptions]);
 
+  const loadInviteHistory = async (organizationId: string) => {
+    const data = await apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(organizationId)}`);
+    setInviteHistory(data);
+    return data;
+  };
+
+  const loadManagedCandidates = async (organizationId: string) => {
+    const rows = await listManagedCandidates(organizationId);
+    setManagedCandidates(rows);
+    setSelectedManagedCandidateId((current) => (
+      rows.some((candidate) => candidate.id === current) ? current : (rows[0]?.id ?? '')
+    ));
+    return rows;
+  };
+
   useEffect(() => {
     if (!orgId) return;
-    void apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(orgId)}`)
+    void loadInviteHistory(orgId)
       .then(setInviteHistory)
       .catch(() => setInviteHistory([]));
   }, [orgId]);
@@ -96,13 +113,7 @@ export function CandidatesView() {
       return;
     }
     setLoadingManagedCandidates(true);
-    void listManagedCandidates(orgId)
-      .then((rows) => {
-        setManagedCandidates(rows);
-        setSelectedManagedCandidateId((current) => (
-          rows.some((candidate) => candidate.id === current) ? current : (rows[0]?.id ?? '')
-        ));
-      })
+    void loadManagedCandidates(orgId)
       .catch((err) => {
         setMsg(String(err));
         setMsgVariant('error');
@@ -119,6 +130,7 @@ export function CandidatesView() {
   useEffect(() => {
     setManagedCandidateEmail(selectedManagedCandidate?.email ?? '');
     setManagedCandidateFeedback(null);
+    setManagedInviteFeedback(null);
   }, [selectedManagedCandidate]);
 
   const vacancyOptions = useMemo(
@@ -142,7 +154,10 @@ export function CandidatesView() {
   const inviteUrl = result ? `${candidateWebBase}/?token=${encodeURIComponent(result.token)}` : '';
   const activeManagedCandidates = managedCandidates.filter((candidate) => candidate.hasLoginAccount).length;
   const resettableManagedCandidates = managedCandidates.filter((candidate) => candidate.canRequestPasswordReset).length;
-  const normalizedManagedCandidateEmail = managedCandidateEmail.trim().toLowerCase();
+  const normalizedEmail = managedCandidateEmail.trim().toLowerCase();
+  const hasManagedCandidateEmailChanged = selectedManagedCandidate
+    ? normalizedEmail !== selectedManagedCandidate.email.toLowerCase()
+    : false;
 
   const handleRecommendationSelection = (applicationId: string) => {
     const selected = applications.find((item) => item.id === applicationId);
@@ -166,7 +181,8 @@ export function CandidatesView() {
       setResult(invited);
       setMsg('Candidato convidado com sucesso.');
       setMsgVariant('success');
-      setInviteHistory(await apiGet<CandidateInvite[]>(`/candidates/invites?organizationId=${encodeURIComponent(orgId)}`));
+      await loadInviteHistory(orgId);
+      if (canManageCandidateAccounts) await loadManagedCandidates(orgId);
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
@@ -217,8 +233,10 @@ export function CandidatesView() {
       )));
       setManagedCandidateEmail(updated.email);
       setManagedCandidateFeedback(null);
+      setManagedInviteFeedback(null);
       setMsg('E-mail do candidato atualizado com sucesso.');
       setMsgVariant('success');
+      if (orgId) await loadInviteHistory(orgId);
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
@@ -241,6 +259,28 @@ export function CandidatesView() {
       setMsgVariant('error');
     } finally {
       setResettingCandidate(false);
+    }
+  };
+
+  const resendInvite = async () => {
+    if (!selectedManagedCandidate) return;
+    setResendingCandidateInvite(true);
+    try {
+      const response = await resendCandidateInvite(selectedManagedCandidate.id);
+      setManagedInviteFeedback(response);
+      setManagedCandidateFeedback(null);
+      setMsg(response.message);
+      setMsgVariant(response.inviteStatus === 'sent' ? 'success' : 'error');
+      if (orgId) {
+        await loadInviteHistory(orgId);
+        await loadManagedCandidates(orgId);
+      }
+    } catch (err) {
+      setManagedInviteFeedback(null);
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setResendingCandidateInvite(false);
     }
   };
 
@@ -465,9 +505,18 @@ export function CandidatesView() {
                           type="button"
                           onClick={() => { void saveManagedCandidateEmail(); }}
                           loading={savingManagedCandidate}
-                          disabled={!normalizedManagedCandidateEmail || normalizedManagedCandidateEmail === selectedManagedCandidate.email.toLowerCase()}
+                          disabled={!normalizedEmail || !hasManagedCandidateEmailChanged}
                         >
                           Salvar e-mail
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => { void resendInvite(); }}
+                          loading={resendingCandidateInvite}
+                          disabled={!selectedManagedCandidate.lastInvite}
+                        >
+                          Reenviar acesso
                         </Button>
                         <Button
                           type="button"
@@ -484,6 +533,37 @@ export function CandidatesView() {
                         <InlineMessage variant="warning">
                           O reset só fica disponível quando o candidato já possui conta vinculada e e-mail real configurado.
                         </InlineMessage>
+                      )}
+
+                      {!selectedManagedCandidate.lastInvite && (
+                        <InlineMessage variant="warning">
+                          O reenvio de acesso fica disponível após o primeiro convite do candidato.
+                        </InlineMessage>
+                      )}
+
+                      {managedInviteFeedback?.accessUrl && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                          <strong>Link de acesso reenviado</strong>
+                          <code
+                            style={{
+                              display: 'block',
+                              background: colors.primary,
+                              color: colors.textInverse,
+                              padding: spacing.md,
+                              borderRadius: radius.md,
+                              fontSize: fontSize.sm,
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {managedInviteFeedback.accessUrl}
+                          </code>
+                          <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedInviteFeedback.accessUrl); }}>
+                              Copiar link
+                            </Button>
+                            <a href={managedInviteFeedback.accessUrl} target="_blank" rel="noreferrer">Abrir portal</a>
+                          </div>
+                        </div>
                       )}
 
                       {managedCandidateFeedback?.resetUrl && (

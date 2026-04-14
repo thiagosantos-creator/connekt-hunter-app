@@ -5,7 +5,6 @@ import {
   DataTable,
   EmptyState,
   InlineMessage,
-  Input,
   PageContent,
   PageHeader,
   StatusPill,

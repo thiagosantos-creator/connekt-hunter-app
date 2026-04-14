@@ -200,12 +200,18 @@ export class OnboardingService {
     const onboarding = candidate.onboarding;
     const app = candidate.applications[0];
 
-    steps.push({ key: 'basic', label: 'Dados básicos', completed: !!onboarding?.basicCompleted, current: !onboarding?.basicCompleted });
-    steps.push({ key: 'consent', label: 'Consentimento LGPD', completed: !!onboarding?.consentCompleted, current: !!onboarding?.basicCompleted && !onboarding?.consentCompleted });
-    steps.push({ key: 'resume', label: 'Envio de currículo', completed: !!onboarding?.resumeCompleted, current: !!onboarding?.consentCompleted && !onboarding?.resumeCompleted });
-    steps.push({ key: 'review', label: 'Em avaliação', completed: !!app?.shortlistItems?.length, current: !!onboarding?.resumeCompleted && !app?.shortlistItems?.length });
-    steps.push({ key: 'shortlisted', label: 'Na shortlist', completed: !!(app?.shortlistItems?.length && app.shortlistItems[0]?.decisions?.length), current: !!app?.shortlistItems?.length && !app?.shortlistItems[0]?.decisions?.length });
-    steps.push({ key: 'decision', label: 'Decisão final', completed: !!app?.shortlistItems?.[0]?.decisions?.length, current: false });
+    const basicDone = !!onboarding?.basicCompleted;
+    const consentDone = !!onboarding?.consentCompleted;
+    const resumeDone = !!onboarding?.resumeCompleted;
+    const hasShortlistItems = !!(app?.shortlistItems?.length);
+    const hasDecisions = !!(hasShortlistItems && app?.shortlistItems?.[0]?.decisions?.length);
+
+    steps.push({ key: 'basic', label: 'Dados básicos', completed: basicDone, current: !basicDone });
+    steps.push({ key: 'consent', label: 'Consentimento LGPD', completed: consentDone, current: basicDone && !consentDone });
+    steps.push({ key: 'resume', label: 'Envio de currículo', completed: resumeDone, current: consentDone && !resumeDone });
+    steps.push({ key: 'review', label: 'Em avaliação', completed: hasShortlistItems, current: resumeDone && !hasShortlistItems });
+    steps.push({ key: 'shortlisted', label: 'Na shortlist', completed: hasDecisions, current: hasShortlistItems && !hasDecisions });
+    steps.push({ key: 'decision', label: 'Decisão final', completed: hasDecisions, current: false });
 
     const interview = app?.smartInterviewSessions?.[0];
     const latestDecision = app?.shortlistItems?.[0]?.decisions?.[0];

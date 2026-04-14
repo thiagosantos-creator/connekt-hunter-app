@@ -271,7 +271,7 @@ export class VacanciesService {
 
   async publicApply(vacancyId: string, email: string, fullName: string, phone?: string) {
     const normalizedEmail = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (!normalizedEmail || normalizedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(normalizedEmail)) {
       throw new BadRequestException('invalid_email');
     }
     if (!fullName.trim()) {
@@ -287,12 +287,13 @@ export class VacanciesService {
       throw new BadRequestException('vacancy_not_available');
     }
 
+    const phoneValue = phone?.trim() || undefined;
     const candidate = await prisma.candidate.upsert({
       where: { email: normalizedEmail },
-      update: { phone: phone?.trim() || undefined },
+      update: phoneValue ? { phone: phoneValue } : {},
       create: {
         email: normalizedEmail,
-        phone: phone?.trim() || undefined,
+        phone: phoneValue,
         organizationId: vacancy.organizationId,
         token: randomUUID(),
       },
@@ -312,8 +313,8 @@ export class VacanciesService {
 
     await prisma.candidateProfile.upsert({
       where: { candidateId: candidate.id },
-      update: { fullName: fullName.trim(), phone: phone?.trim() || undefined },
-      create: { candidateId: candidate.id, fullName: fullName.trim(), phone: phone?.trim() || undefined },
+      update: { fullName: fullName.trim(), ...(phoneValue ? { phone: phoneValue } : {}) },
+      create: { candidateId: candidate.id, fullName: fullName.trim(), phone: phoneValue },
     });
 
     await prisma.candidateOnboardingSession.update({

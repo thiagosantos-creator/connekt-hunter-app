@@ -73,7 +73,7 @@ export function VacancyLandingView() {
       const result = await apiPost<{ token: string }>(`/public/vacancies/${encodeURIComponent(vacancyId)}/apply`, {
         email: applyEmail,
         fullName: applyName,
-        phone: applyPhone || undefined,
+        phone: applyPhone.trim() || undefined,
       });
       localStorage.setItem('invite_token', result.token);
       setApplyMsg('Candidatura realizada com sucesso! Redirecionando...');

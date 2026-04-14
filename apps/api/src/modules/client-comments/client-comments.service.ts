@@ -24,7 +24,14 @@ export class ClientCommentsService {
     });
     if (!membership) throw new ForbiddenException('user_not_member_of_org');
 
-    const sanitized = input.comment.replace(/<[^>]*>/g, '').trim();
+    let sanitized = input.comment;
+    // Iteratively strip HTML/script tags to prevent injection
+    let prev = '';
+    while (prev !== sanitized) {
+      prev = sanitized;
+      sanitized = sanitized.replace(/<\/?[a-zA-Z][^>]*>/g, '');
+    }
+    sanitized = sanitized.trim();
     if (!sanitized) throw new ForbiddenException('empty_comment');
 
     const evaluation = await prisma.evaluation.create({

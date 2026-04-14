@@ -238,7 +238,7 @@ describe('CandidatesService', () => {
   it('marks password reset as unavailable when candidate auth config has invalid reset url', async () => {
     authService.getCandidateAuthConfig.mockReturnValueOnce({
       provider: 'aws-cognito',
-      hostedUiUrl: null,
+      hostedUiUrl: '',
       changePasswordUrl: 'not-a-valid-url',
       socialProviders: [],
     });

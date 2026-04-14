@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPut } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
-import { Button, Card, CardContent, CardHeader, CardTitle, Checkbox, InlineMessage, PageContent, PageHeader, Select, Skeleton, spacing } from '@connekt/ui';
+import type { Organization } from '../services/types.js';
+import { Button, Card, CardContent, CardHeader, CardTitle, Checkbox, InlineMessage, PageContent, PageHeader, Select, Skeleton, StatBox, spacing } from '@connekt/ui';
 
 type TenantPolicy = {
   canInviteCandidates: boolean;
@@ -19,11 +20,38 @@ const policyLabels: Record<keyof TenantPolicy, { label: string; description: str
 
 export function AccessPoliciesView() {
   const { user } = useAuth();
-  const [orgId, setOrgId] = useState(user?.organizationIds?.[0] ?? '');
+  const [orgId, setOrgId] = useState('');
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [policy, setPolicy] = useState<TenantPolicy>({ canInviteCandidates: true, canApproveDecisions: true, canAuditEvents: true, canAdministrateTenant: true });
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingOrganizations, setLoadingOrganizations] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const orgOptions = useMemo(() => {
+    if (organizations.length > 0) {
+      return organizations.map((organization) => ({
+        value: organization.id,
+        label: organization.tenantSettings?.publicName || organization.name,
+      }));
+    }
+    return (user?.organizationIds ?? []).map((id) => ({ value: id, label: id }));
+  }, [organizations, user?.organizationIds]);
+
+  const enabledPoliciesCount = Object.values(policy).filter(Boolean).length;
+
+  useEffect(() => {
+    void apiGet<Organization[]>('/organizations')
+      .then(setOrganizations)
+      .catch(() => setOrganizations([]))
+      .finally(() => setLoadingOrganizations(false));
+  }, []);
+
+  useEffect(() => {
+    if (!orgId && orgOptions.length > 0) {
+      setOrgId(orgOptions[0].value);
+    }
+  }, [orgId, orgOptions]);
 
   useEffect(() => {
     if (!orgId) return;
@@ -47,13 +75,25 @@ export function AccessPoliciesView() {
   };
 
   return (
-    <PageContent>
+      <PageContent>
       <PageHeader title="Políticas por Tenant" description="Configure permissões globais para cada organização." />
       {msg && <InlineMessage variant={msg.startsWith('Erro') ? 'error' : 'success'} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
       <Card>
         <CardHeader><CardTitle>Controle de acesso</CardTitle></CardHeader>
         <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-          <Select label="Tenant" value={orgId} onChange={(e) => setOrgId(e.target.value)} options={(user?.organizationIds ?? []).map((id) => ({ value: id, label: id }))} />
+          {loadingOrganizations ? (
+            <Skeleton style={{ height: 42, borderRadius: 6 }} />
+          ) : orgOptions.length > 0 ? (
+            <Select label="Tenant" value={orgId} onChange={(e) => setOrgId(e.target.value)} options={orgOptions} />
+          ) : (
+            <InlineMessage variant="warning">Nenhum tenant disponível para gestão.</InlineMessage>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+            <StatBox label="Políticas ativas" value={`${enabledPoliciesCount}/4`} />
+            <StatBox label="Convites" value={policy.canInviteCandidates ? 'Liberado' : 'Bloqueado'} />
+            <StatBox label="Decisões" value={policy.canApproveDecisions ? 'Liberado' : 'Bloqueado'} />
+            <StatBox label="Auditoria" value={policy.canAuditEvents ? 'Liberado' : 'Bloqueado'} />
+          </div>
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
               {[1, 2, 3, 4].map((i) => <Skeleton key={i} style={{ height: 32, borderRadius: 4 }} />)}
@@ -69,7 +109,7 @@ export function AccessPoliciesView() {
               />
             ))
           )}
-          <Button onClick={() => { void save(); }} loading={saving}>Salvar políticas</Button>
+          <Button onClick={() => { void save(); }} loading={saving} disabled={!orgId}>Salvar políticas</Button>
         </CardContent>
       </Card>
     </PageContent>

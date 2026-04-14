@@ -16,6 +16,8 @@ import {
   PageContent,
   PageHeader,
   Select,
+  Skeleton,
+  StatBox,
   spacing,
 } from '@connekt/ui';
 
@@ -29,6 +31,8 @@ export function AdminUsersView() {
   const [organizationId, setOrganizationId] = useState('');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingInvites, setLoadingInvites] = useState(false);
 
   const canManage = hasPermission(user, 'users:manage');
   const canInvite = hasPermission(user, 'candidates:invite');
@@ -65,14 +69,39 @@ export function AdminUsersView() {
 
   useEffect(() => {
     if (!organizationId) return;
-    void listManagedUsers(organizationId).then(setRows).catch((error) => setFeedback(String(error)));
-    void listCandidateInvites(organizationId).then(setInviteRows).catch(() => setInviteRows([]));
+    setLoadingUsers(true);
+    setLoadingInvites(true);
+    void listManagedUsers(organizationId)
+      .then(setRows)
+      .catch((error) => setFeedback(String(error)))
+      .finally(() => setLoadingUsers(false));
+    void listCandidateInvites(organizationId)
+      .then(setInviteRows)
+      .catch(() => setInviteRows([]))
+      .finally(() => setLoadingInvites(false));
   }, [organizationId]);
+
+  const selectedOrganization = organizations.find((item) => item.id === organizationId) ?? null;
+  const activeUsers = rows.filter((row) => row.isActive).length;
+  const inactiveUsers = rows.length - activeUsers;
+  const pendingInvites = inviteRows.filter((row) => row.status !== 'delivered' && row.status !== 'completed').length;
 
   const cols = useMemo(
     () => [
-      { key: 'name', header: 'Nome', render: (row: ManagedUser) => row.name, sortValue: (row: ManagedUser) => row.name },
-      { key: 'email', header: 'E-mail', render: (row: ManagedUser) => row.email, sortValue: (row: ManagedUser) => row.email },
+      {
+        key: 'name',
+        header: 'Nome',
+        render: (row: ManagedUser) => row.name,
+        sortValue: (row: ManagedUser) => row.name,
+        searchValue: (row: ManagedUser) => row.name,
+      },
+      {
+        key: 'email',
+        header: 'E-mail',
+        render: (row: ManagedUser) => row.email,
+        sortValue: (row: ManagedUser) => row.email,
+        searchValue: (row: ManagedUser) => row.email,
+      },
       {
         key: 'role',
         header: 'Perfil',
@@ -98,7 +127,16 @@ export function AdminUsersView() {
             row.role
           ),
       },
-      { key: 'tenantId', header: 'Empresa', render: (row: ManagedUser) => row.tenantId },
+      {
+        key: 'tenantId',
+        header: 'Empresa',
+        render: (row: ManagedUser) => organizations.find((item) => item.id === row.tenantId)?.tenantSettings?.publicName
+          || organizations.find((item) => item.id === row.tenantId)?.name
+          || row.tenantId,
+        searchValue: (row: ManagedUser) => organizations.find((item) => item.id === row.tenantId)?.tenantSettings?.publicName
+          || organizations.find((item) => item.id === row.tenantId)?.name
+          || row.tenantId,
+      },
       {
         key: 'status',
         header: 'Status',
@@ -123,7 +161,7 @@ export function AdminUsersView() {
           ),
       },
     ],
-    [canManage],
+    [canManage, organizations],
   );
 
   if (!user) return null;
@@ -157,6 +195,14 @@ export function AdminUsersView() {
         </CardHeader>
         <CardContent>
           <Select label="Empresa" value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={orgOptions} />
+          {selectedOrganization && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
+              <StatBox label="Usuários ativos" value={activeUsers} />
+              <StatBox label="Usuários inativos" value={inactiveUsers} />
+              <StatBox label="Convites pendentes" value={pendingInvites} />
+              <StatBox label="Responsável" value={selectedOrganization.ownerAdminUserId ?? 'Não definido'} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -188,7 +234,13 @@ export function AdminUsersView() {
         </Card>
       )}
 
-      {inviteRows.length > 0 && (
+      {loadingInvites ? (
+        <Card style={{ marginBottom: spacing.md }}>
+          <CardContent>
+            <Skeleton style={{ height: 160, borderRadius: 8 }} />
+          </CardContent>
+        </Card>
+      ) : inviteRows.length > 0 && (
         <Card style={{ marginBottom: spacing.md }}>
           <CardHeader>
             <CardTitle>Governança de convites</CardTitle>
@@ -209,14 +261,23 @@ export function AdminUsersView() {
         </Card>
       )}
 
-      <DataTable
-        columns={cols}
-        data={rows}
-        rowKey={(row) => row.id}
-        searchable
-        searchPlaceholder="Buscar usuário por nome ou e-mail"
-        pageSize={10}
-      />
+      {loadingUsers ? (
+        <Card>
+          <CardContent>
+            <Skeleton style={{ height: 240, borderRadius: 8 }} />
+          </CardContent>
+        </Card>
+      ) : (
+        <DataTable
+          columns={cols}
+          data={rows}
+          rowKey={(row) => row.id}
+          searchable
+          searchPlaceholder="Buscar usuário por nome ou e-mail"
+          pageSize={10}
+          emptyMessage="Nenhum usuário encontrado para esta empresa."
+        />
+      )}
     </PageContent>
   );
 }

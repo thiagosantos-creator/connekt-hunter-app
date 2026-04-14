@@ -267,11 +267,27 @@ export function OrganizationsView() {
         searchable
         searchPlaceholder="Buscar empresa por nome, e-mail ou domínio"
         columns={[
-          { key: 'name', header: 'Empresa', render: (row: Organization) => row.tenantSettings?.publicName || row.name },
+          {
+            key: 'name',
+            header: 'Empresa',
+            render: (row: Organization) => row.tenantSettings?.publicName || row.name,
+            searchValue: (row: Organization) => `${row.tenantSettings?.publicName ?? ''} ${row.name}`.trim(),
+            sortValue: (row: Organization) => row.tenantSettings?.publicName || row.name,
+          },
           { key: 'status', header: 'Status', render: (row: Organization) => row.status },
           { key: 'ownerAdminUserId', header: 'Responsável', render: (row: Organization) => row.ownerAdminUserId ?? '-' },
-          { key: 'contactEmail', header: 'E-mail de contato', render: (row: Organization) => row.tenantSettings?.contactEmail ?? '-' },
-          { key: 'domain', header: 'Domínio', render: (row: Organization) => row.tenantSettings?.communicationDomain ?? '-' },
+          {
+            key: 'contactEmail',
+            header: 'E-mail de contato',
+            render: (row: Organization) => row.tenantSettings?.contactEmail ?? '-',
+            searchValue: (row: Organization) => row.tenantSettings?.contactEmail ?? '',
+          },
+          {
+            key: 'domain',
+            header: 'Domínio',
+            render: (row: Organization) => row.tenantSettings?.communicationDomain ?? '-',
+            searchValue: (row: Organization) => row.tenantSettings?.communicationDomain ?? '',
+          },
           {
             key: 'branding',
             header: 'Branding',

@@ -33,11 +33,20 @@ import type { Decision, ShortlistItemWithApplication } from '../services/types.j
 
 type DecisionKind = 'approve' | 'reject' | 'interview' | 'hold';
 
-const decisionMeta: Record<DecisionKind, { label: string; icon: string; badge: 'success' | 'danger' | 'info' | 'warning'; button: 'success' | 'danger' | 'outline' | 'secondary'; description: string }> = {
-  approve:   { label: 'Aprovar',      icon: '✓', badge: 'success', button: 'success',   description: 'O candidato será aprovado e seguirá para o próximo passo do processo.' },
-  interview: { label: 'Entrevistar',  icon: '📅', badge: 'info',    button: 'outline',   description: 'O candidato será agendado para uma entrevista presencial ou remota.' },
-  hold:      { label: 'Aguardar',     icon: '⏸', badge: 'warning', button: 'secondary', description: 'O candidato ficará em espera até uma decisão posterior.' },
-  reject:    { label: 'Rejeitar',     icon: '✕', badge: 'danger',  button: 'danger',    description: 'O candidato será recusado e notificado conforme a política definida.' },
+interface DecisionMetaEntry {
+  label: string;
+  icon: string;
+  badge: 'success' | 'danger' | 'info' | 'warning';
+  button: 'success' | 'danger' | 'outline' | 'secondary';
+  description: string;
+  cardBorder: string;
+}
+
+const decisionMeta: Record<DecisionKind, DecisionMetaEntry> = {
+  approve:   { label: 'Aprovar',      icon: '✓', badge: 'success', button: 'success',   description: 'O candidato será aprovado e seguirá para o próximo passo do processo.', cardBorder: colors.successLight },
+  interview: { label: 'Entrevistar',  icon: '📅', badge: 'info',    button: 'outline',   description: 'O candidato será agendado para uma entrevista presencial ou remota.', cardBorder: colors.infoLight },
+  hold:      { label: 'Aguardar',     icon: '⏸', badge: 'warning', button: 'secondary', description: 'O candidato ficará em espera até uma decisão posterior.', cardBorder: colors.warningLight },
+  reject:    { label: 'Rejeitar',     icon: '✕', badge: 'danger',  button: 'danger',    description: 'O candidato será recusado e notificado conforme a política definida.', cardBorder: colors.dangerLight },
 };
 
 const decisionOrder: DecisionKind[] = ['approve', 'interview', 'hold', 'reject'];
@@ -315,7 +324,7 @@ export function ClientReviewView() {
                 const meta = current ? decisionMeta[current] : null;
 
                 return (
-                  <Card key={item.id} style={{ overflow: 'hidden', transition: 'box-shadow 0.2s', border: current ? `1px solid ${colors[`${meta!.badge}Light` as keyof typeof colors] || colors.border}` : undefined }}>
+                  <Card key={item.id} style={{ overflow: 'hidden', transition: 'box-shadow 0.2s', border: current ? `1px solid ${meta!.cardBorder}` : undefined }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
                       {/* Left: candidate info */}
                       <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>

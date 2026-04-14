@@ -7,6 +7,8 @@ export interface AuthUser {
   name: string;
   role: AppRole;
   organizationIds: string[];
+  title?: string;
+  avatarUrl?: string;
 }
 
 export interface AuthSession {

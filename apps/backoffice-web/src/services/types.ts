@@ -16,7 +16,7 @@ export interface AuthUser {
 export interface AuthCtx {
   user: AuthUser | null;
   logout: () => void;
-  refreshAuth: () => void;
+  refreshAuth: () => Promise<void>;
 }
 
 export interface Vacancy {

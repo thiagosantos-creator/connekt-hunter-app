@@ -69,6 +69,8 @@ export class AuthService {
           id: user.id,
           email: user.email,
           name: user.name,
+          title: user.title ?? undefined,
+          avatarUrl: user.avatarUrl ?? undefined,
           role: user.role as 'admin' | 'headhunter' | 'client' | 'candidate',
           organizationIds: user.memberships.map((membership: MembershipReference) => membership.organizationId),
         },

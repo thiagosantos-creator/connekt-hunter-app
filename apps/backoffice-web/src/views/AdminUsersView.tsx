@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { listCandidateInvites, listManagedUsers, sendCandidateInvite, updateManagedUser } from '../services/account.js';
+import { createManagedUser, listCandidateInvites, listManagedUsers, sendCandidateInvite, updateManagedUser } from '../services/account.js';
 import { apiGet } from '../services/api.js';
 import type { CandidateInvite, ManagedUser, Organization, Vacancy } from '../services/types.js';
 import { hasPermission } from '../services/rbac.js';
@@ -35,6 +35,11 @@ export function AdminUsersView() {
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingInvites, setLoadingInvites] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<ManagedUser['role']>('headhunter');
+  const [newUserTitle, setNewUserTitle] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
 
   const canManage = hasPermission(user, 'users:manage');
   const canInvite = hasPermission(user, 'candidates:invite');
@@ -208,6 +213,35 @@ export function AdminUsersView() {
     }
   };
 
+  const createInternalUser = async () => {
+    if (!organizationId || !newUserEmail || !newUserName) return;
+    setCreatingUser(true);
+    try {
+      const created = await createManagedUser({
+        organizationId,
+        email: newUserEmail,
+        name: newUserName,
+        role: newUserRole,
+        title: newUserTitle || undefined,
+      });
+      setRows((current) => {
+        const remaining = current.filter((item) => item.id !== created.id);
+        return [...remaining, created].sort((a, b) => a.email.localeCompare(b.email));
+      });
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserRole('headhunter');
+      setNewUserTitle('');
+      setFeedbackVariant('success');
+      setFeedback('Usuário interno criado ou associado à empresa com sucesso.');
+    } catch (error) {
+      setFeedbackVariant('error');
+      setFeedback(`Erro ao criar usuário interno: ${String(error)}`);
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   return (
     <PageContent>
       <PageHeader title="Gestão de Usuários" description="Administração persistida de usuários, permissões e governança de convites." />
@@ -253,6 +287,54 @@ export function AdminUsersView() {
             />
             <div style={{ display: 'flex', alignItems: 'end' }}>
               <Button onClick={() => { void invite(); }} disabled={!inviteEmail || !inviteVacancyId || !organizationId}>Enviar</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && (
+        <Card style={{ marginBottom: spacing.md }}>
+          <CardHeader>
+            <CardTitle>Criar usuário interno</CardTitle>
+          </CardHeader>
+          <CardContent style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr auto', gap: spacing.sm }}>
+            <Input
+              label="Nome"
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.target.value)}
+              placeholder="Nome completo"
+            />
+            <Input
+              label="E-mail"
+              type="email"
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              placeholder="usuario@empresa.com"
+            />
+            <Input
+              label="Cargo"
+              value={newUserTitle}
+              onChange={(e) => setNewUserTitle(e.target.value)}
+              placeholder="Recruiter"
+            />
+            <Select
+              label="Perfil"
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value as ManagedUser['role'])}
+              options={[
+                { value: 'admin', label: 'Admin' },
+                { value: 'headhunter', label: 'Headhunter' },
+                { value: 'client', label: 'Client' },
+              ]}
+            />
+            <div style={{ display: 'flex', alignItems: 'end' }}>
+              <Button
+                onClick={() => { void createInternalUser(); }}
+                loading={creatingUser}
+                disabled={!organizationId || !newUserEmail || !newUserName}
+              >
+                Criar
+              </Button>
             </div>
           </CardContent>
         </Card>

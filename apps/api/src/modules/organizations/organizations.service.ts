@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { StorageGateway } from '../integrations/storage.gateway.js';
 
@@ -17,7 +17,7 @@ export class OrganizationsService {
   constructor(@Inject(StorageGateway) private readonly storageGateway: StorageGateway) {}
 
   async create(data: { name: string; status?: string; ownerAdminUserId?: string }, actorUserId: string) {
-    const ownerAdminUserId = data.ownerAdminUserId?.trim() || actorUserId;
+    const ownerAdminUserId = await this.resolveOwnerAdminUserId(data.ownerAdminUserId, actorUserId);
     const org = await prisma.organization.create({
       data: {
         name: data.name,
@@ -71,7 +71,7 @@ export class OrganizationsService {
       include: { tenantPolicy: true, tenantSettings: true },
     });
 
-    const nextOwnerAdminUserId = data.ownerAdminUserId?.trim() || existing.ownerAdminUserId || undefined;
+    const nextOwnerAdminUserId = await this.resolveOwnerAdminUserId(data.ownerAdminUserId, existing.ownerAdminUserId ?? undefined);
 
     const org = await prisma.organization.update({
       where: { id: organizationId },
@@ -170,10 +170,18 @@ export class OrganizationsService {
 
   async createBrandingUpload(organizationId: string, type: 'logo' | 'banner', filename: string, contentType?: string) {
     const upload = await this.storageGateway.createPresignedUpload({
+      tenantId: organizationId,
       namespace: `org-branding/${organizationId}/${type}`,
       filename,
       contentType,
+    });
+
+    await this.storageGateway.recordAsset({
+      tenantId: organizationId,
+      objectKey: upload.objectKey,
       category: `org-${type}`,
+      provider: upload.provider,
+      metadata: { organizationId, type, filename, status: 'pending_upload' },
     });
 
     const baseEndpoint = process.env.S3_ENDPOINT
@@ -189,5 +197,61 @@ export class OrganizationsService {
       publicUrl, 
       objectKey: upload.objectKey 
     };
+  }
+
+  async confirmBrandingUpload(organizationId: string, type: 'logo' | 'banner', objectKey: string, actorUserId: string) {
+    const expectedPrefix = `${organizationId}/org-branding/${organizationId}/${type}/`;
+    if (!objectKey.startsWith(expectedPrefix)) {
+      throw new BadRequestException('invalid_branding_object_key');
+    }
+
+    await prisma.organization.findUniqueOrThrow({ where: { id: organizationId } });
+    await this.storageGateway.getObjectBuffer(objectKey);
+
+    const bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
+    const region = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
+    const publicUrl = process.env.S3_ENDPOINT
+      ? `${process.env.S3_ENDPOINT}/${bucket}/${objectKey}`
+      : `https://${bucket}.s3.${region}.amazonaws.com/${objectKey}`;
+
+    await prisma.tenantSettings.upsert({
+      where: { organizationId },
+      create: {
+        organizationId,
+        planSegment: 'standard',
+        timezone: 'America/Sao_Paulo',
+        operationalCalendar: 'business-days',
+        ...(type === 'logo' ? { logoUrl: publicUrl } : { bannerUrl: publicUrl }),
+      },
+      update: type === 'logo' ? { logoUrl: publicUrl } : { bannerUrl: publicUrl },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: actorUserId,
+        action: `organization.branding.${type}-updated`,
+        entityType: 'organization',
+        entityId: organizationId,
+        metadata: { objectKey, publicUrl } as never,
+      },
+    });
+
+    return { ok: true, publicUrl };
+  }
+
+  private async resolveOwnerAdminUserId(ownerAdminRef?: string, fallbackUserId?: string) {
+    const normalized = ownerAdminRef?.trim();
+    if (!normalized) {
+      if (!fallbackUserId) return undefined;
+      return fallbackUserId;
+    }
+
+    const byId = await prisma.user.findUnique({ where: { id: normalized } });
+    if (byId) return byId.id;
+
+    const byEmail = await prisma.user.findUnique({ where: { email: normalized.toLowerCase() } });
+    if (byEmail) return byEmail.id;
+
+    throw new NotFoundException('owner_admin_user_not_found');
   }
 }

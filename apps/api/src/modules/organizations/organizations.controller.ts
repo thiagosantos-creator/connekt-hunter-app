@@ -57,4 +57,16 @@ export class OrganizationsController {
     if (!body.filename) throw new Error('filename is required');
     return this.organizationsService.createBrandingUpload(organizationId, type, body.filename, body.contentType);
   }
+
+  @Post(':organizationId/branding/:type(logo|banner)/confirm')
+  @RequirePermissions('users:manage')
+  confirmBrandingUpload(
+    @Param('organizationId') organizationId: string,
+    @Param('type') type: 'logo' | 'banner',
+    @Body() body: { objectKey: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!body.objectKey) throw new Error('objectKey is required');
+    return this.organizationsService.confirmBrandingUpload(organizationId, type, body.objectKey, user.id);
+  }
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth.js';
-import { saveProfile } from '../services/account.js';
+import { updateMyProfile, uploadMyAvatar } from '../services/account.js';
 import {
   PageContent,
   PageHeader,
@@ -14,6 +14,8 @@ import {
   InlineMessage,
   spacing,
   colors,
+  radius,
+  fontSize,
 } from '@connekt/ui';
 
 const roleExperience: Record<string, { title: string; description: string }> = {
@@ -35,13 +37,15 @@ export function AccountView() {
   const { user, refreshAuth } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [title, setTitle] = useState(user?.title ?? '');
-  const [company, setCompany] = useState(user?.company ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [feedback, setFeedback] = useState('');
   const [feedbackVariant, setFeedbackVariant] = useState<'success' | 'error'>('success');
   const [saving, setSaving] = useState(false);
 
   const exp = useMemo(() => roleExperience[user?.role ?? 'client'], [user?.role]);
+  const organizationSummary = user?.organizationIds?.length
+    ? user.organizationIds.join(', ')
+    : 'Nenhuma organização vinculada';
 
   useEffect(() => {
     if (!feedback) return;
@@ -51,7 +55,7 @@ export function AccountView() {
 
   if (!user) return null;
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) {
       setFeedback('O nome é obrigatório.');
       setFeedbackVariant('error');
@@ -59,8 +63,15 @@ export function AccountView() {
     }
     setSaving(true);
     try {
-      saveProfile({ ...user, name, title, company, avatarUrl });
-      refreshAuth();
+      let avatarUrl = user.avatarUrl;
+      if (avatarFile) {
+        const uploaded = await uploadMyAvatar(avatarFile);
+        avatarUrl = uploaded.avatarUrl;
+      }
+
+      await updateMyProfile({ name: name.trim(), title: title.trim(), avatarUrl });
+      await refreshAuth();
+      setAvatarFile(null);
       setFeedback('Perfil atualizado com sucesso.');
       setFeedbackVariant('success');
     } catch (err) {
@@ -81,14 +92,57 @@ export function AccountView() {
         <Card>
           <CardHeader>
             <CardTitle>Perfil</CardTitle>
-            <CardDescription>Dados básicos da conta.</CardDescription>
+            <CardDescription>Dados básicos da conta e avatar com upload para storage.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Input label="Foto (URL)" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://..." />
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md }}>
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', background: colors.surfaceAlt }}
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: colors.surfaceAlt,
+                    color: colors.textSecondary,
+                    fontSize: fontSize.lg,
+                    fontWeight: 700,
+                  }}
+                >
+                  {(user.name || user.email).slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <label htmlFor="avatar-upload" style={{ display: 'block', fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>
+                  Foto de perfil
+                </label>
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+                />
+                <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs }}>
+                  {avatarFile ? `Arquivo selecionado: ${avatarFile.name}` : 'Selecione uma imagem para enviar ao bucket S3/MinIO.'}
+                </div>
+              </div>
+            </div>
             <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
             <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <Input label="Empresa" value={company} onChange={(e) => setCompany(e.target.value)} />
-            <Button onClick={save} loading={saving}>Salvar perfil</Button>
+            <div style={{ padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md, background: colors.surfaceAlt }}>
+              <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Organizações vinculadas</div>
+              <strong>{organizationSummary}</strong>
+            </div>
+            <Button onClick={() => { void save(); }} loading={saving}>Salvar perfil</Button>
           </CardContent>
         </Card>
 

@@ -52,7 +52,7 @@ export function LoginView() {
       }
       localStorage.setItem('bo_token', data.token);
       localStorage.setItem('bo_user', JSON.stringify(data.user));
-      refreshAuth();
+      await refreshAuth();
       navigate(getHomeRoute(data.user.role));
     } catch (err) {
       setError(String(err));

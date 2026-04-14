@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost, apiPut } from '../services/api.js';
+import { uploadOrganizationBrandingAsset } from '../services/account.js';
 import type { Organization } from '../services/types.js';
 import {
   Button,
@@ -19,6 +20,11 @@ import {
   radius,
   fontSize,
 } from '@connekt/ui';
+
+type BrandingUploads = {
+  logoFile: File | null;
+  bannerFile: File | null;
+};
 
 type BrandingForm = {
   publicName: string;
@@ -80,6 +86,8 @@ export function OrganizationsView() {
   const [createForm, setCreateForm] = useState<OrganizationForm>(emptyForm);
   const [editingId, setEditingId] = useState('');
   const [editForm, setEditForm] = useState<OrganizationForm>(emptyForm);
+  const [createUploads, setCreateUploads] = useState<BrandingUploads>({ logoFile: null, bannerFile: null });
+  const [editUploads, setEditUploads] = useState<BrandingUploads>({ logoFile: null, bannerFile: null });
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
   const [saving, setSaving] = useState(false);
@@ -89,6 +97,26 @@ export function OrganizationsView() {
   useEffect(() => {
     void load().catch(() => setRows([]));
   }, []);
+
+  const uploadBrandingFiles = async (
+    organizationId: string,
+    branding: BrandingForm,
+    uploads: BrandingUploads,
+  ): Promise<BrandingForm> => {
+    const nextBranding = { ...branding };
+
+    if (uploads.logoFile) {
+      const uploaded = await uploadOrganizationBrandingAsset(organizationId, 'logo', uploads.logoFile);
+      nextBranding.logoUrl = uploaded.publicUrl;
+    }
+
+    if (uploads.bannerFile) {
+      const uploaded = await uploadOrganizationBrandingAsset(organizationId, 'banner', uploads.bannerFile);
+      nextBranding.bannerUrl = uploaded.publicUrl;
+    }
+
+    return nextBranding;
+  };
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,13 +128,16 @@ export function OrganizationsView() {
         ownerAdminUserId: createForm.ownerAdminUserId,
       });
 
-      if (hasBrandingData(createForm.branding)) {
+      const branding = await uploadBrandingFiles(created.id, createForm.branding, createUploads);
+
+      if (hasBrandingData(branding)) {
         await apiPut<Organization>(`/organizations/${created.id}`, {
-          branding: createForm.branding,
+          branding,
         });
       }
 
       setCreateForm(emptyForm);
+      setCreateUploads({ logoFile: null, bannerFile: null });
       setMsg('Empresa criada e configurada com sucesso.');
       setMsgVariant('success');
       await load();
@@ -123,12 +154,14 @@ export function OrganizationsView() {
     if (!editingId) return;
     setSaving(true);
     try {
+      const branding = await uploadBrandingFiles(editingId, editForm.branding, editUploads);
       await apiPut<Organization>(`/organizations/${editingId}`, {
         name: editForm.name,
         status: editForm.status,
         ownerAdminUserId: editForm.ownerAdminUserId,
-        branding: editForm.branding,
+        branding,
       });
+      setEditUploads({ logoFile: null, bannerFile: null });
       setMsg('Empresa atualizada com sucesso.');
       setMsgVariant('success');
       await load();
@@ -143,11 +176,14 @@ export function OrganizationsView() {
   const startEdit = (row: Organization) => {
     setEditingId(row.id);
     setEditForm(toForm(row));
+    setEditUploads({ logoFile: null, bannerFile: null });
   };
 
   const renderBrandingFields = (
     form: OrganizationForm,
     setForm: React.Dispatch<React.SetStateAction<OrganizationForm>>,
+    uploads: BrandingUploads,
+    setUploads: React.Dispatch<React.SetStateAction<BrandingUploads>>,
   ) => (
     <>
       <Input
@@ -173,14 +209,42 @@ export function OrganizationsView() {
         label="Logo (URL)"
         value={form.branding.logoUrl}
         onChange={(e) => setForm((current) => ({ ...current, branding: { ...current.branding, logoUrl: e.target.value } }))}
-        placeholder="https://..."
+        placeholder="Preenchido automaticamente após upload ou CDN externa"
       />
+      <div style={{ marginBottom: spacing.md }}>
+        <label htmlFor={`logo-file-${form.name || 'org'}`} style={{ display: 'block', fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>
+          Upload da logo
+        </label>
+        <input
+          id={`logo-file-${form.name || 'org'}`}
+          type="file"
+          accept="image/*"
+          onChange={(e) => setUploads((current) => ({ ...current, logoFile: e.target.files?.[0] ?? null }))}
+        />
+        <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs }}>
+          {uploads.logoFile ? `Arquivo selecionado: ${uploads.logoFile.name}` : 'Selecione uma imagem para envio ao bucket S3/MinIO.'}
+        </div>
+      </div>
       <Input
         label="Banner (URL)"
         value={form.branding.bannerUrl}
         onChange={(e) => setForm((current) => ({ ...current, branding: { ...current.branding, bannerUrl: e.target.value } }))}
-        placeholder="https://..."
+        placeholder="Preenchido automaticamente após upload ou CDN externa"
       />
+      <div style={{ marginBottom: spacing.md }}>
+        <label htmlFor={`banner-file-${form.name || 'org'}`} style={{ display: 'block', fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>
+          Upload do banner
+        </label>
+        <input
+          id={`banner-file-${form.name || 'org'}`}
+          type="file"
+          accept="image/*"
+          onChange={(e) => setUploads((current) => ({ ...current, bannerFile: e.target.files?.[0] ?? null }))}
+        />
+        <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs }}>
+          {uploads.bannerFile ? `Arquivo selecionado: ${uploads.bannerFile.name}` : 'Selecione uma imagem para envio ao bucket S3/MinIO.'}
+        </div>
+      </div>
       <Input
         label="Cor primária"
         value={form.branding.primaryColor}
@@ -208,7 +272,7 @@ export function OrganizationsView() {
             <Input label="Nome da empresa" value={createForm.name} onChange={(e) => setCreateForm((current) => ({ ...current, name: e.target.value }))} required />
             <Select label="Status" value={createForm.status} onChange={(e) => setCreateForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'disabled', label: 'Desativada' }]} />
             <Input label="Responsável (admin)" value={createForm.ownerAdminUserId} onChange={(e) => setCreateForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="ID ou e-mail do administrador responsável" />
-            {renderBrandingFields(createForm, setCreateForm)}
+            {renderBrandingFields(createForm, setCreateForm, createUploads, setCreateUploads)}
           </CardContent>
           <CardFooter><Button type="submit" loading={saving}>{saving ? 'Salvando...' : 'Criar tenant'}</Button></CardFooter>
         </form>
@@ -222,7 +286,7 @@ export function OrganizationsView() {
               <Input label="Nome da empresa" value={editForm.name} onChange={(e) => setEditForm((current) => ({ ...current, name: e.target.value }))} required />
               <Select label="Status" value={editForm.status} onChange={(e) => setEditForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'disabled', label: 'Desativada' }]} />
               <Input label="Responsável (admin)" value={editForm.ownerAdminUserId} onChange={(e) => setEditForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="ID ou e-mail do administrador responsável" />
-              {renderBrandingFields(editForm, setEditForm)}
+              {renderBrandingFields(editForm, setEditForm, editUploads, setEditUploads)}
 
               {(editForm.branding.logoUrl || editForm.branding.bannerUrl) && (
                 <div
@@ -255,7 +319,7 @@ export function OrganizationsView() {
             </CardContent>
             <CardFooter style={{ display: 'flex', gap: spacing.sm }}>
               <Button type="submit" loading={saving}>{saving ? 'Salvando...' : 'Salvar empresa'}</Button>
-              <Button type="button" variant="ghost" onClick={() => { setEditingId(''); setEditForm(emptyForm); }}>Cancelar</Button>
+              <Button type="button" variant="ghost" onClick={() => { setEditingId(''); setEditForm(emptyForm); setEditUploads({ logoFile: null, bannerFile: null }); }}>Cancelar</Button>
             </CardFooter>
           </form>
         </Card>

@@ -305,3 +305,17 @@ Implementado nesta fase:
   - `COGNITO_LOGOUT_URI`
   - `COGNITO_CANDIDATE_LOGOUT_URI`
 - Architecture note: `docs/adr/021-cognito-test-stack-cloudformation.md`
+
+## Admin Upload and Governance Updates (2026-04-14)
+- Backoffice `/account` agora persiste perfil na API e faz upload do avatar do usuÃ¡rio para storage via URL assinada.
+- Backoffice `/admin/users` agora permite criar usuÃ¡rios internos por empresa, alÃ©m de editar perfil e status.
+- Backoffice `/admin/organizations` agora aceita owner admin por ID ou e-mail e envia `logo` e `banner` para storage S3/MinIO via fluxo de upload assinado + confirmaÃ§Ã£o.
+- Backoffice `/enterprise-governance` agora suporta ediÃ§Ã£o de tenant settings, regras de access control, templates e dispatches de comunicaÃ§Ã£o.
+
+### Novos endpoints administrativos
+- `POST /admin/users`
+- `PUT /admin/users/me/profile`
+- `POST /admin/users/me/avatar-upload-url`
+- `POST /admin/users/me/avatar-confirm`
+- `POST /organizations/:organizationId/branding/:type/upload-url`
+- `POST /organizations/:organizationId/branding/:type/confirm`

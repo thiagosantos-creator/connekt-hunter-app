@@ -15,6 +15,7 @@ export interface TenantSettingsPayload {
     secondaryColor?: string;
     publicName?: string;
     communicationDomain?: string;
+    contactEmail?: string;
   };
   policy: {
     dataRetentionDays: number;
@@ -76,6 +77,7 @@ export class EnterpriseGovernanceService {
         secondaryColor: payload.branding.secondaryColor,
         publicName: payload.branding.publicName,
         communicationDomain: payload.branding.communicationDomain,
+        contactEmail: payload.branding.contactEmail,
       },
       update: {
         planSegment: payload.planSegment,
@@ -90,6 +92,7 @@ export class EnterpriseGovernanceService {
         secondaryColor: payload.branding.secondaryColor,
         publicName: payload.branding.publicName,
         communicationDomain: payload.branding.communicationDomain,
+        contactEmail: payload.branding.contactEmail,
       },
     });
 

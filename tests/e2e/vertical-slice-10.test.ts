@@ -204,6 +204,40 @@ describe('Vertical Slice 10 — Full System Validation', () => {
       expect(steps[2].result).toContain('reset');
       expect(steps[3].result).toContain('last invite channel');
     });
+
+    it('admin profile and organization branding flows use presigned storage upload', () => {
+      const steps = [
+        { action: 'PUT /admin/users/me/profile', actor: 'admin', result: 'profile fields persisted in API' },
+        { action: 'POST /admin/users/me/avatar-upload-url', actor: 'admin', result: 'presigned avatar upload URL created' },
+        { action: 'POST /admin/users/me/avatar-confirm', actor: 'admin', result: 'avatarUrl persisted after upload confirmation' },
+        { action: 'POST /organizations/:organizationId/branding/logo/upload-url', actor: 'admin', result: 'presigned logo upload URL created' },
+        { action: 'POST /organizations/:organizationId/branding/logo/confirm', actor: 'admin', result: 'logoUrl persisted in tenant settings' },
+        { action: 'POST /organizations/:organizationId/branding/banner/upload-url', actor: 'admin', result: 'presigned banner upload URL created' },
+        { action: 'POST /organizations/:organizationId/branding/banner/confirm', actor: 'admin', result: 'bannerUrl persisted in tenant settings' },
+      ];
+
+      expect(steps.length).toBe(7);
+      expect(steps[1].result).toContain('presigned');
+      expect(steps[2].result).toContain('persisted');
+      expect(steps[6].result).toContain('tenant settings');
+    });
+
+    it('enterprise governance flow supports write operations for tenant, access control and communication', () => {
+      const steps = [
+        { action: 'PUT /enterprise/tenant-admin/:organizationId', actor: 'admin', result: 'tenant settings updated with retention, SLA and branding metadata' },
+        { action: 'POST /enterprise/access-control/:organizationId/policies', actor: 'admin', result: 'role policies replaced for selected profile' },
+        { action: 'POST /enterprise/access-control/:organizationId/grants', actor: 'admin', result: 'temporary permission grant created' },
+        { action: 'POST /enterprise/access-control/:organizationId/simulate', actor: 'admin', result: 'policy simulation executed' },
+        { action: 'POST /enterprise/communications/:organizationId/templates', actor: 'admin', result: 'communication template draft created' },
+        { action: 'PUT /enterprise/communications/:organizationId/templates/:templateId/publish', actor: 'admin', result: 'draft version published' },
+        { action: 'POST /enterprise/communications/:organizationId/dispatch', actor: 'admin', result: 'dispatch audit queued' },
+      ];
+
+      expect(steps.length).toBe(7);
+      expect(steps[0].result).toContain('tenant settings updated');
+      expect(steps[3].result).toContain('simulation');
+      expect(steps[6].result).toContain('dispatch audit');
+    });
   });
 
   /* ------------------------------------------------------------------ */

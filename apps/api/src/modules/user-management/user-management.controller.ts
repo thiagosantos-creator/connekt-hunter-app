@@ -17,6 +17,15 @@ export class UserManagementController {
     return this.service.list(organizationId, user.id, user.role);
   }
 
+  @Post()
+  @RequirePermissions('users:manage')
+  create(
+    @Body() body: { organizationId: string; email: string; name: string; role: 'admin' | 'headhunter' | 'client'; title?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.create(body.organizationId, user.id, user.role, body);
+  }
+
   @Put(':userId')
   @RequirePermissions('users:manage')
   update(
@@ -45,5 +54,14 @@ export class UserManagementController {
   ) {
     if (!body.filename) throw new Error('filename is required');
     return this.service.createAvatarUpload(user.id, body.filename, body.contentType);
+  }
+
+  @Post('me/avatar-confirm')
+  confirmAvatarUpload(
+    @Body() body: { objectKey: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!body.objectKey) throw new Error('objectKey is required');
+    return this.service.confirmAvatarUpload(user.id, body.objectKey);
   }
 }

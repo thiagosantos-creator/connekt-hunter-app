@@ -45,3 +45,67 @@ export interface PublicVacancyInfo {
     contactEmail?: string;
   };
 }
+
+export interface CandidateStatus {
+  candidateId: string;
+  fullName: string | null;
+  email: string;
+  vacancy: { id: string; title: string } | null;
+  onboardingStatus: string;
+  steps: StatusStep[];
+  interview: { id: string; status: string } | null;
+  decision: { decision: string; at: string } | null;
+}
+
+export interface StatusStep {
+  key: string;
+  label: string;
+  completed: boolean;
+  current: boolean;
+}
+
+export interface ParsedResumeData {
+  status: string;
+  parsedData: {
+    summary?: string;
+    experience?: Array<{ company?: string; role?: string; period?: string }>;
+    education?: Array<{ institution?: string; degree?: string; period?: string }>;
+    skills?: Array<{ name?: string } | string>;
+    languages?: Array<{ name?: string; level?: string } | string>;
+  } | null;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  prompt: string;
+}
+
+export interface InterviewTemplate {
+  questions: InterviewQuestion[];
+}
+
+export interface InterviewSession {
+  id: string;
+  template: InterviewTemplate;
+}
+
+export interface PresignResponse {
+  objectKey: string;
+}
+
+export interface CandidateAuthConfig {
+  hostedUiUrl?: string;
+  changePasswordUrl?: string;
+  socialProviders?: string[];
+}
+
+export interface ResumeUploadResponse {
+  id: string;
+  objectKey: string;
+  provider: string;
+  upload: {
+    url: string;
+    method: 'PUT';
+    headers: Record<string, string>;
+  };
+}

@@ -11,8 +11,19 @@ export function Step1BasicView() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validatePhone = (value: string): boolean => {
+    if (!value.trim()) return true; // optional
+    const digits = value.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 13;
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fullName.trim()) { setError('Nome completo é obrigatório.'); return; }
+    if (phone.trim() && !validatePhone(phone)) {
+      setError('Telefone inválido. Use o formato (XX) XXXXX-XXXX.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {

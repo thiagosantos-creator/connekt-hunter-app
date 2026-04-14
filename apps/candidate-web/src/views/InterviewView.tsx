@@ -45,6 +45,7 @@ export function InterviewView() {
   const [loading, setLoading] = useState(false);
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
+  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
   const autoLoaded = useRef(false);
 
   // Auto-load session from stored token (once on mount)
@@ -77,10 +78,15 @@ export function InterviewView() {
   const uploadAnswer = async (questionId: string) => {
     if (!session) return;
     setLoading(true);
+    setRecordingStartTime(Date.now());
     try {
       const presign = await apiPost<PresignResponse>(`/smart-interview/sessions/${session.id}/answers/presign`, { questionId });
-      await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec: 45 });
+      const durationSec = recordingStartTime
+        ? Math.max(1, Math.round((Date.now() - recordingStartTime) / 1000))
+        : 30; // fallback if timer wasn't started
+      await apiPost(`/smart-interview/sessions/${session.id}/answers/complete`, { questionId, objectKey: presign.objectKey, durationSec });
       setAnsweredIds((prev) => new Set([...prev, questionId]));
+      setRecordingStartTime(null);
       setMsg('Resposta gravada com sucesso!');
       setMsgVariant('success');
       if (current < session.template.questions.length - 1) setCurrent(current + 1);

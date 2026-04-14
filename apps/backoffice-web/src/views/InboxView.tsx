@@ -41,7 +41,8 @@ export function InboxView() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [msg, setMsg] = useState('');
+  const [msgVariant, setMsgVariant] = useState<'success' | 'error' | 'info'>('info');
   const orgId = user?.organizationIds?.[0] ?? '';
 
   const load = async () => {
@@ -99,6 +100,7 @@ export function InboxView() {
       />
 
       {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
+      {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
       {loading ? (
         <div style={{ display: 'grid', gap: spacing.lg }}>
@@ -167,7 +169,12 @@ export function InboxView() {
                       {/* Right: quick actions */}
                       <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
                         {item.quickActions.map((action) => (
-                          <Badge key={action} variant="info" size="sm">{action}</Badge>
+                          <Button key={action} variant="outline" size="sm" onClick={() => {
+                            setMsg(`Ação "${action}" para ${item.candidateEmail} ainda não implementada.`);
+                            setMsgVariant('info');
+                          }}>
+                            {action}
+                          </Button>
                         ))}
                       </div>
                     </div>

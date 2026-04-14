@@ -32,6 +32,7 @@ export function VacancyLandingView() {
   const [applyEmail, setApplyEmail] = useState('');
   const [applyName, setApplyName] = useState('');
   const [applyPhone, setApplyPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [applying, setApplying] = useState(false);
   const [applyMsg, setApplyMsg] = useState('');
   const [applyVariant, setApplyVariant] = useState<'success' | 'error'>('success');
@@ -82,9 +83,21 @@ export function VacancyLandingView() {
     navigate(`/?token=${encodeURIComponent(normalized)}`);
   };
 
+  const validatePhone = (phone: string): boolean => {
+    if (!phone.trim()) return true; // optional field
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 13) {
+      setPhoneError('Telefone inválido. Use o formato (XX) XXXXX-XXXX.');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
+
   const handleSelfApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!vacancyId) return;
+    if (!validatePhone(applyPhone)) return;
     setApplying(true);
     setApplyMsg('');
     try {
@@ -227,9 +240,9 @@ export function VacancyLandingView() {
                 <Input
                   label="Telefone"
                   value={applyPhone}
-                  onChange={(e) => setApplyPhone(e.target.value)}
+                  onChange={(e) => { setApplyPhone(e.target.value); setPhoneError(''); }}
                   placeholder="+55 11 99999-0000"
-                  hint="Opcional. Ajuda a acelerar o contato do recrutamento."
+                  hint={phoneError || 'Opcional. Ajuda a acelerar o contato do recrutamento.'}
                   autoComplete="tel"
                 />
                 {applyMsg && <InlineMessage variant={applyVariant}>{applyMsg}</InlineMessage>}

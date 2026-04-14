@@ -45,15 +45,17 @@ export function StatusView() {
   const [candidateStatus, setCandidateStatus] = useState<CandidateStatus | null>(null);
   const [parsedResume, setParsedResume] = useState<ParsedResumeData | null>(null);
 
+  const [statusError, setStatusError] = useState('');
+
   useEffect(() => {
     const token = getToken();
     if (!token) return;
     void apiGet<CandidateStatus>(`/candidate/onboarding/status/${encodeURIComponent(token)}`)
       .then(setCandidateStatus)
-      .catch(() => undefined);
+      .catch((err) => setStatusError(`Não foi possível carregar o status: ${String(err)}`));
     void apiGet<ParsedResumeData>(`/candidate/onboarding/parsed-resume/${encodeURIComponent(token)}`)
       .then(setParsedResume)
-      .catch(() => undefined);
+      .catch(() => undefined); // resume parsing is optional, silent fail is acceptable
   }, []);
 
   const upgradeAccount = async (e: React.FormEvent) => {
@@ -88,6 +90,9 @@ export function StatusView() {
       <Card variant="elevated" style={{ textAlign: 'center' }}>
         <CardContent>
           <h2 style={{ margin: `0 0 ${spacing.sm}px`, color: colors.text }}>Candidatura enviada</h2>
+          {statusError && (
+            <InlineMessage variant="error">{statusError}</InlineMessage>
+          )}
           <p style={{ color: colors.textSecondary, fontSize: fontSize.md }}>
             Olá <strong>{candidateStatus?.fullName ?? info.profile?.fullName ?? info.email ?? 'Candidato'}</strong>,
           </p>
@@ -241,8 +246,10 @@ export function StatusView() {
         <Button
           variant="ghost"
           onClick={() => {
-            localStorage.clear();
-            navigate('/');
+            if (window.confirm('Tem certeza? Todos os dados da candidatura atual serão removidos.')) {
+              localStorage.clear();
+              navigate('/');
+            }
           }}
         >
           Iniciar nova candidatura

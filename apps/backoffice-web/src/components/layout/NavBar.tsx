@@ -46,15 +46,26 @@ const navByRole: Record<string, NavSection[]> = {
   ],
   headhunter: [
     {
+      group: 'Pipeline',
       items: [
         { label: 'Vagas', to: '/vacancies' },
         { label: 'Candidatos', to: '/candidates' },
         { label: 'Aplicações', to: '/applications' },
         { label: 'Inbox', to: '/inbox' },
+      ],
+    },
+    {
+      group: 'Avaliação',
+      items: [
         { label: 'Shortlist', to: '/shortlist' },
         { label: 'Revisão Cliente', to: '/client-review' },
         { label: 'Entrevista', to: '/smart-interview' },
         { label: 'Inteligência', to: '/product-intelligence' },
+      ],
+    },
+    {
+      group: 'Gestão',
+      items: [
         { label: 'Enterprise', to: '/enterprise-governance' },
         { label: 'Notificações', to: '/notifications' },
         { label: 'Conta', to: '/account' },

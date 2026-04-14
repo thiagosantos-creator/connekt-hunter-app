@@ -27,6 +27,7 @@ export function AccessPoliciesView() {
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const orgOptions = useMemo(() => {
@@ -57,9 +58,10 @@ export function AccessPoliciesView() {
   useEffect(() => {
     if (!orgId) return;
     setLoading(true);
+    setLoadError('');
     void apiGet<TenantPolicy>(`/tenant-policies/${orgId}`)
       .then(setPolicy)
-      .catch(() => null)
+      .catch((err) => setLoadError(`Não foi possível carregar as políticas: ${String(err)}`))
       .finally(() => setLoading(false));
   }, [orgId]);
 
@@ -79,6 +81,7 @@ export function AccessPoliciesView() {
       <PageContent>
       <PageHeader title="Políticas por Tenant" description="Configure permissões globais para cada organização." />
       {msg && <InlineMessage variant={msg.startsWith('Erro') ? 'error' : 'success'} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
+      {loadError && <InlineMessage variant="warning" onDismiss={() => setLoadError('')}>{loadError}</InlineMessage>}
       <Card>
         <CardHeader><CardTitle>Controle de acesso</CardTitle></CardHeader>
         <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
@@ -110,7 +113,7 @@ export function AccessPoliciesView() {
               />
             ))
           )}
-          <Button onClick={() => { void save(); }} loading={saving} disabled={!orgId}>Salvar políticas</Button>
+          <Button onClick={() => { void save(); }} loading={saving} disabled={!orgId || !!loadError}>Salvar políticas</Button>
         </CardContent>
       </Card>
     </PageContent>

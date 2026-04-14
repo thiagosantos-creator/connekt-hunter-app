@@ -4,19 +4,77 @@ import { apiPost, getToken } from '../services/api.js';
 import { StepIndicator } from '../components/layout/StepIndicator.js';
 import { Button, Card, CardContent, InlineMessage, colors, spacing, fontSize, radius } from '@connekt/ui';
 
+const MAX_FILE_SIZE_MB = 10;
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
+
+interface ResumeUploadResponse {
+  id: string;
+  objectKey: string;
+  provider: string;
+  upload: {
+    url: string;
+    method: 'PUT';
+    headers: Record<string, string>;
+  };
+}
+
 export function Step3ResumeView() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validateFile = (f: File): string | null => {
+    const dotIndex = f.name.lastIndexOf('.');
+    const ext = dotIndex === -1 ? '' : f.name.toLowerCase().slice(dotIndex);
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return `Formato não suportado. Use: ${ALLOWED_EXTENSIONS.join(', ')}`;
+    }
+    if (f.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      return `Arquivo muito grande. Máximo: ${MAX_FILE_SIZE_MB} MB.`;
+    }
+    return null;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0] ?? null;
+    setError('');
+    if (selected) {
+      const validationError = validateFile(selected);
+      if (validationError) {
+        setError(validationError);
+        setFile(null);
+        return;
+      }
+    }
+    setFile(selected);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { setError('Por favor, selecione um arquivo.'); return; }
+    const validationError = validateFile(file);
+    if (validationError) { setError(validationError); return; }
     setLoading(true);
     setError('');
     try {
-      await apiPost('/candidate/onboarding/resume', { token: getToken(), filename: file.name });
+      const result = await apiPost<ResumeUploadResponse>('/candidate/onboarding/resume', {
+        token: getToken(),
+        filename: file.name,
+      });
+
+      // Upload actual file content to the presigned URL
+      if (result.upload?.url) {
+        const uploadRes = await fetch(result.upload.url, {
+          method: result.upload.method,
+          headers: result.upload.headers,
+          body: file,
+        });
+        if (!uploadRes.ok) {
+          throw new Error('Falha ao enviar arquivo. Tente novamente.');
+        }
+      }
+
       navigate('/status');
     } catch (err) {
       setError(String(err));
@@ -50,9 +108,12 @@ export function Step3ResumeView() {
               <input
                 type="file"
                 accept=".pdf,.doc,.docx"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={handleFileChange}
                 style={{ display: 'block', margin: '0 auto' }}
               />
+              <p style={{ marginTop: spacing.xs, color: colors.textSecondary, fontSize: fontSize.xs }}>
+                Formatos aceitos: {ALLOWED_EXTENSIONS.map((ext) => ext.slice(1).toUpperCase()).join(', ')} — Máx. {MAX_FILE_SIZE_MB} MB
+              </p>
               {file && (
                 <p style={{ marginTop: spacing.sm, color: colors.text, fontSize: fontSize.sm }}>
                   Selecionado: <strong>{file.name}</strong> ({Math.round(file.size / 1024)} KB)

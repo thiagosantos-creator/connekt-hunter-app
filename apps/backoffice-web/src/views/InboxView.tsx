@@ -6,9 +6,9 @@ import {
   CardContent,
   EmptyState,
   InlineMessage,
+  Input,
   PageContent,
   PageHeader,
-  Select,
   StatBox,
   Tabs,
   colors,
@@ -41,7 +41,8 @@ export function InboxView() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-
+  const [msg, setMsg] = useState('');
+  const [msgVariant, setMsgVariant] = useState<'success' | 'error' | 'info'>('info');
   const orgId = user?.organizationIds?.[0] ?? '';
 
   const load = async () => {
@@ -99,6 +100,7 @@ export function InboxView() {
       />
 
       {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
+      {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
       {loading ? (
         <div style={{ display: 'grid', gap: spacing.lg }}>
@@ -125,12 +127,10 @@ export function InboxView() {
 
           {/* Search */}
           <div style={{ marginBottom: spacing.md }}>
-            <input
-              type="text"
+            <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por vaga, candidato ou status..."
-              style={{ width: '100%', maxWidth: 400, padding: `${spacing.sm}px ${spacing.md}px`, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: fontSize.md, outline: 'none', background: colors.surface, color: colors.text, boxSizing: 'border-box' }}
             />
           </div>
 
@@ -164,10 +164,15 @@ export function InboxView() {
                         </div>
                       </div>
 
-                      {/* Right: quick actions */}
+                      {/* Right: quick actions — TODO: wire to real backend endpoints when available */}
                       <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
                         {item.quickActions.map((action) => (
-                          <Badge key={action} variant="info" size="sm">{action}</Badge>
+                          <Button key={action} variant="outline" size="sm" onClick={() => {
+                            setMsg(`Ação "${action}" para ${item.candidateEmail} será implementada em breve.`);
+                            setMsgVariant('info');
+                          }}>
+                            {action}
+                          </Button>
                         ))}
                       </div>
                     </div>

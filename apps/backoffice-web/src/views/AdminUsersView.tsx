@@ -97,6 +97,11 @@ export function AdminUsersView() {
   const inactiveUsers = rows.length - activeUsers;
   const pendingInvites = inviteRows.filter((row) => row.status !== 'delivered' && row.status !== 'completed').length;
   const getOrganizationLabel = (id: string) => organizationLabelById[id] || id;
+  const ownerLabel = (() => {
+    if (!selectedOrganization?.ownerAdminUserId) return 'Não definido';
+    const owner = rows.find((r) => r.id === selectedOrganization.ownerAdminUserId);
+    return owner ? owner.name : selectedOrganization.ownerAdminUserId;
+  })();
 
   const cols = useMemo(
     () => [
@@ -119,7 +124,7 @@ export function AdminUsersView() {
         header: 'Perfil',
         render: (row: ManagedUser) =>
           canManage ? (
-            <select
+            <Select
               value={row.role}
               onChange={(e) => {
                 const role = e.target.value as ManagedUser['role'];
@@ -134,11 +139,12 @@ export function AdminUsersView() {
                     setFeedback(String(error));
                   });
                }}
-             >
-              <option value="admin">admin</option>
-              <option value="headhunter">headhunter</option>
-              <option value="client">client</option>
-            </select>
+               options={[
+                 { value: 'admin', label: 'Admin' },
+                 { value: 'headhunter', label: 'Headhunter' },
+                 { value: 'client', label: 'Client' },
+               ]}
+            />
           ) : (
             row.role
           ),
@@ -218,7 +224,7 @@ export function AdminUsersView() {
               <StatBox label="Usuários ativos" value={activeUsers} />
               <StatBox label="Usuários inativos" value={inactiveUsers} />
               <StatBox label="Convites pendentes" value={pendingInvites} />
-              <StatBox label="Responsável" value={selectedOrganization.ownerAdminUserId ?? 'Não definido'} />
+              <StatBox label="Responsável" value={ownerLabel} />
             </div>
           )}
         </CardContent>

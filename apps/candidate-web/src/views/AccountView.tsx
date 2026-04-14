@@ -79,10 +79,15 @@ export function AccountView() {
                   onClick={() => {
                     try {
                       const url = new URL(config.hostedUiUrl!);
-                      if (!url.hostname.endsWith('.amazoncognito.com')) return;
+                      if (!url.hostname.endsWith('.amazoncognito.com')) {
+                        setError('URL do provedor de identidade não é válida.');
+                        return;
+                      }
                       url.searchParams.set('identity_provider', provider);
                       window.location.href = url.toString();
-                    } catch { /* invalid URL — ignore */ }
+                    } catch {
+                      setError('URL do provedor de identidade não é válida.');
+                    }
                   }}
                 >
                   Entrar com {provider}
@@ -107,9 +112,14 @@ export function AccountView() {
                 onClick={() => {
                   try {
                     const url = new URL(config.changePasswordUrl!);
-                    if (!url.hostname.endsWith('.amazoncognito.com')) return;
+                    if (!url.hostname.endsWith('.amazoncognito.com')) {
+                      setError('URL de alteração de senha não é válida.');
+                      return;
+                    }
                     window.location.href = url.toString();
-                  } catch { /* invalid URL — ignore */ }
+                  } catch {
+                    setError('URL de alteração de senha não é válida.');
+                  }
                 }}
               >
                 Alterar senha no provedor

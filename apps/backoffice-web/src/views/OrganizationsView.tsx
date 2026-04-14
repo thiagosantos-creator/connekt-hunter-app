@@ -207,7 +207,7 @@ export function OrganizationsView() {
           <CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
             <Input label="Nome da empresa" value={createForm.name} onChange={(e) => setCreateForm((current) => ({ ...current, name: e.target.value }))} required />
             <Select label="Status" value={createForm.status} onChange={(e) => setCreateForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'disabled', label: 'Desativada' }]} />
-            <Input label="Responsável / admin" value={createForm.ownerAdminUserId} onChange={(e) => setCreateForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="user_id do responsável" />
+            <Input label="Responsável (admin)" value={createForm.ownerAdminUserId} onChange={(e) => setCreateForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="ID ou e-mail do administrador responsável" />
             {renderBrandingFields(createForm, setCreateForm)}
           </CardContent>
           <CardFooter><Button type="submit" loading={saving}>{saving ? 'Salvando...' : 'Criar tenant'}</Button></CardFooter>
@@ -221,7 +221,7 @@ export function OrganizationsView() {
             <CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
               <Input label="Nome da empresa" value={editForm.name} onChange={(e) => setEditForm((current) => ({ ...current, name: e.target.value }))} required />
               <Select label="Status" value={editForm.status} onChange={(e) => setEditForm((current) => ({ ...current, status: e.target.value }))} options={[{ value: 'active', label: 'Ativa' }, { value: 'disabled', label: 'Desativada' }]} />
-              <Input label="Responsável / admin" value={editForm.ownerAdminUserId} onChange={(e) => setEditForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="user_id do responsável" />
+              <Input label="Responsável (admin)" value={editForm.ownerAdminUserId} onChange={(e) => setEditForm((current) => ({ ...current, ownerAdminUserId: e.target.value }))} placeholder="ID ou e-mail do administrador responsável" />
               {renderBrandingFields(editForm, setEditForm)}
 
               {(editForm.branding.logoUrl || editForm.branding.bannerUrl) && (

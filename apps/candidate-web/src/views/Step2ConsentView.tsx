@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiPost, getToken } from '../services/api.js';
 import { StepIndicator } from '../components/layout/StepIndicator.js';
-import { Button, Card, CardContent, InlineMessage, colors, spacing, fontSize, radius } from '@connekt/ui';
+import { Button, Card, CardContent, Checkbox, InlineMessage, colors, spacing, fontSize, radius } from '@connekt/ui';
 
 export function Step2ConsentView() {
   const navigate = useNavigate();
@@ -60,10 +60,11 @@ export function Step2ConsentView() {
             </p>
           </div>
           <form onSubmit={(e) => { void submit(e); }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, cursor: 'pointer', fontSize: fontSize.md, color: colors.text }}>
-              <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} style={{ width: 18, height: 18 }} />
-              Li e aceito a política de privacidade (LGPD) e os Termos de Uso
-            </label>
+            <Checkbox
+              label="Li e aceito a política de privacidade (LGPD) e os Termos de Uso"
+              checked={accepted}
+              onChange={(checked) => setAccepted(checked)}
+            />
             {error && <div style={{ marginTop: spacing.sm }}><InlineMessage variant="error">{error}</InlineMessage></div>}
             <div style={{ display: 'flex', gap: spacing.sm, marginTop: spacing.md }}>
               <Button variant="secondary" type="button" onClick={() => navigate('/onboarding/basic')}>

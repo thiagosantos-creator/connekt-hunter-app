@@ -87,10 +87,8 @@ export function DataTable<T>({
   const hasActiveSearch = search.trim().length > 0;
 
   useEffect(() => {
-    if (currentPage !== page) {
-      setPage(currentPage);
-    }
-  }, [currentPage, page]);
+    setPage((current) => (current === currentPage ? current : currentPage));
+  }, [currentPage]);
 
   const handleSort = (key: string) => {
     const col = columns.find((c) => c.key === key);

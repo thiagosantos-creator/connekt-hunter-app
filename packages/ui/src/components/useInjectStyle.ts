@@ -1,14 +1,10 @@
 import { useEffect } from 'react';
 
-const injectedStyleIds = new Set<string>();
-
 export function useInjectStyle(id: string, css: string) {
   useEffect(() => {
-    if (typeof document === 'undefined' || injectedStyleIds.has(id)) {
+    if (typeof document === 'undefined') {
       return;
     }
-
-    injectedStyleIds.add(id);
 
     const existingStyle = document.head.querySelector(`[data-connekt-style="${id}"]`);
     if (existingStyle) {

@@ -44,7 +44,7 @@ const controlFocusStyles = `
 `;
 
 function buildAriaDescribedBy(ids: Array<string | undefined>, current?: string) {
-  return [current, ...ids].filter(Boolean).join(' ') || undefined;
+  return [current, ...ids].filter((value): value is string => Boolean(value && value.trim())).join(' ') || undefined;
 }
 
 function FieldLabel({ label, required, htmlFor }: { label?: string; required?: boolean; htmlFor: string }) {
@@ -74,7 +74,7 @@ export function Input({ label, error, hint, style, id, className, required, ...p
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <input
         id={inputId}
-        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        className={['connekt-field-control', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
         aria-invalid={error ? true : props['aria-invalid']}
         aria-describedby={describedBy}
         required={required}
@@ -106,7 +106,7 @@ export function Textarea({ label, error, hint, style, id, className, required, .
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <textarea
         id={inputId}
-        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        className={['connekt-field-control', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
         aria-invalid={error ? true : props['aria-invalid']}
         aria-describedby={describedBy}
         required={required}
@@ -151,7 +151,7 @@ export function Select({ label, error, hint, style, options, placeholder, id, cl
       <FieldLabel label={label} required={required} htmlFor={inputId} />
       <select
         id={inputId}
-        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        className={['connekt-field-control', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
         aria-invalid={error ? true : props['aria-invalid']}
         aria-describedby={describedBy}
         required={required}

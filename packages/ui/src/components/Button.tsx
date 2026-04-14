@@ -38,7 +38,7 @@ export function Button({ variant = 'primary', size = 'md', loading, children, di
   return (
     <button
       disabled={disabled || loading}
-      className={['connekt-ui-button', className].filter(Boolean).join(' ')}
+      className={['connekt-ui-button', className].filter((value): value is string => Boolean(value && value.trim())).join(' ')}
       style={{
         borderRadius: radius.md,
         fontWeight: fontWeight.medium,

@@ -9,8 +9,10 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  EmptyState,
   InlineMessage,
   Input,
+  Spinner,
   spacing,
   colors,
   radius,
@@ -34,17 +36,33 @@ export function VacancyLandingView() {
   const [applyMsg, setApplyMsg] = useState('');
   const [applyVariant, setApplyVariant] = useState<'success' | 'error'>('success');
 
-  useEffect(() => {
-    if (!vacancyId) return;
+  const loadVacancy = async () => {
+    if (!vacancyId) {
+      setLoading(false);
+      setError('Vaga não encontrada.');
+      return;
+    }
+
     setLoading(true);
-    void apiGet<PublicVacancyInfo>(`/public/vacancies/${encodeURIComponent(vacancyId)}`)
-      .then((data) => {
-        setVacancy(data);
-        setError('');
-      })
-      .catch((err) => setError(String(err)))
-      .finally(() => setLoading(false));
+    try {
+      const data = await apiGet<PublicVacancyInfo>(`/public/vacancies/${encodeURIComponent(vacancyId)}`);
+      setVacancy(data);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setVacancy(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadVacancy();
   }, [vacancyId]);
+
+  const retryLoadVacancy = () => {
+    void loadVacancy();
+  };
 
   const primaryColor = vacancy?.organization.primaryColor || colors.primary;
   const secondaryColor = vacancy?.organization.secondaryColor || colors.surfaceAlt;
@@ -88,13 +106,37 @@ export function VacancyLandingView() {
   };
 
   if (loading) {
-    return <div style={{ padding: 24 }}>Carregando vaga...</div>;
+    return (
+      <div style={{ maxWidth: 720, margin: '48px auto', padding: `0 ${spacing.md}px` }}>
+        <Card>
+          <CardContent>
+            <Spinner size={32} />
+            <p style={{ margin: 0, textAlign: 'center', color: colors.textSecondary }}>
+              Carregando detalhes da vaga e da empresa...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (error || !vacancy) {
     return (
       <div style={{ maxWidth: 720, margin: '48px auto', padding: `0 ${spacing.md}px` }}>
-        <InlineMessage variant="error">{error || 'Vaga não encontrada.'}</InlineMessage>
+        <Card>
+          <CardContent>
+            <EmptyState
+              icon="⚠️"
+              title="Não foi possível carregar a vaga"
+              description={error || 'Vaga não encontrada.'}
+              action={(
+                <Button type="button" variant="outline" onClick={retryLoadVacancy}>
+                  Tentar novamente
+                </Button>
+              )}
+            />
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -163,11 +205,37 @@ export function VacancyLandingView() {
             </CardHeader>
             <CardContent>
               <form onSubmit={(e) => { void handleSelfApply(e); }} style={{ display: 'grid', gap: spacing.sm }}>
-                <Input label="Nome completo *" value={applyName} onChange={(e) => setApplyName(e.target.value)} placeholder="Seu nome completo" required />
-                <Input label="E-mail *" type="email" value={applyEmail} onChange={(e) => setApplyEmail(e.target.value)} placeholder="seu@email.com" required />
-                <Input label="Telefone (opcional)" value={applyPhone} onChange={(e) => setApplyPhone(e.target.value)} placeholder="+55 11 99999-0000" />
+                <Input
+                  label="Nome completo"
+                  value={applyName}
+                  onChange={(e) => setApplyName(e.target.value)}
+                  placeholder="Seu nome completo"
+                  hint="Use o mesmo nome que deseja ver no processo seletivo."
+                  autoComplete="name"
+                  required
+                />
+                <Input
+                  label="E-mail"
+                  type="email"
+                  value={applyEmail}
+                  onChange={(e) => setApplyEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  hint="Enviaremos atualizações e acesso da candidatura para este e-mail."
+                  autoComplete="email"
+                  required
+                />
+                <Input
+                  label="Telefone"
+                  value={applyPhone}
+                  onChange={(e) => setApplyPhone(e.target.value)}
+                  placeholder="+55 11 99999-0000"
+                  hint="Opcional. Ajuda a acelerar o contato do recrutamento."
+                  autoComplete="tel"
+                />
                 {applyMsg && <InlineMessage variant={applyVariant}>{applyMsg}</InlineMessage>}
-                <Button type="submit" loading={applying}>{applying ? 'Enviando...' : 'Candidatar-se'}</Button>
+                <Button type="submit" loading={applying}>
+                  {applying ? 'Enviando...' : 'Candidatar-se'}
+                </Button>
               </form>
             </CardContent>
           </Card>
@@ -183,6 +251,7 @@ export function VacancyLandingView() {
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Cole aqui o token recebido"
+                hint="Se você recebeu um link, também pode colar apenas o token."
               />
               <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
                 <Button type="button" variant="outline" onClick={continueToPortal}>Continuar candidatura</Button>

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { colors, radius, fontSize, spacing, fontWeight } from '../tokens/tokens.js';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -12,24 +13,75 @@ const inputStyle: React.CSSProperties = {
   fontSize: fontSize.md,
   border: `1px solid ${colors.border}`,
   borderRadius: radius.md,
-  outline: 'none',
-  transition: 'border-color 0.15s',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
   boxSizing: 'border-box',
   lineHeight: 1.5,
   color: colors.text,
   background: colors.surface,
 };
 
-export function Input({ label, error, style, ...props }: InputProps) {
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: spacing.xs,
+  fontSize: fontSize.sm,
+  fontWeight: fontWeight.medium,
+  color: colors.textSecondary,
+};
+
+const hintStyle: React.CSSProperties = {
+  margin: `${spacing.xs}px 0 0`,
+  fontSize: fontSize.xs,
+  color: colors.textMuted,
+};
+
+const controlFocusStyles = `
+  .connekt-field-control:focus-visible {
+    border-color: ${colors.info};
+    box-shadow: 0 0 0 3px ${colors.infoLight};
+    outline: none;
+  }
+`;
+
+function buildDescribedBy(ids: Array<string | undefined>, current?: string) {
+  return [current, ...ids].filter(Boolean).join(' ') || undefined;
+}
+
+function FieldLabel({ label, required, htmlFor }: { label?: string; required?: boolean; htmlFor: string }) {
+  if (!label) return null;
+  return (
+    <label htmlFor={htmlFor} style={labelStyle}>
+      {label}
+      {required && (
+        <span aria-hidden="true" style={{ color: colors.danger, marginLeft: spacing.xs }}>
+          *
+        </span>
+      )}
+    </label>
+  );
+}
+
+export function Input({ label, error, hint, style, id, className, required, ...props }: InputProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const hintId = hint ? `${inputId}-hint` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+
   return (
     <div style={{ marginBottom: spacing.md }}>
-      {label && (
-        <label style={{ display: 'block', marginBottom: spacing.xs, fontSize: fontSize.sm, fontWeight: 500, color: colors.textSecondary }}>
-          {label}
-        </label>
-      )}
-      <input style={{ ...inputStyle, ...(error ? { borderColor: colors.danger } : {}), ...style }} {...props} />
-      {error && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
+      <style>{controlFocusStyles}</style>
+      <FieldLabel label={label} required={required} htmlFor={inputId} />
+      <input
+        id={inputId}
+        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        aria-invalid={error ? true : props['aria-invalid']}
+        aria-describedby={describedBy}
+        required={required}
+        style={{ ...inputStyle, ...(error ? { borderColor: colors.danger } : {}), ...style }}
+        {...props}
+      />
+      {hint && !error && <p id={hintId} style={hintStyle}>{hint}</p>}
+      {error && <p id={errorId} style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
     </div>
   );
 }
@@ -37,17 +89,26 @@ export function Input({ label, error, style, ...props }: InputProps) {
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
-export function Textarea({ label, error, style, ...props }: TextareaProps) {
+export function Textarea({ label, error, hint, style, id, className, required, ...props }: TextareaProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const hintId = hint ? `${inputId}-hint` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+
   return (
     <div style={{ marginBottom: spacing.md }}>
-      {label && (
-        <label style={{ display: 'block', marginBottom: spacing.xs, fontSize: fontSize.sm, fontWeight: 500, color: colors.textSecondary }}>
-          {label}
-        </label>
-      )}
+      <style>{controlFocusStyles}</style>
+      <FieldLabel label={label} required={required} htmlFor={inputId} />
       <textarea
+        id={inputId}
+        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        aria-invalid={error ? true : props['aria-invalid']}
+        aria-describedby={describedBy}
+        required={required}
         style={{
           ...inputStyle,
           resize: 'vertical',
@@ -57,7 +118,8 @@ export function Textarea({ label, error, style, ...props }: TextareaProps) {
         }}
         {...props}
       />
-      {error && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
+      {hint && !error && <p id={hintId} style={hintStyle}>{hint}</p>}
+      {error && <p id={errorId} style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
     </div>
   );
 }
@@ -70,19 +132,31 @@ export interface SelectOption {
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
+  hint?: string;
   options: SelectOption[];
   placeholder?: string;
 }
 
-export function Select({ label, error, style, options, placeholder, ...props }: SelectProps) {
+export function Select({ label, error, hint, style, options, placeholder, id, className, required, ...props }: SelectProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const hintId = hint ? `${inputId}-hint` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+
   return (
     <div style={{ marginBottom: spacing.md }}>
-      {label && (
-        <label style={{ display: 'block', marginBottom: spacing.xs, fontSize: fontSize.sm, fontWeight: 500, color: colors.textSecondary }}>
-          {label}
-        </label>
-      )}
-      <select style={{ ...inputStyle, ...(error ? { borderColor: colors.danger } : {}), ...style }} {...props}>
+      <style>{controlFocusStyles}</style>
+      <FieldLabel label={label} required={required} htmlFor={inputId} />
+      <select
+        id={inputId}
+        className={['connekt-field-control', className].filter(Boolean).join(' ')}
+        aria-invalid={error ? true : props['aria-invalid']}
+        aria-describedby={describedBy}
+        required={required}
+        style={{ ...inputStyle, ...(error ? { borderColor: colors.danger } : {}), ...style }}
+        {...props}
+      >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -90,7 +164,8 @@ export function Select({ label, error, style, options, placeholder, ...props }: 
           </option>
         ))}
       </select>
-      {error && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
+      {hint && !error && <p id={hintId} style={hintStyle}>{hint}</p>}
+      {error && <p id={errorId} style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.xs, color: colors.danger }}>{error}</p>}
     </div>
   );
 }

@@ -87,6 +87,11 @@ export function DataTable<T>({
         .connekt-data-table__row:hover {
           background: ${colors.surfaceHover};
         }
+        .connekt-data-table__row:focus-visible,
+        .connekt-data-table__control:focus-visible {
+          outline: 2px solid ${colors.info};
+          outline-offset: -2px;
+        }
       `}</style>
 
       {searchable && (
@@ -96,13 +101,13 @@ export function DataTable<T>({
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             placeholder={searchPlaceholder}
+            className="connekt-data-table__control"
             style={{
               width: '100%',
               padding: `${spacing.xs + 2}px ${spacing.sm + 4}px`,
               fontSize: fontSize.sm,
               border: `1px solid ${colors.border}`,
               borderRadius: radius.md,
-              outline: 'none',
               color: colors.text,
               background: colors.surfaceAlt,
             }}
@@ -133,6 +138,7 @@ export function DataTable<T>({
             <button
               type="button"
               onClick={() => { setSearch(''); setPage(0); }}
+              className="connekt-data-table__control"
               style={{
                 padding: `2px ${spacing.sm}px`,
                 border: `1px solid ${colors.border}`,
@@ -156,7 +162,7 @@ export function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  onClick={() => handleSort(col.key)}
+                  aria-sort={sortKey === col.key ? (sortAsc ? 'ascending' : 'descending') : 'none'}
                   style={{
                     textAlign: 'left',
                     padding: `${spacing.sm + 2}px ${spacing.md}px`,
@@ -166,16 +172,34 @@ export function DataTable<T>({
                     borderBottom: `1px solid ${colors.border}`,
                     whiteSpace: 'nowrap',
                     width: col.width,
-                    cursor: col.sortValue ? 'pointer' : 'default',
                     userSelect: 'none',
                   }}
                 >
-                  {col.header}
-                  {col.sortValue && sortKey === col.key && (
-                    <span style={{ marginLeft: 4, fontSize: fontSize.xs }}>
-                      {sortAsc ? '▲' : '▼'}
-                    </span>
-                  )}
+                  {col.sortValue ? (
+                    <button
+                      type="button"
+                      onClick={() => handleSort(col.key)}
+                      className="connekt-data-table__control"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        font: 'inherit',
+                      }}
+                    >
+                      <span>{col.header}</span>
+                      {sortKey === col.key && (
+                        <span style={{ fontSize: fontSize.xs }}>
+                          {sortAsc ? '▲' : '▼'}
+                        </span>
+                      )}
+                    </button>
+                  ) : col.header}
                 </th>
               ))}
             </tr>
@@ -194,6 +218,7 @@ export function DataTable<T>({
                 }}
                 className="connekt-data-table__row"
                 tabIndex={onRowClick ? 0 : undefined}
+                role={onRowClick ? 'button' : undefined}
                 aria-selected={selectedRowKey ? selectedRowKey === rowKey(row) : undefined}
                 style={{
                   borderBottom: `1px solid ${colors.borderLight}`,
@@ -227,6 +252,8 @@ export function DataTable<T>({
             <button
               onClick={() => setPage(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
+              className="connekt-data-table__control"
+              aria-label="Página anterior"
               style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: currentPage === 0 ? 'not-allowed' : 'pointer', color: currentPage === 0 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
             >
               ←
@@ -235,6 +262,8 @@ export function DataTable<T>({
             <button
               onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
               disabled={currentPage >= totalPages - 1}
+              className="connekt-data-table__control"
+              aria-label="Próxima página"
               style={{ padding: `2px ${spacing.sm}px`, border: `1px solid ${colors.border}`, borderRadius: radius.sm, background: colors.surface, cursor: currentPage >= totalPages - 1 ? 'not-allowed' : 'pointer', color: currentPage >= totalPages - 1 ? colors.textMuted : colors.text, fontSize: fontSize.sm }}
             >
               →

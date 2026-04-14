@@ -493,7 +493,18 @@ export function CandidatesView() {
                     {
                       key: 'candidate',
                       header: 'Candidato',
-                      render: (row: ManagedCandidate) => row.fullName || row.email,
+                      render: (row: ManagedCandidate) => (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                          <div style={{ width: 32, height: 32, borderRadius: radius.full, background: colors.primaryLight, color: colors.textInverse, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.sm, fontWeight: fontWeight.bold, flexShrink: 0, overflow: 'hidden' }}>
+                            {row.photoUrl ? (
+                              <img src={row.photoUrl} alt={row.fullName || row.email} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                            ) : (
+                              (row.fullName || row.email).substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <span>{row.fullName || row.email}</span>
+                        </div>
+                      ),
                       searchValue: (row: ManagedCandidate) => `${row.fullName ?? ''} ${row.email}`.trim(),
                       sortValue: (row: ManagedCandidate) => row.fullName || row.email,
                     },

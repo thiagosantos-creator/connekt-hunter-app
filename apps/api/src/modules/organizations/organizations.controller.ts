@@ -46,4 +46,15 @@ export class OrganizationsController {
   findAll() {
     return this.organizationsService.findAll();
   }
+
+  @Post(':organizationId/branding/:type(logo|banner)/upload-url')
+  @RequirePermissions('users:manage')
+  createBrandingUpload(
+    @Param('organizationId') organizationId: string,
+    @Param('type') type: 'logo' | 'banner',
+    @Body() body: { filename: string; contentType?: string }
+  ) {
+    if (!body.filename) throw new Error('filename is required');
+    return this.organizationsService.createBrandingUpload(organizationId, type, body.filename, body.contentType);
+  }
 }

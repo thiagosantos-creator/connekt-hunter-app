@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -28,5 +28,22 @@ export class UserManagementController {
       role: body.role,
       isActive: body.isActive,
     });
+  }
+
+  @Put('me/profile')
+  updateMe(
+    @Body() body: { name?: string; title?: string; avatarUrl?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.updateMe(user.id, body);
+  }
+
+  @Post('me/avatar-upload-url')
+  createAvatarUpload(
+    @Body() body: { filename: string; contentType?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!body.filename) throw new Error('filename is required');
+    return this.service.createAvatarUpload(user.id, body.filename, body.contentType);
   }
 }

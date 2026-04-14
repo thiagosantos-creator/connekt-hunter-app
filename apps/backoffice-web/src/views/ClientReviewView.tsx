@@ -341,8 +341,13 @@ export function ClientReviewView() {
                           fontSize: fontSize.lg,
                           fontWeight: fontWeight.bold,
                           flexShrink: 0,
+                          overflow: 'hidden',
                         }}>
-                          {initials(name)}
+                          {candidate.profile?.photoUrl ? (
+                            <img src={candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                          ) : (
+                            initials(name)
+                          )}
                         </div>
 
                         <div style={{ minWidth: 0, flex: 1 }}>

@@ -234,7 +234,13 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: spacing.lg }}>
                 <div>
                   <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', marginBottom: spacing.lg }}>
-                    <div style={{ width: 78, height: 78, borderRadius: radius.full, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xxl, fontWeight: fontWeight.bold }}>{initials(name)}</div>
+                    <div style={{ width: 78, height: 78, borderRadius: radius.full, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xxl, fontWeight: fontWeight.bold, overflow: 'hidden' }}>
+                      {detail.candidate.profile?.photoUrl ? (
+                        <img src={detail.candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                      ) : (
+                        initials(name)
+                      )}
+                    </div>
                     <div>
                       <div style={{ fontSize: fontSize.xxl, fontWeight: fontWeight.bold }}>{name}</div>
                       <div style={{ fontSize: fontSize.lg }}>{headline}</div>

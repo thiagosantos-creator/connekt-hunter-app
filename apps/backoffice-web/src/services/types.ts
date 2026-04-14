@@ -127,6 +127,7 @@ export interface ManagedCandidate {
   email: string;
   phone?: string | null;
   fullName?: string | null;
+  photoUrl?: string | null;
   createdAt: string;
   guestUpgradeAt?: string | null;
   userId?: string | null;
@@ -185,6 +186,8 @@ export interface Application {
     profile?: {
       fullName?: string;
       phone?: string;
+      photoUrl?: string;
+      photoProvider?: string;
     };
   };
   vacancy: {

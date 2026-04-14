@@ -214,28 +214,45 @@ export function ShortlistView() {
             </div>
           </div>
 
-          {/* Priority calculator */}
+          {/* Priority calculator & Sharing */}
           <Card style={{ marginBottom: spacing.lg }}>
-            <CardContent style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 240px', minWidth: 200 }}>
-                <Select
-                  label="Priorização por vaga (IA)"
-                  value={priorityVacancyId}
-                  onChange={(e) => setPriorityVacancyId(e.target.value)}
-                  options={[{ value: '', label: 'Selecione uma vaga...' }, ...vacancies.map((v) => ({ value: v.id, label: v.title }))]}
-                />
+            <CardContent style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', flex: 1 }}>
+                <div style={{ flex: '1 1 240px', minWidth: 200, maxWidth: 400 }}>
+                  <Select
+                    label="Vaga e Ações de IA"
+                    value={priorityVacancyId}
+                    onChange={(e) => setPriorityVacancyId(e.target.value)}
+                    options={[{ value: '', label: 'Selecione uma vaga...' }, ...vacancies.map((v) => ({ value: v.id, label: v.title }))]}
+                  />
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => { void calculatePriority(); }}
+                  disabled={!priorityVacancyId}
+                  loading={priorityLoading}
+                >
+                  🤖 Calcular Prioridade
+                </Button>
+                {priorities.length > 0 && (
+                  <Badge variant="info" size="sm" style={{ alignSelf: 'center', marginBottom: spacing.sm }}>
+                    {priorities.length} ranqueados
+                  </Badge>
+                )}
               </div>
-              <Button
-                variant="secondary"
-                onClick={() => { void calculatePriority(); }}
-                disabled={!priorityVacancyId}
-                loading={priorityLoading}
-              >
-                🤖 Calcular Prioridade
-              </Button>
-              {priorities.length > 0 && (
-                <Badge variant="info" size="sm">{priorities.length} candidatos ranqueados</Badge>
-              )}
+              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <Button
+                  variant="outline"
+                  onClick={() => { 
+                    navigator.clipboard.writeText(`${window.location.origin}/client-review?vacancyId=${priorityVacancyId}`);
+                    setMsg('Link de acesso seguro copiado para a área de transferência.');
+                    setMsgVariant('success');
+                  }}
+                  disabled={!priorityVacancyId}
+                >
+                  🔗 Copiar Link para Gestor
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -281,8 +298,12 @@ export function ShortlistView() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
                       {/* Left */}
                       <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: radius.full, background: isShortlisted ? colors.success : colors.primaryLight, color: colors.textInverse, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.md, fontWeight: fontWeight.bold, flexShrink: 0 }}>
-                          {isShortlisted ? '✓' : initials(name)}
+                        <div style={{ width: 44, height: 44, borderRadius: radius.full, background: isShortlisted ? colors.success : colors.primaryLight, color: colors.textInverse, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.md, fontWeight: fontWeight.bold, flexShrink: 0, overflow: 'hidden' }}>
+                          {isShortlisted ? '✓' : app.candidate.profile?.photoUrl ? (
+                            <img src={app.candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                          ) : (
+                            initials(name)
+                          )}
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>

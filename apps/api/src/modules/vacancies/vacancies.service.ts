@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
+import { AiGateway } from '../integrations/ai.gateway.js';
 
 type VacancyRecord = {
   organizationId: string;
@@ -48,6 +49,8 @@ type VacancyPayload = {
 @Injectable()
 export class VacanciesService {
   private readonly logger = new Logger(VacanciesService.name);
+
+  constructor(private readonly aiGateway: AiGateway) {}
 
   async create(data: VacancyPayload) {
     const membership = await prisma.membership.findUnique({
@@ -343,39 +346,16 @@ export class VacanciesService {
     return { token: candidate.token, candidateId: candidate.id, vacancyId };
   }
 
-  generateAssistiveContent(input: {
+  async generateAssistiveContent(input: {
     title: string;
     seniority: string;
     sector: string;
     workModel?: string;
     location?: string;
   }) {
-    const seniorityLabel = input.seniority || 'pleno';
-    const locationLabel = input.location || 'a combinar';
-    const workModelLabel = input.workModel || 'híbrido';
-    const summary = `Buscamos ${input.title} (${seniorityLabel}) para atuar no setor ${input.sector}, em modelo ${workModelLabel}, com base em ${locationLabel}. Conteúdo gerado por IA (requer revisão humana).`;
-    return {
-      summary,
-      responsibilities: [
-        `Liderar entregas de ${input.title} com foco em qualidade e previsibilidade.`,
-        'Colaborar com stakeholders de negócio e pares técnicos para priorização.',
-        'Garantir documentação de decisões e melhoria contínua do fluxo.',
-      ],
-      requiredSkills: [
-        `${seniorityLabel} experiência prática na função`,
-        `Conhecimento sólido no domínio de ${input.sector}`,
-        'Comunicação clara e orientação a métricas de entrega',
-      ],
-      desiredSkills: [
-        'Experiência com ambientes multi-tenant e trilha de auditoria',
-        'Familiaridade com automações assíncronas e operações orientadas a SLA',
-      ],
-      keywords: [input.title, input.sector, seniorityLabel, workModelLabel, locationLabel],
-      generatedByAI: true,
-      requiresHumanReview: true,
-      provider: 'mock-assistive-v1',
-      generatedAt: new Date().toISOString(),
-    };
+    // Agora delega para o gateway que lida com real vs mock baseado nas configs de fallback e keys da aplicação
+    const result = await this.aiGateway.generateAssistiveVacancy(input);
+    return result;
   }
 
   private getPublicationMissingFields(data: VacancyPayload) {

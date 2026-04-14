@@ -468,6 +468,62 @@ Seja objetivo e factual. Análise assistiva — revisão humana obrigatória.`,
     };
   }
 
+  async generateAssistiveVacancy(input: {
+    title: string;
+    seniority: string;
+    sector: string;
+    workModel?: string;
+    location?: string;
+  }): Promise<{
+    summary: string;
+    responsibilities: string[];
+    requiredSkills: string[];
+    desiredSkills: string[];
+    keywords: string[];
+  }> {
+    const response = await this.getClient().chat.completions.create({
+      model: this.modelVersion,
+      temperature: 0.5,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: `Você é um Recrutador Especialista redigindo o modelo de uma vaga de emprego.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "summary": "resumo engajador da vaga em 3 frases",
+  "responsibilities": ["ação prática 1", "ação 2", "ação 3", "ação 4"],
+  "requiredSkills": ["habilidade 1", "habilidade 2"],
+  "desiredSkills": ["habilidade desejável 1", "habilidade desejável 2"],
+  "keywords": ["tag1", "tag2"]
+}
+Seja atrativo, claro e direto ao ponto. Use a língua portuguesa do Brasil.`,
+        },
+        {
+          role: 'user',
+          content: `Crie o conteúdo para a seguinte vaga:\nTítulo: ${input.title}\nSenioridade: ${input.seniority}\nSetor: ${input.sector}\nModalidade: ${input.workModel ?? 'não definido'}\nLocalização: ${input.location ?? 'não definido'}`,
+        },
+      ],
+    });
+
+    const content = response.choices[0]?.message?.content ?? '{}';
+    const parsed = JSON.parse(content) as {
+      summary?: string;
+      responsibilities?: string[];
+      requiredSkills?: string[];
+      desiredSkills?: string[];
+      keywords?: string[];
+    };
+
+    return {
+      summary: parsed.summary ?? `Buscamos ${input.title} para integrar nosso time.`,
+      responsibilities: parsed.responsibilities ?? [],
+      requiredSkills: parsed.requiredSkills ?? [],
+      desiredSkills: parsed.desiredSkills ?? [],
+      keywords: parsed.keywords ?? [input.title],
+    };
+  }
+
   async parseResume(input: {
     resumeText: string;
     objectKey: string;

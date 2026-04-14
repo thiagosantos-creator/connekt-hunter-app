@@ -140,6 +140,7 @@ export class CandidatesService {
         profile: {
           select: {
             fullName: true,
+            photoUrl: true,
           },
         },
         user: {
@@ -180,6 +181,7 @@ export class CandidatesService {
       email: candidate.email,
       phone: candidate.phone,
       fullName: candidate.profile?.fullName ?? null,
+      photoUrl: candidate.profile?.photoUrl ?? null,
       createdAt: candidate.createdAt,
       guestUpgradeAt: candidate.guestUpgradeAt,
       userId: candidate.userId,

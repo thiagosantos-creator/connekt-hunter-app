@@ -213,7 +213,7 @@ export class AiGateway {
         { type: 'availability', severity: 'medium', score: 0.58, detail: 'Disponibilidade híbrida ainda não confirmada.' },
         { type: 'technical-depth', severity: 'low', score: 0.34, detail: 'Aprofundar detalhes de observabilidade em sistemas distribuídos.' },
       ],
-      explanation: 'Risco calculado por IA de forma assistiva. Revisão humana obrigatória antes de qualquer decisão.',
+      explanation: parsed.explanation ?? 'Risco calculado por IA. Revisão humana obrigatória.',
     });
 
     const { result, provider, modelVersion } = await this.withFallback(
@@ -228,5 +228,51 @@ export class AiGateway {
     });
 
     return { provider, ...result };
+  }
+
+  async generateAssistiveVacancy(input: {
+    title: string;
+    seniority: string;
+    sector: string;
+    workModel?: string;
+    location?: string;
+  }) {
+    const mockResult = () => ({
+      summary: `Buscamos ${input.title} (${input.seniority || 'pleno'}) para atuar no setor ${input.sector}, em modelo ${input.workModel || 'híbrido'}, com base em ${input.location || 'a combinar'}.`,
+      responsibilities: [
+        `Liderar entregas de ${input.title} com foco em qualidade e previsibilidade.`,
+        'Colaborar com stakeholders de negócio e pares técnicos para priorização.',
+        'Garantir documentação de decisões e melhoria contínua do fluxo.',
+      ],
+      requiredSkills: [
+        `${input.seniority || 'Pleno'} experiência prática na função`,
+        `Conhecimento sólido no domínio de ${input.sector}`,
+        'Comunicação clara e orientação a métricas de entrega',
+      ],
+      desiredSkills: [
+        'Experiência com ambientes multi-tenant e trilha de auditoria',
+        'Familiaridade com automações assíncronas e operações orientadas a SLA',
+      ],
+      keywords: [input.title, input.sector, input.seniority || 'pleno'],
+    });
+
+    const { result, provider, modelVersion } = await this.withFallback(
+      'generate-assistive-vacancy',
+      () => this.openai.generateAssistiveVacancy(input),
+      mockResult,
+      input,
+    );
+
+    await prisma.aiExecutionLog.create({
+      data: { operation: 'generate-assistive-vacancy', provider, modelVersion, promptVersion: 'assistive-vacancy.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+    });
+
+    return {
+      provider,
+      generatedByAI: true,
+      requiresHumanReview: true,
+      generatedAt: new Date().toISOString(),
+      ...result,
+    };
   }
 }

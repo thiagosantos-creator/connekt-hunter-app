@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { StorageGateway } from '../integrations/storage.gateway.js';
 
 type OrganizationBrandingPayload = {
   logoUrl?: string;
@@ -13,6 +14,8 @@ type OrganizationBrandingPayload = {
 
 @Injectable()
 export class OrganizationsService {
+  constructor(@Inject(StorageGateway) private readonly storageGateway: StorageGateway) {}
+
   async create(data: { name: string; status?: string; ownerAdminUserId?: string }, actorUserId: string) {
     const ownerAdminUserId = data.ownerAdminUserId?.trim() || actorUserId;
     const org = await prisma.organization.create({
@@ -163,5 +166,28 @@ export class OrganizationsService {
         tenantSettings: true,
       },
     });
+  }
+
+  async createBrandingUpload(organizationId: string, type: 'logo' | 'banner', filename: string, contentType?: string) {
+    const upload = await this.storageGateway.createPresignedUpload({
+      namespace: `org-branding/${organizationId}/${type}`,
+      filename,
+      contentType,
+      category: `org-${type}`,
+    });
+
+    const baseEndpoint = process.env.S3_ENDPOINT
+      ? `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`
+      : `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION || process.env.S3_REGION}.amazonaws.com`;
+      
+    const publicUrl = `${baseEndpoint}/${upload.objectKey}`;
+
+    return { 
+      uploadUrl: upload.url, 
+      uploadMethod: upload.method, 
+      uploadHeaders: upload.headers, 
+      publicUrl, 
+      objectKey: upload.objectKey 
+    };
   }
 }

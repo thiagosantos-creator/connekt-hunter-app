@@ -1,6 +1,7 @@
 export type IntegrationKey =
   | 'storage'
   | 'email'
+  | 'phone'
   | 'auth'
   | 'ai'
   | 'cv-parser'
@@ -11,6 +12,8 @@ export type IntegrationProviderName =
   | 'aws-s3'
   | 'mailhog'
   | 'aws-ses'
+  | 'sms-mock'
+  | 'aws-sns'
   | 'dev-auth'
   | 'aws-cognito'
   | 'ai-mock'

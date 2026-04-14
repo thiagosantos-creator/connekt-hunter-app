@@ -82,7 +82,7 @@ export function DataTable<T>({
   }, [filtered, sortKey, sortAsc, columns]);
 
   const totalPages = pageSize ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
-  const currentPage = Math.min(page, totalPages - 1);
+  const currentPage = Math.max(0, Math.min(page, totalPages - 1));
   const paginated = pageSize ? sorted.slice(currentPage * pageSize, (currentPage + 1) * pageSize) : sorted;
   const hasActiveSearch = search.trim().length > 0;
 

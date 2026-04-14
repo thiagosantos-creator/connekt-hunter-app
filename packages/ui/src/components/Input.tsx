@@ -43,7 +43,7 @@ const controlFocusStyles = `
   }
 `;
 
-function buildDescribedBy(ids: Array<string | undefined>, current?: string) {
+function buildAriaDescribedBy(ids: Array<string | undefined>, current?: string) {
   return [current, ...ids].filter(Boolean).join(' ') || undefined;
 }
 
@@ -66,7 +66,7 @@ export function Input({ label, error, hint, style, id, className, required, ...p
   const inputId = id ?? generatedId;
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  const describedBy = buildAriaDescribedBy([hintId, errorId], props['aria-describedby']);
   useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (
@@ -98,7 +98,7 @@ export function Textarea({ label, error, hint, style, id, className, required, .
   const inputId = id ?? generatedId;
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  const describedBy = buildAriaDescribedBy([hintId, errorId], props['aria-describedby']);
   useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (
@@ -143,7 +143,7 @@ export function Select({ label, error, hint, style, options, placeholder, id, cl
   const inputId = id ?? generatedId;
   const hintId = hint ? `${inputId}-hint` : undefined;
   const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = buildDescribedBy([hintId, errorId], props['aria-describedby']);
+  const describedBy = buildAriaDescribedBy([hintId, errorId], props['aria-describedby']);
   useInjectStyle('field-focus-styles', controlFocusStyles);
 
   return (

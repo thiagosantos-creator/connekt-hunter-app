@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { apiGet, apiPost } from '../services/api.js';
 import type { PublicVacancyInfo } from '../services/types.js';
@@ -36,7 +36,7 @@ export function VacancyLandingView() {
   const [applyMsg, setApplyMsg] = useState('');
   const [applyVariant, setApplyVariant] = useState<'success' | 'error'>('success');
 
-  const loadVacancy = async () => {
+  const loadVacancy = useCallback(async () => {
     if (!vacancyId) {
       setLoading(false);
       setError('Vaga não encontrada.');
@@ -54,11 +54,11 @@ export function VacancyLandingView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vacancyId]);
 
   useEffect(() => {
     void loadVacancy();
-  }, [vacancyId]);
+  }, [loadVacancy]);
 
   const retryLoadVacancy = () => {
     void loadVacancy();

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -24,7 +25,6 @@ import {
   spacing,
   zIndex,
 } from '@connekt/ui';
-import { CandidateProfileModal } from '../components/candidate/CandidateProfileModal.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { apiGet, apiPost } from '../services/api.js';
 import type { Decision, ShortlistItemWithApplication } from '../services/types.js';
@@ -70,6 +70,7 @@ const formatRelativeDate = (iso?: string) => {
 
 export function ClientReviewView() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   /* data state */
   const [items, setItems] = useState<ShortlistItemWithApplication[]>([]);
@@ -77,7 +78,6 @@ export function ClientReviewView() {
   const [loading, setLoading] = useState(true);
 
   /* UI state */
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [vacancyFilter, setVacancyFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -396,7 +396,7 @@ export function ClientReviewView() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, alignItems: 'flex-end', justifyContent: 'space-between' }}>
                         {/* Action buttons */}
                         <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedApplicationId(item.applicationId)}>
+                          <Button variant="outline" size="sm" onClick={() => navigate(`/applications/${item.applicationId}/dossier`)}>
                             Ver dossiê
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => { setCommentDialog({ appId: item.applicationId, candidateName: name }); setCommentText(''); }}>
@@ -466,14 +466,6 @@ export function ClientReviewView() {
           )}
         </>
       )}
-
-      {/* ── Candidate profile modal ───────────────────────────────── */}
-      <CandidateProfileModal
-        applicationId={selectedApplicationId}
-        open={Boolean(selectedApplicationId)}
-        onClose={() => setSelectedApplicationId(null)}
-        viewerRole="client"
-      />
 
       {/* ── Decision confirmation dialog ──────────────────────────── */}
       {confirmDialog && (

@@ -20,6 +20,7 @@ import { AccessPoliciesView } from './views/AccessPoliciesView.js';
 import { NotificationPreferencesView } from './views/NotificationPreferencesView.js';
 import { InboxView } from './views/InboxView.js';
 import { EnterpriseGovernanceView } from './views/EnterpriseGovernanceView.js';
+import { CandidateDossierView } from './views/CandidateDossierView.js';
 
 function App() {
   const { user } = useAuth();
@@ -39,6 +40,7 @@ function App() {
         <Route path="/vacancies" element={<ProtectedRoute><VacanciesView /></ProtectedRoute>} />
         <Route path="/candidates" element={<PermissionRoute permission="candidates:invite"><CandidatesView /></PermissionRoute>} />
         <Route path="/applications" element={<ProtectedRoute><ApplicationsView /></ProtectedRoute>} />
+        <Route path="/applications/:applicationId/dossier" element={<ProtectedRoute><CandidateDossierView /></ProtectedRoute>} />
         <Route path="/shortlist" element={<PermissionRoute permission="shortlist:write"><ShortlistView /></PermissionRoute>} />
         <Route path="/client-review" element={<ProtectedRoute><ClientReviewView /></ProtectedRoute>} />
         <Route path="/smart-interview" element={<ProtectedRoute><SmartInterviewView /></ProtectedRoute>} />

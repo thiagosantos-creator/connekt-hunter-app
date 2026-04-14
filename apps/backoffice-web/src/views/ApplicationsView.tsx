@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -17,8 +18,6 @@ import {
   radius,
   spacing,
 } from '@connekt/ui';
-import { CandidateProfileModal } from '../components/candidate/CandidateProfileModal.js';
-import { useAuth } from '../hooks/useAuth.js';
 import { apiGet } from '../services/api.js';
 import type { Application } from '../services/types.js';
 
@@ -48,10 +47,9 @@ const statusLabel: Record<string, string> = {
 };
 
 export function ApplicationsView() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
   const [vacancyFilter, setVacancyFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -224,7 +222,7 @@ export function ApplicationsView() {
 
                       {/* Right */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, alignItems: 'flex-end', justifyContent: 'center' }}>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedApplicationId(app.id)}>
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/applications/${app.id}/dossier`)}>
                           Ver dossiê
                         </Button>
                         <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
@@ -245,13 +243,6 @@ export function ApplicationsView() {
           </div>
         </>
       )}
-
-      <CandidateProfileModal
-        applicationId={selectedApplicationId}
-        open={Boolean(selectedApplicationId)}
-        onClose={() => setSelectedApplicationId(null)}
-        viewerRole={(user?.role as 'admin' | 'headhunter' | 'client') ?? 'headhunter'}
-      />
     </PageContent>
   );
 }

@@ -12,9 +12,12 @@ interface ResumeUploadResponse {
   objectKey: string;
   provider: string;
   upload: {
-    url: string;
-    method: 'PUT';
-    headers: Record<string, string>;
+    url?: string;
+    method?: 'PUT';
+    headers?: Record<string, string>;
+    uploadUrl?: string;
+    uploadMethod?: 'PUT';
+    uploadHeaders?: Record<string, string>;
   };
 }
 
@@ -65,14 +68,22 @@ export function Step3ResumeView() {
       });
 
       // Upload actual file content to the presigned URL
-      if (result.upload?.url) {
-        const uploadRes = await fetch(result.upload.url, {
-          method: result.upload.method,
-          headers: result.upload.headers,
+      const uploadUrl = result.upload?.url ?? result.upload?.uploadUrl;
+      const uploadMethod = result.upload?.method ?? result.upload?.uploadMethod ?? 'PUT';
+      const uploadHeaders = result.upload?.headers ?? result.upload?.uploadHeaders ?? {};
+
+      if (!uploadUrl) {
+        throw new Error('Upload do currículo indisponível no momento. Tente novamente.');
+      }
+
+      if (uploadUrl) {
+        const uploadRes = await fetch(uploadUrl, {
+          method: uploadMethod,
+          headers: uploadHeaders,
           body: file,
         });
         if (!uploadRes.ok) {
-          throw new Error('Falha ao enviar arquivo. Tente novamente.');
+          throw new Error('Falha ao enviar currículo para o storage. Tente novamente.');
         }
       }
 
@@ -84,7 +95,7 @@ export function Step3ResumeView() {
 
       navigate('/onboarding/media-check');
     } catch (err) {
-      setError(String(err));
+      setError(err instanceof Error ? err.message : 'Erro inesperado ao enviar currículo.');
     } finally {
       setLoading(false);
     }

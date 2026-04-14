@@ -58,10 +58,8 @@ export class CognitoCallbackService {
 
     const sub = claims.sub;
     const email = claims.email ?? `${sub}@cognito.local`;
-    const socialName =
-      claims.name ??
-      [claims.given_name, claims.family_name].filter(Boolean).join(' ') ||
-      null;
+    const fallbackSocialName = [claims.given_name, claims.family_name].filter(Boolean).join(' ');
+    const socialName = (claims.name ?? fallbackSocialName) || null;
     const pictureUrl = claims.picture ?? null;
 
     this.logger.log(

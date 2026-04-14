@@ -4,6 +4,7 @@ import {
   CreateBucketCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
@@ -115,6 +116,7 @@ export class StorageGateway {
 
     try {
       await this.s3.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      await this.ensureBucketCors();
       this.bucketReady = true;
       return;
     } catch (error) {
@@ -127,6 +129,7 @@ export class StorageGateway {
 
     try {
       await this.s3.send(new CreateBucketCommand({ Bucket: this.bucket }));
+      await this.ensureBucketCors();
       this.bucketReady = true;
     } catch (error) {
       const code = this.getS3ErrorCode(error);
@@ -136,6 +139,40 @@ export class StorageGateway {
       }
       throw error;
     }
+  }
+
+  private async ensureBucketCors() {
+    const allowedOrigins = this.getAllowedOrigins();
+    if (allowedOrigins.length === 0) return;
+
+    await this.s3.send(new PutBucketCorsCommand({
+      Bucket: this.bucket,
+      CORSConfiguration: {
+        CORSRules: [{
+          AllowedHeaders: ['*'],
+          AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST'],
+          AllowedOrigins: allowedOrigins,
+          ExposeHeaders: ['ETag', 'x-amz-request-id', 'x-amz-id-2'],
+          MaxAgeSeconds: 3000,
+        }],
+      },
+    }));
+  }
+
+  private getAllowedOrigins() {
+    const configured = process.env.S3_ALLOWED_ORIGINS
+      ?.split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (configured?.length) return configured;
+
+    return [
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+    ];
   }
 
   private getS3ErrorCode(error: unknown) {

@@ -238,6 +238,16 @@ export function VacanciesView() {
     [templates, orgId],
   );
 
+  const publishedVacancies = useMemo(
+    () => vacancies.filter((item) => item.publicationType === 'public' && item.status === 'active'),
+    [vacancies],
+  );
+
+  const draftVacancies = useMemo(
+    () => vacancies.filter((item) => item.publicationType === 'draft'),
+    [vacancies],
+  );
+
   const load = async () => {
     try {
       const [vacanciesData, templatesData, organizationsData] = await Promise.all([
@@ -456,6 +466,54 @@ export function VacanciesView() {
 
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
+      <Card style={{ marginBottom: spacing.lg }}>
+        <CardHeader>
+          <CardTitle>Publicação rápida</CardTitle>
+          <CardDescription>Veja primeiro o que já está publicado e quais vagas ainda estão em rascunho para evitar retrabalho.</CardDescription>
+        </CardHeader>
+        <CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Vagas publicadas</div>
+            <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{publishedVacancies.length}</div>
+            <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Ativas e prontas para compartilhar</div>
+          </div>
+          <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+            <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Rascunhos</div>
+            <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{draftVacancies.length}</div>
+            <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Pendentes de revisão/publicação</div>
+          </div>
+        </CardContent>
+        {publishedVacancies.length > 0 && (
+          <CardContent style={{ paddingTop: 0 }}>
+            <DataTable<Vacancy>
+              columns={[
+                { key: 'title', header: 'Vaga publicada', render: (row) => row.title },
+                { key: 'organization', header: 'Empresa', render: (row) => row.organization?.name ?? row.organizationId },
+                {
+                  key: 'link',
+                  header: 'Ações',
+                  render: (row) => {
+                    const publicUrl = `${candidateWebBase}/vacancies/${row.id}`;
+                    return (
+                      <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                        <a href={publicUrl} target="_blank" rel="noreferrer">Abrir</a>
+                        <Button size="sm" variant="ghost" onClick={() => { void copyText(publicUrl, 'Link da vaga copiado.'); }}>
+                          Copiar
+                        </Button>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+              data={publishedVacancies}
+              rowKey={(row) => row.id}
+              pageSize={5}
+              emptyMessage="Nenhuma vaga publicada"
+            />
+          </CardContent>
+        )}
+      </Card>
+
       {canWrite && (
         <Card style={{ marginBottom: spacing.lg }}>
           <form onSubmit={(e) => { void createVacancy(e); }}>
@@ -510,6 +568,18 @@ export function VacanciesView() {
                 <Input label="Faixa salarial máxima" type="number" value={form.salaryMax} onChange={(e) => setForm((current) => ({ ...current, salaryMax: e.target.value }))} />
               </div>
 
+              <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', alignItems: 'center', padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                <div style={{ flex: 1, minWidth: 220 }}>
+                  <strong>Rascunho com IA</strong>
+                  <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>
+                    Preencha ao menos título, senioridade e setor para receber um primeiro rascunho antes de finalizar o restante.
+                  </div>
+                </div>
+                <Button type="button" variant="secondary" onClick={() => { void generateSuggestion(); }} disabled={!form.title.trim() || !form.seniority.trim() || !(form.sector.trim() || form.department.trim())}>
+                  Sugerir conteúdo com IA
+                </Button>
+              </div>
+
               <Textarea label="Descrição" value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} rows={4} />
 
               <SkillField
@@ -531,9 +601,6 @@ export function VacanciesView() {
               />
 
               <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                <Button type="button" variant="secondary" onClick={() => { void generateSuggestion(); }}>
-                  Sugerir conteúdo com IA
-                </Button>
                 <Button type="button" variant="outline" onClick={() => { void saveTemplate(); }} disabled={!orgId || templateSaving}>
                   {templateSaving ? 'Salvando template...' : editingTemplateId ? 'Atualizar template' : 'Salvar como template'}
                 </Button>

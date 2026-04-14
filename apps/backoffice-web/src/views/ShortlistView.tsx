@@ -223,7 +223,7 @@ export function ShortlistView() {
                     label="Vaga e Ações de IA"
                     value={priorityVacancyId}
                     onChange={(e) => setPriorityVacancyId(e.target.value)}
-                    options={[{ value: '', label: 'Selecione uma vaga...' }, ...vacancies.map((v) => ({ value: v.id, label: v.title }))]}
+                    options={[{ value: '', label: 'Selecione uma vaga...' }, ...vacancyOptions]}
                   />
                 </div>
                 <Button

@@ -1,17 +1,14 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
+import { assertOrganizationAccess } from '../auth/organization-access.util.js';
 
 @Injectable()
 export class CandidateMatchingService {
   constructor(@Inject(AiGateway) private readonly aiGateway: AiGateway) {}
 
   private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
-    if (!actorId) return;
-    const membership = await prisma.membership.findUnique({
-      where: { organizationId_userId: { organizationId, userId: actorId } },
-    });
-    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    await assertOrganizationAccess(organizationId, actorId);
   }
 
   private toEmbedding(text: string): number[] {

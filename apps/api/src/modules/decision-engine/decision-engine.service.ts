@@ -1,14 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { assertOrganizationAccess } from '../auth/organization-access.util.js';
 
 @Injectable()
 export class DecisionEngineService {
   private async assertTenantAccess(organizationId: string, actorId?: string): Promise<void> {
-    if (!actorId) return;
-    const membership = await prisma.membership.findUnique({
-      where: { organizationId_userId: { organizationId, userId: actorId } },
-    });
-    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    await assertOrganizationAccess(organizationId, actorId);
   }
 
   async calculatePriority(vacancyId: string, actorId?: string) {

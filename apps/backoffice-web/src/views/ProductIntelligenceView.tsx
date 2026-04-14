@@ -121,6 +121,72 @@ export function ProductIntelligenceView() {
     ]);
   }, []);
 
+  const scopedApplicationOptions = useMemo(
+    () => applications.map((item) => ({
+      value: item.id,
+      label: `${item.candidate.email} — ${item.vacancy.title}`,
+    })),
+    [applications],
+  );
+
+  const scopedVacancyOptions = useMemo(
+    () => vacancies.map((item) => ({ value: item.id, label: item.title })),
+    [vacancies],
+  );
+
+  const scopedCandidateOptions = useMemo(() => {
+    const scopedApplications = vacancyId
+      ? applications.filter((item) => item.vacancy.id === vacancyId)
+      : applications;
+    const unique = new Map<string, string>();
+    scopedApplications.forEach((item) => {
+      if (!unique.has(item.candidate.id)) {
+        unique.set(item.candidate.id, item.candidate.email);
+      }
+    });
+    return [...unique.entries()].map(([value, label]) => ({ value, label }));
+  }, [applications, vacancyId]);
+
+  const otherCandidateOptions = useMemo(
+    () => scopedCandidateOptions.filter((item) => item.value !== candidateId),
+    [candidateId, scopedCandidateOptions],
+  );
+
+  const selectedApplication = useMemo(
+    () => applications.find((item) => item.id === applicationId) ?? null,
+    [applicationId, applications],
+  );
+
+  const selectedCandidateApplication = useMemo(
+    () => applications.find((item) => item.vacancy.id === vacancyId && item.candidate.id === candidateId) ?? null,
+    [applications, candidateId, vacancyId],
+  );
+
+  const selectedComparisonApplication = useMemo(
+    () => applications.find((item) => item.vacancy.id === vacancyId && item.candidate.id === otherCandidateId) ?? null,
+    [applications, otherCandidateId, vacancyId],
+  );
+
+  useEffect(() => {
+    if (!selectedApplication) return;
+    setVacancyId(selectedApplication.vacancy.id);
+    setCandidateId(selectedApplication.candidate.id);
+  }, [selectedApplication]);
+
+  useEffect(() => {
+    if (!candidateId) return;
+    if (!scopedCandidateOptions.some((item) => item.value === candidateId)) {
+      setCandidateId(scopedCandidateOptions[0]?.value ?? '');
+    }
+  }, [candidateId, scopedCandidateOptions]);
+
+  useEffect(() => {
+    if (!otherCandidateId) return;
+    if (!otherCandidateOptions.some((item) => item.value === otherCandidateId)) {
+      setOtherCandidateId('');
+    }
+  }, [otherCandidateId, otherCandidateOptions]);
+
   const feedback = (text: string, variant: 'success' | 'error') => {
     setMsg(text);
     setMsgVariant(variant);
@@ -331,22 +397,22 @@ export function ProductIntelligenceView() {
           <Select
             label="Aplicação (candidato + vaga)"
             value={applicationId}
-            onChange={(e) => handleApplicationSelection(e.target.value)}
-            options={applicationOptions}
+            onChange={(e) => setApplicationId(e.target.value)}
+            options={scopedApplicationOptions}
             placeholder="Selecione uma aplicação"
           />
           <Select
             label="Vaga"
             value={vacancyId}
             onChange={(e) => setVacancyId(e.target.value)}
-            options={vacancyOptions}
+            options={scopedVacancyOptions}
             placeholder="Selecione uma vaga"
           />
           <Select
             label="Candidato"
             value={candidateId}
             onChange={(e) => setCandidateId(e.target.value)}
-            options={candidateOptions}
+            options={scopedCandidateOptions}
             placeholder="Selecione um candidato"
           />
         </CardContent>
@@ -399,7 +465,7 @@ export function ProductIntelligenceView() {
               label="Outro candidato (comparação)"
               value={otherCandidateId}
               onChange={(e) => setOtherCandidateId(e.target.value)}
-              options={candidateOptions.filter((item) => item.value !== candidateId)}
+              options={otherCandidateOptions}
               placeholder="Selecione outro candidato para comparar"
             />
           </CardContent>
@@ -407,14 +473,14 @@ export function ProductIntelligenceView() {
             <Button
               variant="secondary"
               onClick={() => { void generateInsights(); }}
-              disabled={!vacancyId || !candidateId}
+              disabled={!selectedCandidateApplication}
             >
               💡 Gerar Insights
             </Button>
             <Button
               variant="outline"
               onClick={() => { void compare(); }}
-              disabled={!vacancyId || !candidateId || !otherCandidateId}
+              disabled={!selectedCandidateApplication || !selectedComparisonApplication}
             >
               ⚖️ Comparar Candidatos
             </Button>
@@ -466,7 +532,7 @@ export function ProductIntelligenceView() {
           <CardFooter>
             <Button
               onClick={() => { void generateRecommendations(); }}
-              disabled={!vacancyId || !candidateId}
+              disabled={!selectedCandidateApplication}
             >
               🎯 Gerar Recomendações
             </Button>
@@ -508,7 +574,7 @@ export function ProductIntelligenceView() {
             <Button
               variant="danger"
               onClick={() => { void analyzeRisk(); }}
-              disabled={!vacancyId || !candidateId}
+              disabled={!selectedCandidateApplication}
             >
               🔍 Analisar Risco
             </Button>
@@ -595,7 +661,7 @@ export function ProductIntelligenceView() {
             <Button
               variant="secondary"
               onClick={() => { void suggestWorkflow(); }}
-              disabled={!vacancyId || !candidateId}
+              disabled={!selectedCandidateApplication}
             >
               Sugerir Ações
             </Button>

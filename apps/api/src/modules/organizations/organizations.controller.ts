@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Inject, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -47,26 +47,41 @@ export class OrganizationsController {
     return this.organizationsService.findAll();
   }
 
-  @Post(':organizationId/branding/:type(logo|banner)/upload-url')
+  @Post(':organizationId/branding/:type/upload-url')
   @RequirePermissions('users:manage')
   createBrandingUpload(
     @Param('organizationId') organizationId: string,
-    @Param('type') type: 'logo' | 'banner',
+    @Param('type') type: string,
     @Body() body: { filename: string; contentType?: string }
   ) {
     if (!body.filename) throw new Error('filename is required');
-    return this.organizationsService.createBrandingUpload(organizationId, type, body.filename, body.contentType);
+    return this.organizationsService.createBrandingUpload(
+      organizationId,
+      this.assertBrandingType(type),
+      body.filename,
+      body.contentType,
+    );
   }
 
-  @Post(':organizationId/branding/:type(logo|banner)/confirm')
+  @Post(':organizationId/branding/:type/confirm')
   @RequirePermissions('users:manage')
   confirmBrandingUpload(
     @Param('organizationId') organizationId: string,
-    @Param('type') type: 'logo' | 'banner',
+    @Param('type') type: string,
     @Body() body: { objectKey: string },
     @CurrentUser() user: AuthUser,
   ) {
     if (!body.objectKey) throw new Error('objectKey is required');
-    return this.organizationsService.confirmBrandingUpload(organizationId, type, body.objectKey, user.id);
+    return this.organizationsService.confirmBrandingUpload(
+      organizationId,
+      this.assertBrandingType(type),
+      body.objectKey,
+      user.id,
+    );
+  }
+
+  private assertBrandingType(type: string): 'logo' | 'banner' {
+    if (type === 'logo' || type === 'banner') return type;
+    throw new BadRequestException('invalid_branding_type');
   }
 }

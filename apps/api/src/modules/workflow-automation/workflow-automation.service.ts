@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { assertOrganizationAccess } from '../auth/organization-access.util.js';
 
 @Injectable()
 export class WorkflowAutomationService {
@@ -16,10 +17,7 @@ export class WorkflowAutomationService {
     }
 
     if (actorId) {
-      const membership = await prisma.membership.findUnique({
-        where: { organizationId_userId: { organizationId: vacancy.organizationId, userId: actorId } },
-      });
-      if (!membership) throw new ForbiddenException('user_not_member_of_org');
+      await assertOrganizationAccess(vacancy.organizationId, actorId);
     }
 
     const suggestions = [
@@ -74,10 +72,7 @@ export class WorkflowAutomationService {
     if (suggestion.status !== 'pending') throw new BadRequestException('workflow_suggestion_not_pending');
 
     if (actorId) {
-      const membership = await prisma.membership.findUnique({
-        where: { organizationId_userId: { organizationId: suggestion.vacancy.organizationId, userId: actorId } },
-      });
-      if (!membership) throw new ForbiddenException('user_not_member_of_org');
+      await assertOrganizationAccess(suggestion.vacancy.organizationId, actorId);
     }
 
     const execution = await prisma.automationExecution.create({

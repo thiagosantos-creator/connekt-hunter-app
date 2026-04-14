@@ -8,6 +8,9 @@ vi.mock('@connekt/db', () => ({
     membership: {
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
     matchingScore: {
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -40,7 +43,18 @@ describe('DecisionEngineService', () => {
   it('should throw ForbiddenException when actor is not a member', async () => {
     vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
     vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'headhunter' } as never);
     await expect(service.calculatePriority('v1', 'u1')).rejects.toThrow('user_not_member_of_org');
+  });
+
+  it('should allow global admins without membership', async () => {
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'admin' } as never);
+    vi.mocked(prisma.matchingScore.findMany).mockResolvedValue([]);
+
+    const result = await service.calculatePriority('v1', 'admin-user');
+    expect(result).toEqual([]);
   });
 
   it('should calculate priorities and create audit event when valid', async () => {

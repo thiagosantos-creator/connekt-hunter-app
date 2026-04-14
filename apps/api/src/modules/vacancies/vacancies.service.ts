@@ -1,7 +1,8 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomUUID } from 'node:crypto';
 import { AiGateway } from '../integrations/ai.gateway.js';
+import { canAccessOrganization } from '../auth/organization-access.util.js';
 
 type VacancyRecord = {
   organizationId: string;
@@ -50,14 +51,11 @@ type VacancyPayload = {
 export class VacanciesService {
   private readonly logger = new Logger(VacanciesService.name);
 
-  constructor(private readonly aiGateway: AiGateway) {}
+  constructor(@Inject(AiGateway) private readonly aiGateway: AiGateway) {}
 
   async create(data: VacancyPayload) {
-    const membership = await prisma.membership.findUnique({
-      where: { organizationId_userId: { organizationId: data.organizationId, userId: data.createdBy } },
-    });
-
-    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    const canAccess = await canAccessOrganization(data.organizationId, data.createdBy);
+    if (!canAccess) throw new ForbiddenException('user_not_member_of_org');
     const publicationType = data.publicationType ?? 'draft';
     const missingFields = this.getPublicationMissingFields({ ...data, publicationType });
     if (publicationType !== 'draft' && missingFields.length > 0) {
@@ -113,10 +111,8 @@ export class VacanciesService {
       throw new ForbiddenException('user_not_member_of_org');
     }
 
-    const membership = await prisma.membership.findUnique({
-      where: { organizationId_userId: { organizationId: existing.organizationId, userId: actorId } },
-    });
-    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    const canAccess = await canAccessOrganization(existing.organizationId, actorId);
+    if (!canAccess) throw new ForbiddenException('user_not_member_of_org');
 
     const publicationType = data.publicationType ?? existing.publicationType;
     const merged = {

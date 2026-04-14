@@ -29,6 +29,7 @@ import { AccessControlModule } from './modules/access-control/access-control.mod
 import { CommunicationCenterModule } from './modules/communication-center/communication-center.module.js';
 import { ExecutiveDashboardModule } from './modules/executive-dashboard/executive-dashboard.module.js';
 import { UserManagementModule } from './modules/user-management/user-management.module.js';
+import { ClientCommentsModule } from './modules/client-comments/client-comments.module.js';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { UserManagementModule } from './modules/user-management/user-management.
     ShortlistModule,
     EvaluationsModule,
     ClientDecisionsModule,
+    ClientCommentsModule,
     AuditModule,
     SmartInterviewModule,
     CandidateMatchingModule,

@@ -78,7 +78,7 @@ function topScore(detail: ApplicationDetail | null, intelligence: IntelligenceBu
     + (onboarding?.consentCompleted ? 18 : 0)
     + (onboarding?.resumeCompleted ? 28 : 0)
     + Math.min((detail?.evaluations?.length ?? 0) * 10, 20)
-    + (latestResume(detail) ? 10 : 0),
+    + (latestResume(detail ?? undefined) ? 10 : 0),
   ) || 40;
 }
 

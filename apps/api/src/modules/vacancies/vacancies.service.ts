@@ -1,5 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { randomUUID } from 'node:crypto';
 
 type VacancyRecord = {
   organizationId: string;
@@ -46,6 +47,8 @@ type VacancyPayload = {
 
 @Injectable()
 export class VacanciesService {
+  private readonly logger = new Logger(VacanciesService.name);
+
   async create(data: VacancyPayload) {
     const membership = await prisma.membership.findUnique({
       where: { organizationId_userId: { organizationId: data.organizationId, userId: data.createdBy } },
@@ -264,6 +267,79 @@ export class VacanciesService {
         contactEmail: vacancy.organization.tenantSettings?.contactEmail,
       },
     };
+  }
+
+  async publicApply(vacancyId: string, email: string, fullName: string, phone?: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      throw new BadRequestException('invalid_email');
+    }
+    if (!fullName.trim()) {
+      throw new BadRequestException('fullName_required');
+    }
+
+    const vacancy = await prisma.vacancy.findUnique({
+      where: { id: vacancyId },
+      select: { id: true, organizationId: true, title: true, publicationType: true, status: true },
+    });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+    if (vacancy.publicationType !== 'public' || vacancy.status !== 'active') {
+      throw new BadRequestException('vacancy_not_available');
+    }
+
+    const candidate = await prisma.candidate.upsert({
+      where: { email: normalizedEmail },
+      update: { phone: phone?.trim() || undefined },
+      create: {
+        email: normalizedEmail,
+        phone: phone?.trim() || undefined,
+        organizationId: vacancy.organizationId,
+        token: randomUUID(),
+      },
+    });
+
+    await prisma.guestSession.upsert({
+      where: { token: candidate.token },
+      update: { candidateId: candidate.id, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+      create: { candidateId: candidate.id, token: candidate.token, expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) },
+    });
+
+    await prisma.candidateOnboardingSession.upsert({
+      where: { candidateId: candidate.id },
+      update: {},
+      create: { candidateId: candidate.id },
+    });
+
+    await prisma.candidateProfile.upsert({
+      where: { candidateId: candidate.id },
+      update: { fullName: fullName.trim(), phone: phone?.trim() || undefined },
+      create: { candidateId: candidate.id, fullName: fullName.trim(), phone: phone?.trim() || undefined },
+    });
+
+    await prisma.candidateOnboardingSession.update({
+      where: { candidateId: candidate.id },
+      data: { basicCompleted: true },
+    });
+
+    await prisma.application.upsert({
+      where: { candidateId_vacancyId: { candidateId: candidate.id, vacancyId } },
+      update: {},
+      create: { candidateId: candidate.id, vacancyId },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: candidate.id,
+        action: 'candidate.self_applied',
+        entityType: 'Application',
+        entityId: vacancyId,
+        metadata: { vacancyId, candidateEmail: normalizedEmail, vacancyTitle: vacancy.title } as never,
+      },
+    });
+
+    this.logger.log(JSON.stringify({ event: 'candidate_self_applied', vacancyId, candidateId: candidate.id }));
+
+    return { token: candidate.token, candidateId: candidate.id, vacancyId };
   }
 
   generateAssistiveContent(input: {

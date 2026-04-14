@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { apiGet } from '../services/api.js';
+import { apiGet, apiPost } from '../services/api.js';
 import type { PublicVacancyInfo } from '../services/types.js';
 import {
   Button,
@@ -25,6 +25,14 @@ export function VacancyLandingView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [token, setToken] = useState(searchParams.get('token') ?? '');
+
+  // Self-apply form state
+  const [applyEmail, setApplyEmail] = useState('');
+  const [applyName, setApplyName] = useState('');
+  const [applyPhone, setApplyPhone] = useState('');
+  const [applying, setApplying] = useState(false);
+  const [applyMsg, setApplyMsg] = useState('');
+  const [applyVariant, setApplyVariant] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     if (!vacancyId) return;
@@ -54,6 +62,29 @@ export function VacancyLandingView() {
       return;
     }
     navigate(`/?token=${encodeURIComponent(normalized)}`);
+  };
+
+  const handleSelfApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vacancyId) return;
+    setApplying(true);
+    setApplyMsg('');
+    try {
+      const result = await apiPost<{ token: string }>(`/public/vacancies/${encodeURIComponent(vacancyId)}/apply`, {
+        email: applyEmail,
+        fullName: applyName,
+        phone: applyPhone || undefined,
+      });
+      localStorage.setItem('invite_token', result.token);
+      setApplyMsg('Candidatura realizada com sucesso! Redirecionando...');
+      setApplyVariant('success');
+      setTimeout(() => navigate('/onboarding/consent'), 1200);
+    } catch (err) {
+      setApplyMsg(err instanceof Error ? err.message : String(err));
+      setApplyVariant('error');
+    } finally {
+      setApplying(false);
+    }
   };
 
   if (loading) {
@@ -125,10 +156,26 @@ export function VacancyLandingView() {
             </div>
           )}
 
+          <Card variant="outlined" style={{ borderColor: primaryColor, borderWidth: 2 }}>
+            <CardHeader>
+              <CardTitle>Candidatar-se a esta vaga</CardTitle>
+              <CardDescription>Preencha seus dados para iniciar a candidatura. Seu currículo será solicitado na próxima etapa.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => { void handleSelfApply(e); }} style={{ display: 'grid', gap: spacing.sm }}>
+                <Input label="Nome completo *" value={applyName} onChange={(e) => setApplyName(e.target.value)} placeholder="Seu nome completo" required />
+                <Input label="E-mail *" type="email" value={applyEmail} onChange={(e) => setApplyEmail(e.target.value)} placeholder="seu@email.com" required />
+                <Input label="Telefone (opcional)" value={applyPhone} onChange={(e) => setApplyPhone(e.target.value)} placeholder="+55 11 99999-0000" />
+                {applyMsg && <InlineMessage variant={applyVariant}>{applyMsg}</InlineMessage>}
+                <Button type="submit" loading={applying}>{applying ? 'Enviando...' : 'Candidatar-se'}</Button>
+              </form>
+            </CardContent>
+          </Card>
+
           <Card variant="outlined">
             <CardHeader>
-              <CardTitle>Entrar na vaga</CardTitle>
-              <CardDescription>Se você recebeu um convite, use o código para seguir direto para o onboarding.</CardDescription>
+              <CardTitle>Já possui um convite?</CardTitle>
+              <CardDescription>Se você recebeu um código de acesso, use-o para continuar direto para o onboarding.</CardDescription>
             </CardHeader>
             <CardContent style={{ display: 'grid', gap: spacing.sm }}>
               <Input
@@ -138,7 +185,7 @@ export function VacancyLandingView() {
                 placeholder="Cole aqui o token recebido"
               />
               <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                <Button type="button" onClick={continueToPortal}>Continuar candidatura</Button>
+                <Button type="button" variant="outline" onClick={continueToPortal}>Continuar candidatura</Button>
                 <Button type="button" variant="ghost" onClick={() => navigate('/')}>Ir para portal do candidato</Button>
               </div>
             </CardContent>

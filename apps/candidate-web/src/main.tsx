@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { GlobalStyles, colors, spacing, fontSize } from '@connekt/ui';
 import { RequiresToken } from './components/layout/RequiresToken.js';
+import { ErrorBoundary } from './components/layout/ErrorBoundary.js';
 import { TokenEntryView } from './views/TokenEntryView.js';
 import { Step1BasicView } from './views/Step1BasicView.js';
 import { Step2ConsentView } from './views/Step2ConsentView.js';
@@ -35,4 +36,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(<ErrorBoundary><App /></ErrorBoundary>);

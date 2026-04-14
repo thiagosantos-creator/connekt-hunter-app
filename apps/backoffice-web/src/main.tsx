@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { GlobalStyles } from '@connekt/ui';
 import { useAuth } from './hooks/useAuth.js';
 import { NavBar, ProtectedRoute, AuthProvider, PermissionRoute } from './components/layout/NavBar.js';
+import { ErrorBoundary } from './components/layout/ErrorBoundary.js';
 import { LoginView } from './views/LoginView.js';
 import { VacanciesView } from './views/VacanciesView.js';
 import { CandidatesView } from './views/CandidatesView.js';
@@ -25,7 +26,7 @@ function App() {
   const homeByRole: Record<string, string> = {
     admin: '/vacancies',
     headhunter: '/vacancies',
-    client: '/applications',
+    client: '/client-review',
   };
   const home = user ? homeByRole[user.role] ?? '/applications' : '/login';
 
@@ -57,5 +58,5 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <AuthProvider><App /></AuthProvider>
+  <ErrorBoundary><AuthProvider><App /></AuthProvider></ErrorBoundary>
 );

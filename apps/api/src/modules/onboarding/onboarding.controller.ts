@@ -1,4 +1,4 @@
-import { Body, Controller, Inject, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
 import { PublicTokenGuard } from '../auth/public-token.guard.js';
 import { RateLimit } from '../auth/rate-limit.decorator.js';
 import { OnboardingService } from './onboarding.service.js';
@@ -23,5 +23,15 @@ export class OnboardingController {
   @Post('resume')
   resume(@Body() body: { token: string; filename: string }) {
     return this.onboardingService.resume(body.token, body.filename);
+  }
+
+  @Get('parsed-resume/:token')
+  parsedResume(@Param('token') token: string) {
+    return this.onboardingService.getParsedResume(token);
+  }
+
+  @Get('status/:token')
+  status(@Param('token') token: string) {
+    return this.onboardingService.getStatus(token);
   }
 }

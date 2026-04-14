@@ -100,7 +100,7 @@ export function Step3ResumeView() {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('storage_object_empty')) {
         setError('O arquivo enviado não pôde ser processado. Verifique sua conexão e tente novamente.');
-      } else if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
+      } else if (err instanceof TypeError || message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('CORS')) {
         setError('Não foi possível conectar ao servidor de armazenamento. Verifique sua conexão e tente novamente.');
       } else {
         setError(message || 'Erro inesperado ao enviar currículo. Tente novamente.');

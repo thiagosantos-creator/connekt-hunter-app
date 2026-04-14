@@ -58,6 +58,9 @@ export class StorageGateway {
       parsed.port = pub.port;
       return parsed.toString();
     } catch {
+      // If the URL cannot be parsed (e.g. relative or malformed), return it unchanged.
+      // This is safe because the presigned URL will still work from the server side;
+      // only the browser upload may fail, which the caller handles with a user-facing error.
       return internalUrl;
     }
   }

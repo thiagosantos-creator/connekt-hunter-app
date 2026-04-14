@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { listManagedCandidates, requestCandidatePasswordReset, resendCandidateInvite, updateManagedCandidate } from '../services/account.js';
+import { extractErrorMessage } from '../services/error-messages.js';
 import { hasPermission } from '../services/rbac.js';
 import type { Application, Candidate, CandidateInvite, CandidateInviteResendResult, CandidatePasswordResetResult, CandidateRecommendation, ManagedCandidate, Organization, Vacancy } from '../services/types.js';
 import {
@@ -31,20 +32,6 @@ import {
 } from '@connekt/ui';
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
-
-function extractErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    const text = err.message;
-    if (text.includes('user_not_member_of_org')) {
-      return 'Você não tem acesso a essa organização. Verifique se seu usuário está vinculado à empresa selecionada.';
-    }
-    if (text.includes('candidate_vacancy_cross_tenant_mismatch')) {
-      return 'O candidato e a vaga pertencem a organizações diferentes. Selecione um candidato e uma vaga da mesma empresa.';
-    }
-    return text;
-  }
-  return 'Erro inesperado. Tente novamente.';
-}
 
 export function CandidatesView() {
   const { user } = useAuth();

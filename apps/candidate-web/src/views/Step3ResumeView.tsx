@@ -112,7 +112,7 @@ export function Step3ResumeView() {
                 style={{ display: 'block', margin: '0 auto' }}
               />
               <p style={{ marginTop: spacing.xs, color: colors.textSecondary, fontSize: fontSize.xs }}>
-                Formatos aceitos: {ALLOWED_EXTENSIONS.map((e) => e.slice(1).toUpperCase()).join(', ')} — Máx. {MAX_FILE_SIZE_MB} MB
+                Formatos aceitos: {ALLOWED_EXTENSIONS.map((ext) => ext.slice(1).toUpperCase()).join(', ')} — Máx. {MAX_FILE_SIZE_MB} MB
               </p>
               {file && (
                 <p style={{ marginTop: spacing.sm, color: colors.text, fontSize: fontSize.sm }}>

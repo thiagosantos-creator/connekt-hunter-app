@@ -164,11 +164,11 @@ export function InboxView() {
                         </div>
                       </div>
 
-                      {/* Right: quick actions */}
+                      {/* Right: quick actions — TODO: wire to real backend endpoints when available */}
                       <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
                         {item.quickActions.map((action) => (
                           <Button key={action} variant="outline" size="sm" onClick={() => {
-                            setMsg(`Ação "${action}" para ${item.candidateEmail} ainda não implementada.`);
+                            setMsg(`Ação "${action}" para ${item.candidateEmail} será implementada em breve.`);
                             setMsgVariant('info');
                           }}>
                             {action}

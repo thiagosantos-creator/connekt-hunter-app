@@ -126,6 +126,11 @@ function SignalRadar({ values }: { values: Array<{ label: string; value: number 
   );
 }
 
+/** Tries GET first; if it fails, falls back to POST to trigger computation. */
+async function getOrCompute<T>(getUrl: string, postUrl: string, body: Record<string, string>): Promise<T> {
+  return apiGet<T>(getUrl).catch(() => apiPost<T>(postUrl, body));
+}
+
 export function CandidateDossierView() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
@@ -156,9 +161,21 @@ export function CandidateDossierView() {
         const candidateId = dossier.candidate.id;
         const vacancyId = dossier.vacancy.id;
         const [matching, risk, insights, recommendations, workflowSuggestions] = await Promise.all([
-          apiGet<CandidateMatchingRecord>(`/candidate-matching/${vacancyId}/${candidateId}`).catch(() => apiPost<CandidateMatchingRecord>('/candidate-matching/compute', { applicationId })),
-          apiGet<CandidateRiskRecord>(`/risk-analysis?candidateId=${encodeURIComponent(candidateId)}&vacancyId=${encodeURIComponent(vacancyId)}`).catch(() => apiPost<CandidateRiskRecord>('/risk-analysis/analyze', { candidateId, vacancyId })),
-          apiGet<CandidateInsightRecord>(`/candidate-insights/${vacancyId}/${candidateId}`).catch(() => apiPost<CandidateInsightRecord>('/candidate-insights/generate', { candidateId, vacancyId })),
+          getOrCompute<CandidateMatchingRecord>(
+            `/candidate-matching/${vacancyId}/${candidateId}`,
+            '/candidate-matching/compute',
+            { applicationId },
+          ),
+          getOrCompute<CandidateRiskRecord>(
+            `/risk-analysis?candidateId=${encodeURIComponent(candidateId)}&vacancyId=${encodeURIComponent(vacancyId)}`,
+            '/risk-analysis/analyze',
+            { candidateId, vacancyId },
+          ),
+          getOrCompute<CandidateInsightRecord>(
+            `/candidate-insights/${vacancyId}/${candidateId}`,
+            '/candidate-insights/generate',
+            { candidateId, vacancyId },
+          ),
           apiGet<CandidateRecommendation[]>(`/recommendation-engine/${vacancyId}`)
             .then((items) => items.filter((item) => item.candidateId === candidateId))
             .then(async (items) => items.length > 0 ? items : apiPost<CandidateRecommendation[]>('/recommendation-engine/generate', { candidateId, vacancyId }))

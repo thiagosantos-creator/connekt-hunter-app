@@ -48,9 +48,9 @@ const formatRelative = (iso: string) => {
 };
 
 const bandMeta: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info'; label: string }> = {
-  high: { variant: 'success', label: 'Alta prioridade' },
+  high: { variant: 'danger', label: 'Alta prioridade' },
   medium: { variant: 'warning', label: 'Média prioridade' },
-  low: { variant: 'danger', label: 'Baixa prioridade' },
+  low: { variant: 'info', label: 'Baixa prioridade' },
 };
 
 export function ShortlistView() {

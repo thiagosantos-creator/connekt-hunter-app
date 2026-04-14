@@ -192,10 +192,10 @@ export function CandidatesView() {
     return 'danger';
   };
 
-  const copyInviteLink = async (url: string) => {
+  const copyToClipboard = async (value: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      setMsg('Link do candidato copiado.');
+      await navigator.clipboard.writeText(value);
+      setMsg('Link copiado.');
       setMsgVariant('success');
     } catch (err) {
       setMsg(String(err));
@@ -333,7 +333,7 @@ export function CandidatesView() {
               {inviteUrl}
             </code>
             <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-              <Button type="button" variant="secondary" onClick={() => { void copyInviteLink(inviteUrl); }}>Copiar link</Button>
+               <Button type="button" variant="secondary" onClick={() => { void copyToClipboard(inviteUrl); }}>Copiar link</Button>
               <a href={inviteUrl} target="_blank" rel="noreferrer">Abrir portal do candidato</a>
             </div>
           </CardContent>
@@ -360,7 +360,7 @@ export function CandidatesView() {
                   return (
                     <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
                       <a href={historyInviteUrl} target="_blank" rel="noreferrer">Abrir</a>
-                      <Button size="sm" variant="ghost" onClick={() => { void copyInviteLink(historyInviteUrl); }}>Copiar</Button>
+                       <Button size="sm" variant="ghost" onClick={() => { void copyToClipboard(historyInviteUrl); }}>Copiar</Button>
                     </div>
                   );
                 },
@@ -502,7 +502,7 @@ export function CandidatesView() {
                             {managedCandidateFeedback.resetUrl}
                           </code>
                           <div>
-                            <Button type="button" variant="ghost" onClick={() => { void copyInviteLink(managedCandidateFeedback.resetUrl!); }}>
+                            <Button type="button" variant="ghost" onClick={() => { void copyToClipboard(managedCandidateFeedback.resetUrl!); }}>
                               Copiar link
                             </Button>
                           </div>

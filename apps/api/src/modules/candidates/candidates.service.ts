@@ -26,7 +26,7 @@ export class CandidatesService {
     actorUserId: string;
   }) {
     if (!input.consent) throw new BadRequestException('consent_required');
-    if (input.channel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.destination)) {
+    if (input.channel === 'email' && !this.isValidEmail(input.destination)) {
       throw new BadRequestException('invalid_email');
     }
     if (input.channel === 'phone' && !/^\+?[1-9]\d{7,14}$/.test(input.destination.replace(/[^\d+]/g, ''))) {
@@ -210,7 +210,7 @@ export class CandidatesService {
   async listManagedCandidates(organizationId: string, actorUserId: string, role: string) {
     await this.assertAccess(organizationId, actorUserId, role);
 
-    const resetBaseUrl = this.buildPasswordResetUrl('candidate@example.com');
+    const passwordResetAvailable = this.hasPasswordResetConfig();
     const candidates = await prisma.candidate.findMany({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
@@ -265,7 +265,7 @@ export class CandidatesService {
       authProviders: [...new Set(candidate.user?.identities.map((identity) => identity.provider) ?? [])],
       applicationsCount: candidate._count.applications,
       invitesCount: candidate._count.invites,
-      canRequestPasswordReset: Boolean(candidate.userId && resetBaseUrl && !candidate.email.endsWith('@placeholder.local')),
+      canRequestPasswordReset: Boolean(candidate.userId && passwordResetAvailable && this.isResettableEmail(candidate.email)),
       lastInvite: candidate.invites[0] ?? null,
     }));
   }
@@ -277,7 +277,7 @@ export class CandidatesService {
     payload: { email: string },
   ) {
     const normalizedEmail = payload.email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    if (!this.isValidEmail(normalizedEmail)) {
       throw new BadRequestException('invalid_email');
     }
 
@@ -383,7 +383,7 @@ export class CandidatesService {
     if (!candidate.userId || candidate.user?.identities.length === 0) {
       throw new BadRequestException('candidate_has_no_login_account');
     }
-    if (candidate.email.endsWith('@placeholder.local')) {
+    if (!this.isResettableEmail(candidate.email)) {
       throw new BadRequestException('candidate_email_not_resettable');
     }
 
@@ -490,7 +490,7 @@ export class CandidatesService {
       authProviders: [...new Set(candidate.user?.identities.map((identity) => identity.provider) ?? [])],
       applicationsCount: candidate._count.applications,
       invitesCount: candidate._count.invites,
-      canRequestPasswordReset: Boolean(candidate.userId && this.buildPasswordResetUrl(candidate.email) && !candidate.email.endsWith('@placeholder.local')),
+      canRequestPasswordReset: Boolean(candidate.userId && this.buildPasswordResetUrl(candidate.email) && this.isResettableEmail(candidate.email)),
       lastInvite: candidate.invites[0] ?? null,
     };
   }
@@ -509,10 +509,30 @@ export class CandidatesService {
     try {
       const url = new URL(config.changePasswordUrl);
       url.searchParams.set('login_hint', candidateEmail);
-      url.searchParams.set('email', candidateEmail);
       return url.toString();
     } catch {
       return null;
     }
+  }
+
+  private hasPasswordResetConfig() {
+    return this.buildPasswordResetUrl('availability-check@example.com') !== null;
+  }
+
+  private isResettableEmail(email: string) {
+    return this.isValidEmail(email) && !email.endsWith('@placeholder.local');
+  }
+
+  private isValidEmail(email: string) {
+    if (!email || email.length > 254 || /\s/.test(email)) return false;
+    const parts = email.split('@');
+    if (parts.length !== 2) return false;
+    const [local, domain] = parts;
+    if (!local || !domain || local.length > 64 || domain.length > 253) return false;
+    if (!domain.includes('.')) return false;
+    const labels = domain.split('.');
+    if (labels.some((label) => !label || label.startsWith('-') || label.endsWith('-'))) return false;
+    if (!labels.every((label) => /^[a-z0-9-]+$/i.test(label))) return false;
+    return true;
   }
 }

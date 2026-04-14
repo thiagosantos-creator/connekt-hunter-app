@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { colors, radius, spacing, fontSize, fontWeight } from '../tokens/tokens.js';
 import { useInjectStyle } from './useInjectStyle.js';
 
@@ -85,6 +85,12 @@ export function DataTable<T>({
   const currentPage = Math.max(0, Math.min(page, totalPages - 1));
   const paginated = pageSize ? sorted.slice(currentPage * pageSize, (currentPage + 1) * pageSize) : sorted;
   const hasActiveSearch = search.trim().length > 0;
+
+  useEffect(() => {
+    if (currentPage !== page) {
+      setPage(currentPage);
+    }
+  }, [currentPage, page]);
 
   const handleSort = (key: string) => {
     const col = columns.find((c) => c.key === key);

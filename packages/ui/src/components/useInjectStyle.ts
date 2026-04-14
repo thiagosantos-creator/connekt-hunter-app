@@ -8,10 +8,16 @@ export function useInjectStyle(id: string, css: string) {
       return;
     }
 
+    injectedStyleIds.add(id);
+
+    const existingStyle = document.head.querySelector(`[data-connekt-style="${id}"]`);
+    if (existingStyle) {
+      return;
+    }
+
     const style = document.createElement('style');
     style.setAttribute('data-connekt-style', id);
     style.textContent = css;
     document.head.appendChild(style);
-    injectedStyleIds.add(id);
   }, [css, id]);
 }

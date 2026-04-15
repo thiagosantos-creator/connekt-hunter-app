@@ -213,7 +213,7 @@ export class AiGateway {
         { type: 'availability', severity: 'medium', score: 0.58, detail: 'Disponibilidade híbrida ainda não confirmada.' },
         { type: 'technical-depth', severity: 'low', score: 0.34, detail: 'Aprofundar detalhes de observabilidade em sistemas distribuídos.' },
       ],
-      explanation: parsed.explanation ?? 'Risco calculado por IA. Revisão humana obrigatória.',
+      explanation: 'Risco calculado por IA. Revisão humana obrigatória.',
     });
 
     const { result, provider, modelVersion } = await this.withFallback(

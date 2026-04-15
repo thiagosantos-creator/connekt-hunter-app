@@ -34,7 +34,7 @@ export function PageContent({ children, style }: { children: React.ReactNode; st
 /** Inline status message (toast-like feedback) */
 export type MessageVariant = 'success' | 'error' | 'info' | 'warning';
 
-export function InlineMessage({ children, variant = 'info', onDismiss }: { children: React.ReactNode; variant?: MessageVariant; onDismiss?: () => void }) {
+export function InlineMessage({ children, variant = 'info', onDismiss, style }: { children: React.ReactNode; variant?: MessageVariant; onDismiss?: () => void; style?: React.CSSProperties }) {
   const styleMap: Record<MessageVariant, React.CSSProperties> = {
     success: { background: colors.successLight, color: colors.success, borderColor: colors.success },
     error: { background: colors.dangerLight, color: colors.danger, borderColor: colors.danger },
@@ -53,6 +53,7 @@ export function InlineMessage({ children, variant = 'info', onDismiss }: { child
         borderLeft: '4px solid',
         marginBottom: spacing.md,
         ...styleMap[variant],
+        ...style,
       }}
     >
       <span>{children}</span>

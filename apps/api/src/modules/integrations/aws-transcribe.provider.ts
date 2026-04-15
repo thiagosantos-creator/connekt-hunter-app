@@ -35,11 +35,12 @@ export class AwsTranscribeProvider {
     outputKey?: string;
   }): Promise<TranscribeJobResult> {
     const languageCode = (input.languageCode ?? 'pt-BR') as TranscribeLanguageCode;
+    const mediaFormat = this.detectMediaFormat(input.mediaUri);
 
     const command = new StartTranscriptionJobCommand({
       TranscriptionJobName: input.jobName,
       LanguageCode: languageCode,
-      MediaFormat: 'webm',
+      MediaFormat: mediaFormat,
       Media: { MediaFileUri: input.mediaUri },
       OutputBucketName: input.outputBucket ?? process.env.S3_BUCKET,
       OutputKey: input.outputKey ?? `transcriptions/${input.jobName}.json`,
@@ -136,5 +137,18 @@ export class AwsTranscribeProvider {
       default:
         return 'QUEUED';
     }
+  }
+
+  /** Detect media format from file URI extension. Defaults to webm. */
+  private detectMediaFormat(mediaUri: string): string {
+    const lower = mediaUri.toLowerCase();
+    if (lower.endsWith('.mp3')) return 'mp3';
+    if (lower.endsWith('.mp4')) return 'mp4';
+    if (lower.endsWith('.wav')) return 'wav';
+    if (lower.endsWith('.flac')) return 'flac';
+    if (lower.endsWith('.ogg')) return 'ogg';
+    if (lower.endsWith('.amr')) return 'amr';
+    if (lower.endsWith('.webm')) return 'webm';
+    return 'webm';
   }
 }

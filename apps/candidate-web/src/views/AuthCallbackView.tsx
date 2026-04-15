@@ -27,6 +27,7 @@ export function AuthCallbackView() {
 
     if (errorParam) {
       setPhase('error');
+      const errorDesc = params.get('error_description');
       setErrorMsg(errorDesc ?? errorParam);
       return;
     }
@@ -47,7 +48,7 @@ export function AuthCallbackView() {
         if (stateObj.inviteToken) {
           inviteToken = stateObj.inviteToken;
           // Se recebemos um token novo via state, já fixamos no storage
-          localStorage.setItem('invite_token', inviteToken);
+          localStorage.setItem('invite_token', inviteToken as string);
         }
       } catch (err) {
         console.warn('Could not parse OAuth state parameter');

@@ -30,6 +30,37 @@ export class OnboardingController {
     return this.onboardingService.completeResume(body.token, body.resumeId, body.filename);
   }
 
+  @Post('preferences')
+  savePreferences(
+    @Body()
+    body: {
+      token: string;
+      salaryMin?: number;
+      salaryMax?: number;
+      jobTitles?: string[];
+      languages?: string[];
+    },
+  ) {
+    return this.onboardingService.preferences(body.token, {
+      salaryMin: body.salaryMin,
+      salaryMax: body.salaryMax,
+      jobTitles: body.jobTitles,
+      languages: body.languages,
+    });
+  }
+
+  @Post('intro-video/presign')
+  introVideoPresign(@Body() body: { token: string; filename: string; contentType?: string }) {
+    return this.onboardingService.createIntroVideoUpload(body.token, body.filename, body.contentType);
+  }
+
+  @Post('intro-video/complete')
+  completeIntroVideo(
+    @Body() body: { token: string; objectKey: string; provider: string; durationSec: number },
+  ) {
+    return this.onboardingService.completeIntroVideo(body.token, body.objectKey, body.provider, body.durationSec);
+  }
+
   @Get('parsed-resume/:token')
   parsedResume(@Param('token') token: string) {
     return this.onboardingService.getParsedResume(token);

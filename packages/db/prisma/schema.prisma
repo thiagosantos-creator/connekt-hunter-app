@@ -136,6 +136,7 @@ model Candidate {
   user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
   guestSession   GuestSession?
   invites        CandidateInvite[]
+  preferences    CandidatePreferences?
 }
 
 model TenantPolicy {
@@ -358,15 +359,19 @@ model NotificationDispatch {
 }
 
 model CandidateProfile {
-  id            String    @id @default(cuid())
-  candidateId   String    @unique
-  fullName      String?
-  phone         String?
-  photoUrl      String?
-  photoProvider String?
-  socialName    String?
-  socialEmail   String?
-  candidate     Candidate @relation(fields: [candidateId], references: [id])
+  id                    String    @id @default(cuid())
+  candidateId           String    @unique
+  fullName              String?
+  phone                 String?
+  photoUrl              String?
+  photoProvider         String?
+  socialName            String?
+  socialEmail           String?
+  introVideoKey         String?
+  introVideoProvider    String?
+  introVideoDurationSec Int?
+  introVideoUploadedAt  DateTime?
+  candidate             Candidate @relation(fields: [candidateId], references: [id])
 }
 
 model Application {
@@ -385,15 +390,17 @@ model Application {
 }
 
 model CandidateOnboardingSession {
-  id               String              @id @default(cuid())
-  candidateId      String              @unique
-  basicCompleted   Boolean             @default(false)
-  consentCompleted Boolean             @default(false)
-  resumeCompleted  Boolean             @default(false)
-  status           String              @default("pending")
-  candidate        Candidate           @relation(fields: [candidateId], references: [id])
-  consents         CandidateConsent[]
-  resumes          CandidateResume[]
+  id                    String              @id @default(cuid())
+  candidateId           String              @unique
+  basicCompleted        Boolean             @default(false)
+  consentCompleted      Boolean             @default(false)
+  resumeCompleted       Boolean             @default(false)
+  preferencesCompleted  Boolean             @default(false)
+  introVideoCompleted   Boolean             @default(false)
+  status                String              @default("pending")
+  candidate             Candidate           @relation(fields: [candidateId], references: [id])
+  consents              CandidateConsent[]
+  resumes               CandidateResume[]
 }
 
 model CandidateConsent {
@@ -403,6 +410,18 @@ model CandidateConsent {
   accepted      Boolean
   acceptedAt    DateTime                    @default(now())
   session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
+}
+
+model CandidatePreferences {
+  id          String    @id @default(cuid())
+  candidateId String    @unique
+  salaryMin   Int?
+  salaryMax   Int?
+  jobTitles   String[]
+  languages   String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
 }
 
 model CandidateResume {

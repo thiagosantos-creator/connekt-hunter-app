@@ -12,7 +12,6 @@ import {
   radius,
   shadows,
 } from '@connekt/ui';
-import { StepIndicator } from '../components/layout/StepIndicator.js';
 
 type PermissionState = 'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable';
 
@@ -181,11 +180,10 @@ export function Step4MediaCheckView() {
 
   return (
     <div style={{ maxWidth: 640, margin: '40px auto', padding: `0 ${spacing.md}px` }}>
-      <StepIndicator current={4} />
 
       <div style={{ marginBottom: spacing.lg }}>
         <h2 style={{ margin: 0, fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text }}>
-          Passo 4 — Verificação de Câmera e Microfone
+          Verificação de Câmera e Microfone
         </h2>
         <p style={{ margin: `${spacing.sm}px 0 0`, color: colors.textSecondary, fontSize: fontSize.md }}>
           Antes de iniciar a entrevista, precisamos verificar se sua câmera e microfone estão funcionando corretamente.

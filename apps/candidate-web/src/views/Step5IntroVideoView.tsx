@@ -82,7 +82,8 @@ export function Step5IntroVideoView() {
       recorder.start(250);
       setPhase('recording');
       setElapsed(0);
-    } catch {
+    } catch (err) {
+      console.error('[Step5IntroVideoView] camera access error:', err);
       setPhase('error');
       setErrMsg('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
     }

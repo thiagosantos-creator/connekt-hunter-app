@@ -156,6 +156,9 @@ describe('OnboardingService', () => {
       resumeText: expect.stringContaining('Experienced engineer'),
     }));
     expect(result).toEqual(expect.objectContaining({ ok: true, resumeId: 'cr1' }));
+    expect(prisma.candidateOnboardingSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ resumeCompleted: true, status: 'completed' }) }),
+    );
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'onboarding.resume_completed' }) }),
     );

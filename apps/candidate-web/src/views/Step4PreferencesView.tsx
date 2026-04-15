@@ -5,13 +5,14 @@ import { StepIndicator } from '../components/layout/StepIndicator.js';
 import { Button, Card, CardContent, InlineMessage, Input, colors, spacing, fontSize, fontWeight, radius } from '@connekt/ui';
 
 const LANGUAGES = ['Português', 'Inglês', 'Espanhol', 'Francês', 'Alemão', 'Mandarim', 'Italiano', 'Japonês'];
+const MAX_JOB_TITLES = 3;
 
 export function Step4PreferencesView() {
   const navigate = useNavigate();
 
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
-  const [jobTitles, setJobTitles] = useState<[string, string, string]>(['', '', '']);
+  const [jobTitles, setJobTitles] = useState<string[]>(Array(MAX_JOB_TITLES).fill(''));
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ export function Step4PreferencesView() {
 
   const setJobTitle = (index: number, value: string) => {
     setJobTitles((prev) => {
-      const next: [string, string, string] = [...prev] as [string, string, string];
+      const next = [...prev];
       next[index] = value;
       return next;
     });
@@ -102,15 +103,15 @@ export function Step4PreferencesView() {
             {/* Job titles */}
             <div style={{ marginBottom: spacing.lg }}>
               <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
-                Cargos de interesse (até 3)
+                Cargos de interesse (até {MAX_JOB_TITLES})
               </div>
               <div style={{ display: 'grid', gap: spacing.xs }}>
-                {([0, 1, 2] as const).map((i) => (
+                {Array.from({ length: MAX_JOB_TITLES }, (_, i) => (
                   <Input
                     key={i}
                     type="text"
                     placeholder={`Cargo ${i + 1} — ex: Software Engineer`}
-                    value={jobTitles[i]}
+                    value={jobTitles[i] ?? ''}
                     onChange={(e) => setJobTitle(i, e.target.value)}
                     maxLength={80}
                   />

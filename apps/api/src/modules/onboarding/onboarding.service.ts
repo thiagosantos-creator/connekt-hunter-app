@@ -153,7 +153,8 @@ export class OnboardingService {
 
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
-      data: { resumeCompleted: true },
+      // Mark as 'completed' here since preferences and intro-video are optional
+      data: { resumeCompleted: true, status: 'completed' },
     });
 
     await prisma.auditEvent.create({

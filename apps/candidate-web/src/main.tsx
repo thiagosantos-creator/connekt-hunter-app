@@ -8,6 +8,8 @@ import { TokenEntryView } from './views/TokenEntryView.js';
 import { Step1BasicView } from './views/Step1BasicView.js';
 import { Step2ConsentView } from './views/Step2ConsentView.js';
 import { Step3ResumeView } from './views/Step3ResumeView.js';
+import { Step4PreferencesView } from './views/Step4PreferencesView.js';
+import { Step5IntroVideoView } from './views/Step5IntroVideoView.js';
 import { StatusView } from './views/StatusView.js';
 import { InterviewView } from './views/InterviewView.js';
 import { AccountView } from './views/AccountView.js';
@@ -144,6 +146,8 @@ function App() {
           <Route path="/onboarding/basic" element={<RequiresToken><Step1BasicView /></RequiresToken>} />
           <Route path="/onboarding/consent" element={<RequiresToken><Step2ConsentView /></RequiresToken>} />
           <Route path="/onboarding/resume" element={<RequiresToken><Step3ResumeView /></RequiresToken>} />
+          <Route path="/onboarding/preferences" element={<RequiresToken><Step4PreferencesView /></RequiresToken>} />
+          <Route path="/onboarding/intro-video" element={<RequiresToken><Step5IntroVideoView /></RequiresToken>} />
           <Route path="/onboarding/media-check" element={<RequiresToken><Step4MediaCheckView /></RequiresToken>} />
           <Route path="/status" element={<RequiresToken><StatusView /></RequiresToken>} />
           <Route path="/interview" element={<RequiresToken><InterviewView /></RequiresToken>} />

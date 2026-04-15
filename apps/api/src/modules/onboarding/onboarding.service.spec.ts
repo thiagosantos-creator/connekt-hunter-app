@@ -23,6 +23,9 @@ vi.mock('@connekt/db', () => ({
     resumeParseResult: {
       upsert: vi.fn().mockResolvedValue({}),
     },
+    candidatePreferences: {
+      upsert: vi.fn().mockResolvedValue({ id: 'pref1' }),
+    },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
     },
@@ -153,8 +156,107 @@ describe('OnboardingService', () => {
       resumeText: expect.stringContaining('Experienced engineer'),
     }));
     expect(result).toEqual(expect.objectContaining({ ok: true, resumeId: 'cr1' }));
+    expect(prisma.candidateOnboardingSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ resumeCompleted: true, status: 'completed' }) }),
+    );
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'onboarding.resume_completed' }) }),
     );
+  });
+
+  it('should throw NotFoundException when candidate token is invalid for preferences', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue(null);
+    await expect(service.preferences('invalid-token', {})).rejects.toThrow('candidate_not_found');
+  });
+
+  it('should save preferences and create audit event', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c1',
+      organizationId: 'org1',
+      token: 'valid-token',
+    } as never);
+
+    const result = await service.preferences('valid-token', {
+      salaryMin: 5000,
+      salaryMax: 10000,
+      jobTitles: ['Software Engineer', 'Tech Lead'],
+      languages: ['Português', 'Inglês'],
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(prisma.candidatePreferences.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { candidateId: 'c1' },
+    }));
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'onboarding.preferences_completed' }) }),
+    );
+  });
+
+  it('should throw NotFoundException when candidate token is invalid for intro video presign', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue(null);
+    await expect(service.createIntroVideoUpload('invalid-token', 'video.webm')).rejects.toThrow('candidate_not_found');
+  });
+
+  it('should create intro video presigned upload', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c1',
+      organizationId: 'org1',
+      token: 'valid-token',
+    } as never);
+
+    const result = await service.createIntroVideoUpload('valid-token', 'intro.webm', 'video/webm');
+
+    expect(mockStorageGateway.createPresignedUpload).toHaveBeenCalledWith(expect.objectContaining({
+      namespace: 'candidate-intro-video/c1',
+    }));
+    expect(result).toEqual(expect.objectContaining({ objectKey: 'key1', provider: 'aws-s3' }));
+  });
+
+  it('should complete intro video and mark onboarding completed', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c1',
+      organizationId: 'org1',
+      token: 'valid-token',
+    } as never);
+
+    const result = await service.completeIntroVideo('valid-token', 'intro-key', 'aws-s3', 90);
+
+    expect(result).toEqual({ ok: true });
+    expect(prisma.candidateProfile.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ introVideoKey: 'intro-key', introVideoDurationSec: 90 }),
+    }));
+    expect(prisma.candidateOnboardingSession.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ introVideoCompleted: true, status: 'completed' }) }),
+    );
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'onboarding.intro_video_completed' }) }),
+    );
+  });
+
+  it('getStatus should not expose internal selection steps', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({
+      id: 'c1',
+      organizationId: 'org1',
+      email: 'c@test.com',
+      profile: { fullName: 'John' },
+      onboarding: {
+        basicCompleted: true,
+        consentCompleted: true,
+        resumeCompleted: true,
+        preferencesCompleted: false,
+        introVideoCompleted: false,
+        status: 'pending',
+      },
+      applications: [],
+    } as never);
+
+    const status = await service.getStatus('valid-token');
+
+    const stepKeys = status.steps.map((s: { key: string }) => s.key);
+    expect(stepKeys).not.toContain('review');
+    expect(stepKeys).not.toContain('shortlisted');
+    expect(stepKeys).not.toContain('decision');
+    expect(stepKeys).toContain('preferences');
+    expect(stepKeys).toContain('intro-video');
   });
 });

@@ -337,6 +337,13 @@ export function StatusView() {
   const completedSteps = candidateStatus?.steps.filter((s) => s.completed).length ?? 0;
   const totalSteps = candidateStatus?.steps.length ?? 0;
   const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  // Onboarding is considered submitted once the resume step is complete
+  const resumeStep = candidateStatus?.steps.find((s) => s.key === 'resume');
+  const onboardingSubmitted = !!resumeStep?.completed;
+  const preferencesStep = candidateStatus?.steps.find((s) => s.key === 'preferences');
+  const introVideoStep = candidateStatus?.steps.find((s) => s.key === 'intro-video');
+  const preferencesComplete = !!preferencesStep?.completed;
+  const introVideoComplete = !!introVideoStep?.completed;
 
   const toggleSection = (key: string) => setExpandedSection((prev) => (prev === key ? null : key));
 
@@ -458,6 +465,44 @@ export function StatusView() {
               </div>
             </CardContent>
           )}
+        </Card>
+      )}
+
+      {/* ── Post-onboarding confirmation + next steps ─────────────────── */}
+      {onboardingSubmitted && (
+        <Card style={{ border: `1px solid ${colors.success}`, background: colors.successLight }}>
+          <CardContent>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md }}>
+              <span style={{ fontSize: 32, flexShrink: 0 }}>✅</span>
+              <div>
+                <div style={{ fontWeight: fontWeight.bold, fontSize: fontSize.md, color: colors.success, marginBottom: spacing.xs }}>
+                  Candidatura enviada com sucesso!
+                </div>
+                <p style={{ margin: `0 0 ${spacing.md}px`, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 1.6 }}>
+                  Seu currículo foi recebido. Nossa equipe irá analisar seu perfil e entraremos em contato sobre as próximas etapas.
+                </p>
+                {(!preferencesComplete || !introVideoComplete) && (
+                  <div>
+                    <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: spacing.sm }}>
+                      Complete seu perfil para se destacar:
+                    </div>
+                    <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+                      {!preferencesComplete && (
+                        <a href="/onboarding/preferences" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: `${spacing.xs}px ${spacing.sm}px`, background: colors.surface, borderRadius: radius.md, border: `1px solid ${colors.border}`, textDecoration: 'none', color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>
+                          📋 Adicionar preferências
+                        </a>
+                      )}
+                      {!introVideoComplete && (
+                        <a href="/onboarding/intro-video" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: `${spacing.xs}px ${spacing.sm}px`, background: colors.surface, borderRadius: radius.md, border: `1px solid ${colors.border}`, textDecoration: 'none', color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>
+                          🎥 Gravar vídeo de apresentação
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
         </Card>
       )}
 

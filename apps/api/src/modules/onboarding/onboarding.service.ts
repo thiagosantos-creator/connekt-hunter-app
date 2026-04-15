@@ -153,6 +153,7 @@ export class OnboardingService {
 
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
+      // Mark as 'completed' here since preferences and intro-video are optional
       data: { resumeCompleted: true, status: 'completed' },
     });
 
@@ -176,6 +177,108 @@ export class OnboardingService {
       provider: resume.provider,
       parsed,
     };
+  }
+
+  async preferences(
+    token: string,
+    data: { salaryMin?: number; salaryMax?: number; jobTitles?: string[]; languages?: string[] },
+  ) {
+    const candidate = await prisma.candidate.findUnique({ where: { token } });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    await prisma.candidatePreferences.upsert({
+      where: { candidateId: candidate.id },
+      update: {
+        salaryMin: data.salaryMin ?? null,
+        salaryMax: data.salaryMax ?? null,
+        jobTitles: data.jobTitles ?? [],
+        languages: data.languages ?? [],
+      },
+      create: {
+        candidateId: candidate.id,
+        salaryMin: data.salaryMin ?? null,
+        salaryMax: data.salaryMax ?? null,
+        jobTitles: data.jobTitles ?? [],
+        languages: data.languages ?? [],
+      },
+    });
+
+    await prisma.candidateOnboardingSession.update({
+      where: { candidateId: candidate.id },
+      data: { preferencesCompleted: true },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: candidate.id,
+        action: 'onboarding.preferences_completed',
+        entityType: 'Candidate',
+        entityId: candidate.id,
+        metadata: { organizationId: candidate.organizationId } as never,
+      },
+    });
+
+    this.logger.log(JSON.stringify({ event: 'onboarding_preferences_completed', candidateId: candidate.id }));
+
+    return { ok: true };
+  }
+
+  async createIntroVideoUpload(token: string, filename: string, contentType?: string) {
+    const candidate = await prisma.candidate.findUnique({ where: { token } });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    const upload = await this.storageGateway.createPresignedUpload({
+      tenantId: candidate.organizationId,
+      namespace: `candidate-intro-video/${candidate.id}`,
+      filename,
+      contentType,
+      metadata: { source: 'candidate-intro-video', candidateId: candidate.id },
+    });
+
+    this.logger.log(JSON.stringify({ event: 'onboarding_intro_video_upload_created', candidateId: candidate.id }));
+
+    return { objectKey: upload.objectKey, provider: upload.provider, upload };
+  }
+
+  async completeIntroVideo(token: string, objectKey: string, provider: string, durationSec: number) {
+    const candidate = await prisma.candidate.findUnique({ where: { token } });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    await prisma.candidateProfile.upsert({
+      where: { candidateId: candidate.id },
+      update: {
+        introVideoKey: objectKey,
+        introVideoProvider: provider,
+        introVideoDurationSec: durationSec,
+        introVideoUploadedAt: new Date(),
+      },
+      create: {
+        candidateId: candidate.id,
+        introVideoKey: objectKey,
+        introVideoProvider: provider,
+        introVideoDurationSec: durationSec,
+        introVideoUploadedAt: new Date(),
+      },
+    });
+
+    await prisma.candidateOnboardingSession.update({
+      where: { candidateId: candidate.id },
+      data: { introVideoCompleted: true, status: 'completed' },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: candidate.id,
+        action: 'onboarding.intro_video_completed',
+        entityType: 'Candidate',
+        entityId: candidate.id,
+        metadata: { organizationId: candidate.organizationId, objectKey, provider, durationSec } as never,
+      },
+    });
+
+    this.logger.log(JSON.stringify({ event: 'onboarding_intro_video_completed', candidateId: candidate.id }));
+
+    return { ok: true };
   }
 
   async getParsedResume(token: string) {
@@ -239,15 +342,15 @@ export class OnboardingService {
     const basicDone = !!onboarding?.basicCompleted;
     const consentDone = !!onboarding?.consentCompleted;
     const resumeDone = !!onboarding?.resumeCompleted;
-    const hasShortlistItems = !!(app?.shortlistItems?.length);
-    const hasDecisions = !!(hasShortlistItems && app?.shortlistItems?.[0]?.decisions?.length);
+    const preferencesDone = !!onboarding?.preferencesCompleted;
+    const introVideoDone = !!onboarding?.introVideoCompleted;
 
+    // Only expose candidate-facing onboarding steps — internal selection steps are hidden
     steps.push({ key: 'basic', label: 'Dados básicos', completed: basicDone, current: !basicDone });
     steps.push({ key: 'consent', label: 'Consentimento LGPD', completed: consentDone, current: basicDone && !consentDone });
     steps.push({ key: 'resume', label: 'Envio de currículo', completed: resumeDone, current: consentDone && !resumeDone });
-    steps.push({ key: 'review', label: 'Em avaliação', completed: hasShortlistItems, current: resumeDone && !hasShortlistItems });
-    steps.push({ key: 'shortlisted', label: 'Na shortlist', completed: hasDecisions, current: hasShortlistItems && !hasDecisions });
-    steps.push({ key: 'decision', label: 'Decisão final', completed: hasDecisions, current: false });
+    steps.push({ key: 'preferences', label: 'Preferências profissionais', completed: preferencesDone, current: resumeDone && !preferencesDone });
+    steps.push({ key: 'intro-video', label: 'Vídeo de apresentação', completed: introVideoDone, current: preferencesDone && !introVideoDone });
 
     const interview = app?.smartInterviewSessions?.[0];
     const latestDecision = app?.shortlistItems?.[0]?.decisions?.[0];

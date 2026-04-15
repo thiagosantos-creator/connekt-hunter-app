@@ -1,13 +1,14 @@
 import React from 'react';
 import { colors, spacing, fontWeight, radius } from '@connekt/ui';
 
-/** Premium step indicator for candidate onboarding — 4 steps */
-export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 }) {
+/** Premium step indicator for candidate onboarding — 5 steps */
+export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
   const steps = [
     { n: 1, label: 'Dados Básicos' },
     { n: 2, label: 'LGPD / Termos' },
     { n: 3, label: 'Upload CV' },
-    { n: 4, label: 'Câmera & Mic' },
+    { n: 4, label: 'Preferências' },
+    { n: 5, label: 'Vídeo Intro' },
   ];
 
   return (

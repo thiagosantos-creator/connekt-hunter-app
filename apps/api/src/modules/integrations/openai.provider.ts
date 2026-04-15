@@ -5,7 +5,7 @@ function safeJsonParse<T = unknown>(json: string, fallback: T, logger: Logger, c
   try {
     return JSON.parse(json) as T;
   } catch (err) {
-    logger.warn(JSON.stringify({ event: 'json_parse_failed', context, error: String(err), raw: json.slice(0, 200) }));
+    logger.warn(JSON.stringify({ event: 'json_parse_failed', context, error: String(err) }));
     return fallback;
   }
 }

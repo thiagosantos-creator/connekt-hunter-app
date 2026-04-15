@@ -356,7 +356,7 @@ export function InterviewView() {
           <Card style={{ marginBottom: spacing.md, overflow: 'hidden' }}>
             <CardContent style={{ padding: 0 }}>
               {/* Live camera feed / countdown / preview */}
-              <div style={{ position: 'relative', background: '#000', borderRadius: `${radius.xl}px ${radius.xl}px 0 0`, overflow: 'hidden' }}>
+              <div style={{ position: 'relative', background: colors.primary, borderRadius: `${radius.xl}px ${radius.xl}px 0 0`, overflow: 'hidden' }}>
                 {/* Live view (always mounted, hidden when in preview) */}
                 <video
                   ref={videoRef}
@@ -387,10 +387,10 @@ export function InterviewView() {
                   <div style={{
                     position: 'absolute', inset: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(0,0,0,0.6)',
+                    background: colors.overlayInverseHeavy,
                     flexDirection: 'column', gap: spacing.sm,
                   }}>
-                    <div style={{ fontSize: 80, fontWeight: fontWeight.bold, color: '#fff', lineHeight: 1 }}>
+                    <div style={{ fontSize: 80, fontWeight: fontWeight.bold, color: colors.textInverse, lineHeight: 1 }}>
                       {countdown}
                     </div>
                     <div style={{ fontSize: fontSize.md, color: 'rgba(255,255,255,0.8)' }}>
@@ -403,12 +403,12 @@ export function InterviewView() {
                 {recordState === 'recording' && (
                   <div style={{
                     position: 'absolute', top: spacing.sm, left: spacing.sm,
-                    background: 'rgba(0,0,0,0.65)', borderRadius: radius.full,
+                    background: colors.overlayInverseHeavy, borderRadius: radius.full,
                     padding: `${spacing.xs}px ${spacing.sm}px`,
                     display: 'flex', alignItems: 'center', gap: spacing.xs,
-                    fontSize: fontSize.xs, color: '#fff',
+                    fontSize: fontSize.xs, color: colors.textInverse,
                   }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'recordPulse 1s ease-in-out infinite' }} />
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors.danger, display: 'inline-block', animation: 'recordPulse 1s ease-in-out infinite' }} />
                     REC {formatSeconds(elapsed)}
                   </div>
                 )}
@@ -418,11 +418,11 @@ export function InterviewView() {
                   <div style={{
                     position: 'absolute', inset: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(0,0,0,0.55)',
+                    background: colors.overlayInverseHeavy,
                     flexDirection: 'column', gap: spacing.md,
                   }}>
                     <Spinner size={40} />
-                    <div style={{ color: '#fff', fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Enviando resposta...</div>
+                    <div style={{ color: colors.textInverse, fontSize: fontSize.md, fontWeight: fontWeight.medium }}>Enviando resposta...</div>
                   </div>
                 )}
               </div>

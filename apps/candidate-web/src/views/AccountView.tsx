@@ -126,15 +126,15 @@ function AvatarUpload({ currentPhotoUrl, onUploaded }: { currentPhotoUrl: string
         )}
         {loading && (
           <div style={{
-            position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)',
+            position: 'absolute', inset: 0, background: colors.overlayInverseHeavy,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 20,
           }}>⏳</div>
         )}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          background: 'rgba(0,0,0,0.45)',
-          color: '#fff', fontSize: 9, fontWeight: fontWeight.bold,
+          background: colors.overlayInverseHeavy,
+          color: colors.textInverse, fontSize: fontSize.xs, fontWeight: fontWeight.bold,
           textAlign: 'center', padding: '3px 0',
           opacity: loading ? 0 : 1, transition: 'opacity 0.2s',
         }}>

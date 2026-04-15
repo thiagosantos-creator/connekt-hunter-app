@@ -21,6 +21,7 @@ import {
   Skeleton,
   StatBox,
   Textarea,
+  colors,
   radius,
   spacing,
 } from '@connekt/ui';
@@ -199,7 +200,7 @@ export function EnterpriseGovernanceView() {
             </div>
             <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}><Button variant="outline" onClick={() => setDraftPolicies((current) => [...current, { id: `draft-${Date.now()}`, roleKey, ...policyDraft }])}>Adicionar regra</Button><Button onClick={() => { void savePolicies(); }} loading={busy === 'policies'}>Salvar regras do perfil</Button><Button variant="ghost" onClick={() => { void simulate(); }} loading={busy === 'simulate'}>Simular acesso</Button></div>
             {simulation && <InlineMessage variant={simulation.allowed ? 'success' : 'warning'}>{simulation.allowed ? 'Permitido' : 'Negado'} ({simulation.rationale})</InlineMessage>}
-            <div style={{ display: 'grid', gap: spacing.sm }}>{rolePolicies.length ? rolePolicies.map((row) => <div key={row.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md, padding: spacing.md, border: '1px solid #ddd', borderRadius: radius.md }}><span>{row.resource} · {row.action} · {row.scope} · {row.allowed ? 'permitido' : 'negado'}</span><Button size="sm" variant="ghost" onClick={() => setDraftPolicies((current) => current.filter((item) => item.id !== row.id))}>Remover</Button></div>) : <InlineMessage variant="warning">Nenhuma regra em edição para o perfil selecionado.</InlineMessage>}</div>
+            <div style={{ display: 'grid', gap: spacing.sm }}>{rolePolicies.length ? rolePolicies.map((row) => <div key={row.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md, padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md }}><span>{row.resource} · {row.action} · {row.scope} · {row.allowed ? 'permitido' : 'negado'}</span><Button size="sm" variant="ghost" onClick={() => setDraftPolicies((current) => current.filter((item) => item.id !== row.id))}>Remover</Button></div>) : <InlineMessage variant="warning">Nenhuma regra em edição para o perfil selecionado.</InlineMessage>}</div>
             <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
               <Input label="Grant para userId" value={grantForm.userId} onChange={(e) => setGrantForm((current) => ({ ...current, userId: e.target.value }))} />
               <Input label="Grant recurso" value={grantForm.resource} onChange={(e) => setGrantForm((current) => ({ ...current, resource: e.target.value }))} />

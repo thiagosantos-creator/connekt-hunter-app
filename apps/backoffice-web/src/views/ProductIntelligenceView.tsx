@@ -24,6 +24,7 @@ import {
   spacing,
   colors,
   fontSize,
+  fontWeight,
   radius,
 } from '@connekt/ui';
 
@@ -71,7 +72,7 @@ function ResultCard({ title, data }: { title: string; data: Record<string, unkno
           <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: `${spacing.xs}px ${spacing.md}px` }}>
             {entries.map(([k, v]) => (
               <div key={k} style={{ display: 'contents' }}>
-                <span style={{ fontWeight: 600, fontSize: fontSize.sm, color: colors.textSecondary }}>{k}</span>
+                <span style={{ fontWeight: fontWeight.semibold, fontSize: fontSize.sm, color: colors.textSecondary }}>{k}</span>
                 <span style={{ fontSize: fontSize.sm }}>{String(v)}</span>
               </div>
             ))}
@@ -79,10 +80,10 @@ function ResultCard({ title, data }: { title: string; data: Record<string, unkno
         )}
         {nested.map(([k, v]) => (
           <details key={k} style={{ marginTop: spacing.sm }}>
-            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: fontSize.sm }}>{k}</summary>
+            <summary style={{ cursor: 'pointer', fontWeight: fontWeight.semibold, fontSize: fontSize.sm }}>{k}</summary>
             <pre
               style={{
-                background: '#f8f9fa',
+                background: colors.surfaceAlt,
                 padding: spacing.sm,
                 borderRadius: radius.sm,
                 fontSize: fontSize.xs,

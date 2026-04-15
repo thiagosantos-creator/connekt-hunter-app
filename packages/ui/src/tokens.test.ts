@@ -32,6 +32,24 @@ describe('@connekt/ui design tokens', () => {
     expect(fontSize.xl).toBe(22);
   });
 
+  it('semantic colors include dark variants for high-contrast text', () => {
+    expect(colors.successDark).toBe('#047857');
+    expect(colors.warningDark).toBe('#92400e');
+    expect(colors.dangerDark).toBe('#991b1b');
+    expect(colors.infoDark).toBe('#1e40af');
+  });
+
+  it('overlay tokens are defined', () => {
+    expect(colors.overlayLight).toBe('rgba(255,255,255,0.12)');
+    expect(colors.overlayMedium).toBe('rgba(255,255,255,0.20)');
+    expect(colors.overlayHeavy).toBe('rgba(255,255,255,0.45)');
+    expect(colors.overlayInverseHeavy).toBe('rgba(0,0,0,0.45)');
+  });
+
+  it('textMuted has improved contrast (Slate 500)', () => {
+    expect(colors.textMuted).toBe('#64748b');
+  });
+
   it('tokens object aggregates all sub-tokens', () => {
     expect(tokens.colors).toBe(colors);
     expect(tokens.spacing).toBe(spacing);

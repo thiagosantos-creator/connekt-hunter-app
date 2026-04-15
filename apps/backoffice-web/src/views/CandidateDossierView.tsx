@@ -255,7 +255,7 @@ export function CandidateDossierView() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg }}>
               <div>
                 <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', marginBottom: spacing.lg }}>
-                  <div style={{ width: 78, height: 78, borderRadius: radius.full, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xxl, fontWeight: fontWeight.bold, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ width: 78, height: 78, borderRadius: radius.full, background: colors.overlayMedium, border: '1px solid rgba(255,255,255,0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xxl, fontWeight: fontWeight.bold, overflow: 'hidden', flexShrink: 0 }}>
                     {detail.candidate.profile?.photoUrl ? (
                       <img src={detail.candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
                     ) : (
@@ -283,7 +283,7 @@ export function CandidateDossierView() {
                   <MiniInfo label="Aplicado em" value={formatDate(detail.createdAt)} />
                 </div>
 
-                <div style={{ padding: spacing.md, borderRadius: radius.lg, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.overlayMedium, border: '1px solid rgba(255,255,255,0.2)' }}>
                   <AiTag />
                   <div style={{ marginTop: spacing.xs, fontSize: fontSize.sm, lineHeight: 1.7 }}>
                     {intelligence.insights?.summary || intelligence.matching?.explanations?.[0]?.explanation || detail.smartInterviewSessions?.[0]?.aiAnalysis?.summary || 'Perfil pronto para uma avaliação mais consultiva após o onboarding.'}
@@ -293,7 +293,7 @@ export function CandidateDossierView() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: spacing.sm, alignSelf: 'start', padding: spacing.lg, borderRadius: radius.xl, background: 'rgba(9,16,29,0.28)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: shadows.lg }}>
                 {smartCards.map((card) => (
-                  <div key={card.label} style={{ padding: spacing.sm, borderRadius: radius.lg, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div key={card.label} style={{ padding: spacing.sm, borderRadius: radius.lg, background: colors.overlayLight, border: '1px solid rgba(255,255,255,0.1)' }}>
                     <div style={{ fontSize: fontSize.xs, opacity: 0.8 }}>{card.label}</div>
                     <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold }}>{card.value}</div>
                   </div>
@@ -318,7 +318,7 @@ export function CandidateDossierView() {
                   {smartCards.map((card) => (
                     <div key={card.label} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
                       <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</div>
-                      <div style={{ fontSize: 40, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.xs }}>{card.value}</div>
+                      <div style={{ fontSize: fontSize.xxxl, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.xs }}>{card.value}</div>
                     </div>
                   ))}
                 </div>
@@ -478,7 +478,7 @@ export function CandidateDossierView() {
                         {item.overallRating != null && (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, background: colors.primaryLight, color: colors.textInverse }}>
                             <span style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, lineHeight: 1 }}>{item.overallRating}%</span>
-                            <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ranking</span>
+                            <span style={{ fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ranking</span>
                           </div>
                         )}
                       </div>
@@ -554,7 +554,7 @@ export function CandidateDossierView() {
 
 function MiniInfo({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ padding: spacing.sm, borderRadius: radius.lg, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.16)' }}>
+    <div style={{ padding: spacing.sm, borderRadius: radius.lg, background: colors.overlayLight, border: '1px solid rgba(255,255,255,0.16)' }}>
       <div style={{ fontSize: fontSize.xs, opacity: 0.78, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>{value}</div>
     </div>

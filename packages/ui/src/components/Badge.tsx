@@ -11,10 +11,10 @@ export interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, React.CSSProperties> = {
-  success: { background: colors.successLight, color: colors.success },
-  warning: { background: colors.warningLight, color: colors.warning },
-  danger: { background: colors.dangerLight, color: colors.danger },
-  info: { background: colors.infoLight, color: colors.info },
+  success: { background: colors.successLight, color: colors.successDark },
+  warning: { background: colors.warningLight, color: colors.warningDark },
+  danger: { background: colors.dangerLight, color: colors.dangerDark },
+  info: { background: colors.infoLight, color: colors.infoDark },
   neutral: { background: colors.surfaceAlt, color: colors.textSecondary },
   primary: { background: colors.primaryLight, color: colors.textInverse },
 };

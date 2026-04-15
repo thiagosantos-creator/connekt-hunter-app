@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { GlobalStyles, colors, spacing, fontSize, fontWeight, radius } from '@connekt/ui';
+import { GlobalStyles, colors, spacing, fontSize, fontWeight, radius, shadows, zIndex } from '@connekt/ui';
 import { RequiresToken } from './components/layout/RequiresToken.js';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.js';
 import { TokenEntryView } from './views/TokenEntryView.js';
@@ -34,17 +34,17 @@ function App() {
         background: colors.primary,
         color: colors.textInverse,
         padding: `0 ${spacing.xl}px`,
-        boxShadow: '0 1px 0 rgba(255,255,255,0.06)',
+        boxShadow: `0 1px 0 ${colors.overlayInverseLight}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         height: 56,
         position: 'sticky',
         top: 0,
-        zIndex: 200,
+        zIndex: zIndex.sticky,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <div style={{ width: 28, height: 28, borderRadius: radius.md, background: colors.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: fontWeight.bold }}>
+          <div style={{ width: 28, height: 28, borderRadius: radius.md, background: colors.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: fontWeight.bold, color: colors.textInverse }}>
             C
           </div>
           <strong style={{ fontSize: fontSize.md, letterSpacing: -0.3 }}>Connekt Hunter</strong>
@@ -52,9 +52,7 @@ function App() {
           <span style={{ fontSize: fontSize.sm, opacity: 0.7 }}>Portal do Candidato</span>
         </div>
         <nav style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
-          <a href="/status" style={{ color: 'rgba(255,255,255,0.75)', fontSize: fontSize.sm, padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, transition: 'background 0.15s', textDecoration: 'none' }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.08)'; }}
-            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}>
+          <a href="/status" className="connekt-nav-link" style={{ color: colors.overlayHeavy, fontSize: fontSize.sm, padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, textDecoration: 'none' }}>
             Minha candidatura
           </a>
 
@@ -62,16 +60,17 @@ function App() {
           <div style={{ position: 'relative' }}>
             <button
               onClick={() => setDropOpen((v) => !v)}
+              className="connekt-nav-link"
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.18)',
-                borderRadius: radius.full, padding: '4px 10px 4px 4px',
+                display: 'flex', alignItems: 'center', gap: spacing.sm,
+                background: colors.overlayLight, border: `1px solid ${colors.overlayMedium}`,
+                borderRadius: radius.full, padding: `${spacing.xs}px ${spacing.sm + 2}px ${spacing.xs}px ${spacing.xs}px`,
                 cursor: 'pointer', color: colors.textInverse,
                 fontSize: fontSize.sm, fontWeight: fontWeight.medium,
                 transition: 'background 0.15s',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.10)'; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = colors.overlayMedium; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = colors.overlayLight; }}
               title="Minha conta"
             >
               {/* Avatar circle */}
@@ -96,8 +95,8 @@ function App() {
               <div style={{
                 position: 'absolute', top: '110%', right: 0,
                 background: colors.surface, border: `1px solid ${colors.borderLight}`,
-                borderRadius: radius.lg, boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-                minWidth: 160, zIndex: 300, overflow: 'hidden',
+                borderRadius: radius.lg, boxShadow: shadows.lg,
+                minWidth: 160, zIndex: zIndex.dropdown, overflow: 'hidden',
               }}>
                 <a
                   href="/account"

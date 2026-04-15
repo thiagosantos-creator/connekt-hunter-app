@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors, spacing, fontWeight, radius } from '@connekt/ui';
+import { colors, spacing, fontSize, fontWeight, radius } from '@connekt/ui';
 
 /** Premium step indicator for candidate onboarding — 5 steps */
 export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
@@ -18,7 +18,7 @@ export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
         const isDone = step.n < current;
         return (
           <React.Fragment key={step.n}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: spacing.xs }}>
               <span
                 style={{
                   width: 32,
@@ -27,10 +27,11 @@ export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: isActive ? colors.accent : isDone ? colors.success : colors.borderLight,
-                  color: isActive || isDone ? colors.textInverse : colors.textMuted,
+                  background: isActive ? colors.accent : isDone ? colors.success : colors.surfaceHover,
+                  color: isActive || isDone ? colors.textInverse : colors.textSecondary,
+                  border: !isActive && !isDone ? `2px solid ${colors.border}` : 'none',
                   fontWeight: fontWeight.bold,
-                  fontSize: 13,
+                  fontSize: fontSize.xs,
                   transition: 'background 0.2s',
                   flexShrink: 0,
                   boxShadow: isActive ? `0 0 0 4px ${colors.infoLight}` : 'none',
@@ -40,9 +41,9 @@ export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
               </span>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: fontSize.xs,
                   fontWeight: isActive ? fontWeight.semibold : fontWeight.normal,
-                  color: isActive ? colors.accent : isDone ? colors.success : colors.textMuted,
+                  color: isActive ? colors.accent : isDone ? colors.successDark : colors.textSecondary,
                   whiteSpace: 'nowrap',
                   textAlign: 'center',
                   maxWidth: 68,
@@ -57,10 +58,10 @@ export function StepIndicator({ current }: { current: 1 | 2 | 3 | 4 | 5 }) {
                 style={{
                   flex: 1,
                   height: 2,
-                  background: isDone ? colors.success : colors.borderLight,
+                  background: isDone ? colors.success : colors.border,
                   borderRadius: radius.full,
                   transition: 'background 0.3s',
-                  marginBottom: 18,
+                  marginBottom: spacing.lg,
                 }}
               />
             )}

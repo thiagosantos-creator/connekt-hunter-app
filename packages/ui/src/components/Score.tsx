@@ -102,7 +102,7 @@ export function ScoreCard({ overallScore, dimensions, title, aiSummary }: ScoreC
           <ScoreBar key={d.label} value={d.value} label={d.label} color={d.color} />
         ))}
         {aiSummary && (
-          <div style={{ marginTop: spacing.sm, padding: spacing.sm, background: colors.infoLight, borderRadius: radius.md, fontSize: fontSize.sm, color: colors.info }}>
+          <div style={{ marginTop: spacing.sm, padding: spacing.sm, background: colors.infoLight, borderRadius: radius.md, fontSize: fontSize.sm, color: colors.infoDark }}>
             🤖 <em>{aiSummary}</em>
           </div>
         )}

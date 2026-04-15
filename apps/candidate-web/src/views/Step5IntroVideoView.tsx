@@ -170,7 +170,7 @@ export function Step5IntroVideoView() {
             <div style={{ marginBottom: spacing.sm }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: fontSize.xs, color: isNearEnd ? colors.danger : colors.textMuted, marginBottom: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'recordPulse 1s ease infinite' }} />
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors.danger, display: 'inline-block', animation: 'recordPulse 1s ease infinite' }} />
                   Gravando — {formatTime(elapsed)}
                 </span>
                 <span style={{ fontWeight: isNearEnd ? fontWeight.bold : fontWeight.normal }}>
@@ -190,7 +190,7 @@ export function Step5IntroVideoView() {
           )}
 
           {/* Video element */}
-          <div style={{ borderRadius: radius.lg, overflow: 'hidden', background: '#111', position: 'relative', minHeight: 200, marginBottom: spacing.sm }}>
+          <div style={{ borderRadius: radius.lg, overflow: 'hidden', background: colors.primary, position: 'relative', minHeight: 200, marginBottom: spacing.sm }}>
             <video
               ref={videoRef}
               muted
@@ -204,7 +204,7 @@ export function Step5IntroVideoView() {
               style={{ width: '100%', maxHeight: 300, display: phase === 'preview' ? 'block' : 'none', objectFit: 'cover' }}
             />
             {(phase === 'idle' || phase === 'requesting') && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', gap: spacing.sm }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: colors.textInverse, gap: spacing.sm }}>
                 <span style={{ fontSize: 40 }}>🎥</span>
                 <span style={{ fontSize: fontSize.sm, opacity: 0.7 }}>
                   {phase === 'requesting' ? 'Abrindo câmera...' : 'Câmera desligada'}
@@ -212,7 +212,7 @@ export function Step5IntroVideoView() {
               </div>
             )}
             {phase === 'uploading' && (
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'rgba(0,0,0,0.6)', gap: spacing.sm }}>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: colors.textInverse, background: colors.overlayInverseHeavy, gap: spacing.sm }}>
                 <span style={{ fontSize: fontSize.lg }}>⬆️ Enviando vídeo...</span>
               </div>
             )}

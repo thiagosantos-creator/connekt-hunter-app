@@ -17,7 +17,8 @@
     "@aws-sdk/client-sesv2": "^3.1030.0",
     "@aws-sdk/client-sns": "^3.1030.0",
     "@aws-sdk/client-transcribe": "^3.1030.0",
-    "@connekt/db": "workspace:*"
+    "@connekt/db": "workspace:*",
+    "openai": "^4.104.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.1",

@@ -5,6 +5,7 @@ import {
   StartTranscriptionJobCommand,
   GetTranscriptionJobCommand,
   type LanguageCode as TranscribeLanguageCode,
+  type MediaFormat,
 } from '@aws-sdk/client-transcribe';
 import {
   ComprehendClient,
@@ -13,6 +14,7 @@ import {
   DetectEntitiesCommand,
   type LanguageCode as ComprehendLanguageCode,
 } from '@aws-sdk/client-comprehend';
+import OpenAI from 'openai';
 
 function isTranscriptionReal(): boolean {
   return process.env.FF_TRANSCRIPTION_REAL === 'true';
@@ -22,9 +24,45 @@ function isAiReal(): boolean {
   return process.env.FF_AI_REAL === 'true';
 }
 
+function isCvParserReal(): boolean {
+  return process.env.FF_CV_PARSER_REAL === 'true';
+}
+
 function shouldFallbackToMock(key: string): boolean {
   const envKey = `${key.toUpperCase().replace(/-/g, '_')}_FALLBACK_TO_MOCK`;
   return process.env[envKey] !== 'false';
+}
+
+function getOpenAiClient(): OpenAI | null {
+  const apiKey = process.env.AI_PROVIDER_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!apiKey || apiKey === '__REPLACE_ME__') return null;
+  return new OpenAI({ apiKey });
+}
+
+function getModelVersion(): string {
+  return process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini';
+}
+
+function safeJsonParse<T = unknown>(json: string, fallback: T, context: string): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (err) {
+    console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'json_parse_failed', context, error: String(err) }));
+    return fallback;
+  }
+}
+
+/** Detect media format from object key extension. Defaults to webm. */
+function detectMediaFormat(objectKey: string): MediaFormat {
+  const lower = objectKey.toLowerCase();
+  if (lower.endsWith('.mp3')) return 'mp3';
+  if (lower.endsWith('.mp4')) return 'mp4';
+  if (lower.endsWith('.wav')) return 'wav';
+  if (lower.endsWith('.flac')) return 'flac';
+  if (lower.endsWith('.ogg')) return 'ogg';
+  if (lower.endsWith('.amr')) return 'amr';
+  if (lower.endsWith('.webm')) return 'webm';
+  return 'webm';
 }
 
 async function safeProcess(label: string, eventId: string, fn: () => Promise<void>): Promise<boolean> {
@@ -78,20 +116,106 @@ export async function processResumeUploads(): Promise<number> {
 
   let processed = 0;
   for (const evt of events) {
-    const payload = evt.payload as { resumeId: string };
+    const payload = evt.payload as { resumeId: string; candidateId?: string; objectKey?: string; resumeText?: string };
     const ok = await safeProcess('resume.uploaded', evt.id, async () => {
       const existing = await prisma.resumeParseResult.findUnique({
         where: { resumeId: payload.resumeId },
       });
+
+      // If already parsed with real data, skip
+      if (existing && existing.status === 'completed') {
+        await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+        return;
+      }
+
+      // Ensure pending record exists
       if (!existing) {
         await prisma.resumeParseResult.create({
           data: {
             resumeId: payload.resumeId,
-            status: 'pending',
-            parsedJson: { info: 'resume_parse_pending' } as never,
+            status: 'processing',
+            parsedJson: { info: 'resume_parse_processing' } as never,
           },
         });
+      } else {
+        await prisma.resumeParseResult.update({
+          where: { resumeId: payload.resumeId },
+          data: { status: 'processing' },
+        });
       }
+
+      let parsedJson: Record<string, unknown> = { info: 'resume_parse_pending' };
+      let provider = 'cv-parser-mock';
+
+      if (isCvParserReal()) {
+        const openai = getOpenAiClient();
+        if (openai && payload.resumeText?.trim()) {
+          try {
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.1,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um parser especializado em currículos. Extraia informações estruturadas do currículo abaixo.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "experience": [{"company": "nome", "role": "cargo", "period": "período", "confidence": 0.0-1.0}],
+  "education": [{"institution": "nome", "degree": "grau", "field": "área", "confidence": 0.0-1.0}],
+  "skills": [{"name": "habilidade", "level": "junior|mid|senior|expert", "confidence": 0.0-1.0}],
+  "languages": [{"name": "idioma", "level": "Nativo|Fluente|Avançado|Intermediário|Básico", "confidence": 0.0-1.0}],
+  "location": {"city": "cidade", "state": "estado", "country": "país", "confidence": 0.0-1.0},
+  "summary": "resumo profissional em 2-3 frases"
+}
+Seja preciso com os dados extraídos. Atribua confidence menor quando a informação for ambígua.`,
+                },
+                {
+                  role: 'user',
+                  content: `Currículo do candidato:\n\n${payload.resumeText}`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            parsedJson = safeJsonParse(content, {}, 'resume_parse');
+            provider = 'cv-parser-real';
+
+            console.log(JSON.stringify({ source: 'worker', event: 'resume_parse_real_completed', resumeId: payload.resumeId, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'resume_parse_real_failed', resumeId: payload.resumeId, error: String(err) }));
+            if (!shouldFallbackToMock('cv-parser')) throw err;
+          }
+        }
+      }
+
+      // If still mock, use hardcoded data
+      if (provider === 'cv-parser-mock') {
+        parsedJson = {
+          experience: [{ company: 'Empresa Exemplo', role: 'Software Engineer', confidence: 0.78 }],
+          education: [{ institution: 'Universidade Exemplo', degree: 'BSc', confidence: 0.74 }],
+          skills: [{ name: 'TypeScript', confidence: 0.88 }],
+          languages: [{ name: 'Português', level: 'Nativo', confidence: 0.9 }],
+          location: { city: 'São Paulo', confidence: 0.66 },
+          metadata: { provider, objectKey: payload.objectKey ?? '' },
+        };
+      }
+
+      await prisma.resumeParseResult.update({
+        where: { resumeId: payload.resumeId },
+        data: {
+          status: 'completed',
+          parsedJson: parsedJson as never,
+        },
+      });
+
+      // Update resume parse metadata
+      await prisma.resumeParseMetadata.upsert({
+        where: { resumeId: payload.resumeId },
+        update: { provider, status: 'parsed', confidenceJson: parsedJson as never },
+        create: { resumeId: payload.resumeId, provider, status: 'parsed', confidenceJson: parsedJson as never },
+      });
+
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
     if (ok) processed++;
@@ -122,13 +246,14 @@ export async function processSmartInterviewVideoJobs(): Promise<number> {
             const region = process.env.AWS_TRANSCRIBE_REGION ?? process.env.S3_REGION ?? 'us-east-1';
             const mediaUri = `s3://${bucket}/${answer.objectKey}`;
             const jobName = `connekt-${payload.answerId}-${Date.now()}`;
+            const mediaFormat = detectMediaFormat(answer.objectKey);
 
             const transcribeClient = new TranscribeClient({ region });
 
             await transcribeClient.send(new StartTranscriptionJobCommand({
               TranscriptionJobName: jobName,
               LanguageCode: 'pt-BR' as TranscribeLanguageCode,
-              MediaFormat: 'webm',
+              MediaFormat: mediaFormat,
               Media: { MediaFileUri: mediaUri },
               OutputBucketName: bucket,
               OutputKey: `transcriptions/${jobName}.json`,
@@ -152,11 +277,23 @@ export async function processSmartInterviewVideoJobs(): Promise<number> {
               }
             }
 
-            if (jobStatus === 'COMPLETED' && transcriptUri) {
-              const response = await fetch(transcriptUri);
-              const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
-              transcriptContent = data.results?.transcripts?.map((t) => t.transcript).join(' ') ?? '';
-              provider = 'aws-transcribe';
+            if (jobStatus !== 'COMPLETED') {
+              throw new Error(`Transcribe job timed out after 60 polling attempts`);
+            }
+
+            if (transcriptUri) {
+              try {
+                const response = await fetch(transcriptUri);
+                if (!response.ok) {
+                  throw new Error(`Failed to fetch transcript: HTTP ${response.status}`);
+                }
+                const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
+                transcriptContent = data.results?.transcripts?.map((t) => t.transcript).join(' ') ?? '';
+                provider = 'aws-transcribe';
+              } catch (fetchErr) {
+                console.error(JSON.stringify({ source: 'worker', event: 'transcription_fetch_failed', answerId: payload.answerId, error: String(fetchErr) }));
+                throw fetchErr;
+              }
 
               console.log(JSON.stringify({ source: 'worker', event: 'transcription_real_completed', answerId: payload.answerId, jobName, transcriptLength: transcriptContent.length }));
             }
@@ -337,14 +474,103 @@ export async function processMatchingComputeJobs(): Promise<number> {
       const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'matching:compute', evt.id);
       console.log(JSON.stringify({ source: 'worker', event: 'matching_compute_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
 
-      const existing = await prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } });
-      const score = existing?.score ?? 50;
+      let score = 50;
+      let dimensions: Array<{ dimension: string; score: number; weight: number; reasoning: string }> = [];
+      let modelVersion = 'matching-v1-worker';
 
-      await prisma.matchingScore.upsert({
+      if (isAiReal()) {
+        const openai = getOpenAiClient();
+        if (openai) {
+          try {
+            // Gather context: candidate profile, vacancy, resume parse
+            const [candidate, vacancy, resumeParse] = await Promise.all([
+              prisma.candidate.findUnique({ where: { id: payload.candidateId }, include: { profile: true } }),
+              prisma.vacancy.findUnique({ where: { id: payload.vacancyId } }),
+              prisma.resumeParseResult.findFirst({
+                where: { resume: { session: { candidateId: payload.candidateId } } },
+                orderBy: { createdAt: 'desc' },
+              }),
+            ]);
+
+            const candidateContext = {
+              name: candidate?.profile?.fullName ?? 'N/A',
+              skills: resumeParse?.parsedJson ? (resumeParse.parsedJson as Record<string, unknown>).skills : [],
+              experience: resumeParse?.parsedJson ? (resumeParse.parsedJson as Record<string, unknown>).experience : [],
+            };
+
+            const vacancyContext = {
+              title: vacancy?.title ?? 'N/A',
+              description: vacancy?.description ?? '',
+              requiredSkills: vacancy?.requiredSkills ?? [],
+            };
+
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um especialista em matching candidato-vaga. Avalie a aderência do candidato à vaga.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "score": 0-100,
+  "dimensions": [
+    {"dimension": "technical_skills", "score": 0-100, "weight": 0.3, "reasoning": "justificativa"},
+    {"dimension": "experience", "score": 0-100, "weight": 0.25, "reasoning": "justificativa"},
+    {"dimension": "education", "score": 0-100, "weight": 0.15, "reasoning": "justificativa"},
+    {"dimension": "culture_fit", "score": 0-100, "weight": 0.15, "reasoning": "justificativa"},
+    {"dimension": "communication", "score": 0-100, "weight": 0.15, "reasoning": "justificativa"}
+  ]
+}
+Score final deve ser a média ponderada das dimensões. Análise assistiva — decisão final humana.`,
+                },
+                {
+                  role: 'user',
+                  content: `Candidato:\n${JSON.stringify(candidateContext)}\n\nVaga:\n${JSON.stringify(vacancyContext)}`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            const parsed = safeJsonParse<{
+              score?: number;
+              dimensions?: Array<{ dimension?: string; score?: number; weight?: number; reasoning?: string }>;
+            }>(content, {}, 'matching_compute');
+
+            score = parsed.score ?? 50;
+            dimensions = (parsed.dimensions ?? []).map((d) => ({
+              dimension: d.dimension ?? 'unknown',
+              score: d.score ?? 50,
+              weight: d.weight ?? 0.2,
+              reasoning: d.reasoning ?? '',
+            }));
+            modelVersion = getModelVersion();
+
+            console.log(JSON.stringify({ source: 'worker', event: 'matching_compute_real_completed', eventId: evt.id, score, dimensionsCount: dimensions.length, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'matching_compute_real_failed', eventId: evt.id, error: String(err) }));
+            if (!shouldFallbackToMock('ai')) throw err;
+          }
+        }
+      }
+
+      const matchingRecord = await prisma.matchingScore.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-        update: { score, computedAt: new Date(), modelVersion: 'matching-v1-worker' },
-        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion: 'matching-v1-worker' },
+        update: { score, computedAt: new Date(), modelVersion },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion },
       });
+
+      // Store dimensions as MatchingBreakdown records
+      if (dimensions.length > 0) {
+        for (const dim of dimensions) {
+          await prisma.matchingBreakdown.upsert({
+            where: { matchingScoreId_dimension: { matchingScoreId: matchingRecord.id, dimension: dim.dimension } },
+            update: { score: dim.score, weight: dim.weight, reasoning: dim.reasoning },
+            create: { matchingScoreId: matchingRecord.id, dimension: dim.dimension, score: dim.score, weight: dim.weight, reasoning: dim.reasoning },
+          });
+        }
+      }
 
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
@@ -364,10 +590,68 @@ export async function processInsightsGenerateJobs(): Promise<number> {
       const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'insights:generate', evt.id);
       console.log(JSON.stringify({ source: 'worker', event: 'insights_generate_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
 
+      let summary = 'Insight reprocessado via worker';
+      let strengths: string[] = ['consistência de sinais'];
+      let risks: string[] = ['necessário validar contexto'];
+      let recommendations: string[] = ['review humano obrigatório'];
+
+      if (isAiReal()) {
+        const openai = getOpenAiClient();
+        if (openai) {
+          try {
+            const matchingScore = await prisma.matchingScore.findUnique({
+              where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+            });
+
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.4,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um consultor sênior de RH. Com base nos dados de matching, forneça insights acionáveis.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "summary": "resumo conciso de 2-3 frases",
+  "strengths": ["ponto forte 1", "ponto forte 2"],
+  "risks": ["risco 1", "risco 2"],
+  "recommendations": ["ação recomendada 1", "ação 2"]
+}
+Seja específico e acionável. Análise assistiva — decisão final humana.`,
+                },
+                {
+                  role: 'user',
+                  content: `Candidato: ${payload.candidateId}\nVaga: ${payload.vacancyId}\nDados de matching:\n${JSON.stringify(matchingScore ?? { score: 50 })}`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            const parsed = safeJsonParse<{
+              summary?: string;
+              strengths?: string[];
+              risks?: string[];
+              recommendations?: string[];
+            }>(content, {}, 'insights_generate');
+
+            summary = parsed.summary ?? summary;
+            strengths = parsed.strengths ?? strengths;
+            risks = parsed.risks ?? risks;
+            recommendations = parsed.recommendations ?? recommendations;
+
+            console.log(JSON.stringify({ source: 'worker', event: 'insights_generate_real_completed', eventId: evt.id, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'insights_generate_real_failed', eventId: evt.id, error: String(err) }));
+            if (!shouldFallbackToMock('ai')) throw err;
+          }
+        }
+      }
+
       await prisma.candidateInsight.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-        update: { summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
-        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, summary: 'Insight reprocessado via worker', strengths: ['consistência de sinais'] as never, risks: ['necessário validar contexto'] as never, recommendations: ['review humano obrigatório'] as never },
+        update: { summary, strengths: strengths as never, risks: risks as never, recommendations: recommendations as never },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, summary, strengths: strengths as never, risks: risks as never, recommendations: recommendations as never },
       });
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
@@ -388,10 +672,61 @@ export async function processComparisonGenerateJobs(): Promise<number> {
       if (!vacancy) throw new Error(`[comparison:generate] vacancy not found: ${payload.vacancyId} eventId=${evt.id}`);
       console.log(JSON.stringify({ source: 'worker', event: 'comparison_generate_start', eventId: evt.id, tenantId: vacancy.organizationId, vacancyId: payload.vacancyId }));
 
+      let comparisonJson: Record<string, unknown> = { generatedBy: 'worker', disclaimer: 'assistive-only' };
+
+      if (isAiReal()) {
+        const openai = getOpenAiClient();
+        if (openai) {
+          try {
+            const [leftScore, rightScore, leftBreakdowns, rightBreakdowns] = await Promise.all([
+              prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.leftCandidateId, vacancyId: payload.vacancyId } } }),
+              prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.rightCandidateId, vacancyId: payload.vacancyId } } }),
+              prisma.matchingBreakdown.findMany({ where: { matchingScore: { candidateId: payload.leftCandidateId, vacancyId: payload.vacancyId } } }),
+              prisma.matchingBreakdown.findMany({ where: { matchingScore: { candidateId: payload.rightCandidateId, vacancyId: payload.vacancyId } } }),
+            ]);
+
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um analista de recrutamento. Compare dois candidatos para a mesma vaga.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "winnerHint": "candidateId do que tem melhor aderência",
+  "disclaimer": "comparativo assistivo, decisão final humana",
+  "summary": "resumo da comparação em 2-3 frases",
+  "dimensions": [
+    {"dimension": "nome", "leftAdvantage": true/false, "detail": "detalhe"}
+  ]
+}`,
+                },
+                {
+                  role: 'user',
+                  content: `Vaga: ${payload.vacancyId} (${vacancy.title ?? ''})\n\nCandidato A (${payload.leftCandidateId}): Score ${leftScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(leftBreakdowns)}\n\nCandidato B (${payload.rightCandidateId}): Score ${rightScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(rightBreakdowns)}`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            comparisonJson = safeJsonParse(content, comparisonJson, 'comparison_generate');
+            comparisonJson.generatedBy = 'ai';
+            comparisonJson.modelVersion = getModelVersion();
+
+            console.log(JSON.stringify({ source: 'worker', event: 'comparison_generate_real_completed', eventId: evt.id, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'comparison_generate_real_failed', eventId: evt.id, error: String(err) }));
+            if (!shouldFallbackToMock('ai')) throw err;
+          }
+        }
+      }
+
       await prisma.candidateComparison.upsert({
         where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId } },
-        update: { comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
-        create: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId, comparisonJson: { generatedBy: 'worker', disclaimer: 'assistive-only' } as never },
+        update: { comparisonJson: comparisonJson as never },
+        create: { vacancyId: payload.vacancyId, leftCandidateId: payload.leftCandidateId, rightCandidateId: payload.rightCandidateId, comparisonJson: comparisonJson as never },
       });
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
@@ -410,15 +745,78 @@ export async function processRecommendationGenerateJobs(): Promise<number> {
       const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'recommendation:generate', evt.id);
       console.log(JSON.stringify({ source: 'worker', event: 'recommendation_generate_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
 
+      let title = 'Recomendação reprocessada';
+      let explanation = 'Reprocessamento assistivo via worker; decisão final permanece humana.';
+      let confidence = 0.65;
+      let actionableInsights: string[] = ['revisar aderência com gestor'];
+      let recommendationType = 'worker-refresh';
+
+      if (isAiReal()) {
+        const openai = getOpenAiClient();
+        if (openai) {
+          try {
+            const [matchingScore, riskEval] = await Promise.all([
+              prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } }),
+              prisma.riskEvaluation.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } } }),
+            ]);
+
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.4,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um consultor de recrutamento. Gere a recomendação de próximo passo mais relevante.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "recommendationType": "next-step|stakeholder-check|technical-validation|culture-fit",
+  "title": "título curto da recomendação",
+  "explanation": "justificativa detalhada",
+  "confidence": 0.0-1.0,
+  "actionableInsights": ["insight acionável 1", "insight 2"]
+}
+Seja específico e acionável. Recomendação assistiva — decisão final humana.`,
+                },
+                {
+                  role: 'user',
+                  content: `Candidato: ${payload.candidateId}\nVaga: ${payload.vacancyId}\nScore matching: ${matchingScore?.score ?? 'N/A'}/100\nRisco: ${riskEval?.overallRisk ?? 'N/A'} (${riskEval?.riskScore ?? 'N/A'})`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            const parsed = safeJsonParse<{
+              recommendationType?: string;
+              title?: string;
+              explanation?: string;
+              confidence?: number;
+              actionableInsights?: string[];
+            }>(content, {}, 'recommendation_generate');
+
+            recommendationType = parsed.recommendationType ?? recommendationType;
+            title = parsed.title ?? title;
+            explanation = parsed.explanation ?? explanation;
+            confidence = parsed.confidence ?? confidence;
+            actionableInsights = parsed.actionableInsights ?? actionableInsights;
+
+            console.log(JSON.stringify({ source: 'worker', event: 'recommendation_generate_real_completed', eventId: evt.id, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'recommendation_generate_real_failed', eventId: evt.id, error: String(err) }));
+            if (!shouldFallbackToMock('ai')) throw err;
+          }
+        }
+      }
+
       await prisma.candidateRecommendation.create({
         data: {
           candidateId: payload.candidateId,
           vacancyId: payload.vacancyId,
-          recommendationType: 'worker-refresh',
-          title: 'Recomendação reprocessada',
-          explanation: 'Reprocessamento assistivo via worker; decisão final permanece humana.',
-          confidence: 0.65,
-          actionableInsights: ['revisar aderência com gestor'] as never,
+          recommendationType,
+          title,
+          explanation,
+          confidence,
+          actionableInsights: actionableInsights as never,
         },
       });
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
@@ -437,10 +835,71 @@ export async function processRiskAnalyzeJobs(): Promise<number> {
       const tenantId = await assertWorkerTenantConsistency(payload.candidateId, payload.vacancyId, 'risk:analyze', evt.id);
       console.log(JSON.stringify({ source: 'worker', event: 'risk_analyze_start', eventId: evt.id, tenantId, candidateId: payload.candidateId, vacancyId: payload.vacancyId }));
 
+      let overallRisk = 'medium';
+      let riskScore = 0.5;
+      let findings: Array<Record<string, unknown>> = [{ type: 'consistency' }];
+      let explanation = 'Risco recalculado via worker.';
+
+      if (isAiReal()) {
+        const openai = getOpenAiClient();
+        if (openai) {
+          try {
+            const matchingScore = await prisma.matchingScore.findUnique({
+              where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+              include: { breakdowns: true },
+            });
+
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é um analista de risco em recrutamento. Identifique padrões de risco na candidatura.
+Retorne EXCLUSIVAMENTE um JSON:
+{
+  "overallRisk": "low|medium|high",
+  "riskScore": 0.0-1.0,
+  "findings": [
+    {"type": "availability|technical-depth|culture-fit|experience-gap|stability", "severity": "low|medium|high", "score": 0.0-1.0, "detail": "descrição específica do risco"}
+  ],
+  "explanation": "justificativa geral da avaliação de risco"
+}
+Seja objetivo e factual. Análise assistiva — revisão humana obrigatória.`,
+                },
+                {
+                  role: 'user',
+                  content: `Candidato: ${payload.candidateId}\nVaga: ${payload.vacancyId}\nMatching score: ${matchingScore?.score ?? 'N/A'}\nDimensões: ${JSON.stringify(matchingScore?.breakdowns ?? [])}`,
+                },
+              ],
+            });
+
+            const content = response.choices[0]?.message?.content ?? '{}';
+            const parsed = safeJsonParse<{
+              overallRisk?: string;
+              riskScore?: number;
+              findings?: Array<Record<string, unknown>>;
+              explanation?: string;
+            }>(content, {}, 'risk_analyze');
+
+            overallRisk = parsed.overallRisk ?? overallRisk;
+            riskScore = parsed.riskScore ?? riskScore;
+            findings = parsed.findings ?? findings;
+            explanation = parsed.explanation ?? explanation;
+
+            console.log(JSON.stringify({ source: 'worker', event: 'risk_analyze_real_completed', eventId: evt.id, overallRisk, riskScore, findingsCount: findings.length, tokensUsed: response.usage?.total_tokens }));
+          } catch (err) {
+            console.error(JSON.stringify({ source: 'worker', event: 'risk_analyze_real_failed', eventId: evt.id, error: String(err) }));
+            if (!shouldFallbackToMock('ai')) throw err;
+          }
+        }
+      }
+
       await prisma.riskEvaluation.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-        update: { overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
-        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, overallRisk: 'medium', riskScore: 0.5, findings: [{ type: 'consistency' }] as never, explanation: 'Risco recalculado via worker.' },
+        update: { overallRisk, riskScore, findings: findings as never, explanation },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, overallRisk, riskScore, findings: findings as never, explanation },
       });
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });

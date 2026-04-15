@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 
+function safeJsonParse<T = unknown>(json: string, fallback: T, logger: Logger, context: string): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch (err) {
+    logger.warn(JSON.stringify({ event: 'json_parse_failed', context, error: String(err) }));
+    return fallback;
+  }
+}
+
 @Injectable()
 export class OpenAiProvider {
   private readonly logger = new Logger(OpenAiProvider.name);
@@ -47,7 +56,7 @@ As perguntas devem ser em português do Brasil, abertas, que exijam exemplos pr�
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as { questions?: string[] };
+    const parsed = safeJsonParse<{ questions?: string[] }>(content, {}, this.logger, 'generateInterviewQuestions');
 
     this.logger.log(
       JSON.stringify({
@@ -100,14 +109,14 @@ Seja objetivo, factual e baseie-se apenas no que foi dito na transcrição. Esta
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       summary?: string;
       highlights?: string[];
       risks?: string[];
       evidence?: string[];
       sentiment?: { overall?: string; confidence?: number };
       recommendation?: string;
-    };
+    }>(content, {}, this.logger, 'analyzeInterview');
 
     this.logger.log(
       JSON.stringify({
@@ -178,7 +187,7 @@ Seja factual e cite as dimensões com maior e menor aderência. Esta é uma expl
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       text?: string;
       evidences?: Array<{
         sourceType?: string;
@@ -186,7 +195,7 @@ Seja factual e cite as dimensões com maior e menor aderência. Esta é uma expl
         excerpt?: string;
         confidence?: number;
       }>;
-    };
+    }>(content, {}, this.logger, 'explainMatching');
 
     return {
       text:
@@ -238,13 +247,13 @@ Seja específico e acionável. Esta é uma análise assistiva — a decisão fin
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       summary?: string;
       strengths?: string[];
       risks?: string[];
       recommendations?: string[];
       explanation?: string;
-    };
+    }>(content, {}, this.logger, 'generateCandidateInsights');
 
     return {
       summary: parsed.summary ?? `Insights para candidato ${input.candidateId}.`,
@@ -291,12 +300,12 @@ Retorne EXCLUSIVAMENTE um JSON:
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       winnerHint?: string;
       disclaimer?: string;
       summary?: string;
       dimensions?: Array<{ dimension?: string; leftAdvantage?: boolean; detail?: string }>;
-    };
+    }>(content, {}, this.logger, 'compareCandidates');
 
     return {
       winnerHint:
@@ -338,7 +347,7 @@ Retorne EXCLUSIVAMENTE um JSON onde cada chave é um candidateId e o valor é um
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    return JSON.parse(content) as Record<string, string>;
+    return safeJsonParse<Record<string, string>>(content, {}, this.logger, 'generateRankingRationale');
   }
 
   async generateRecommendations(input: {
@@ -380,7 +389,7 @@ Seja específico e acionável. Recomendações assistivas — decisão final sem
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       recommendations?: Array<{
         type?: string;
         title?: string;
@@ -388,7 +397,7 @@ Seja específico e acionável. Recomendações assistivas — decisão final sem
         actionableInsights?: string[];
       }>;
       explanation?: string;
-    };
+    }>(content, {}, this.logger, 'generateRecommendations');
 
     return {
       recommendations: (parsed.recommendations ?? []).map((r) => ({
@@ -443,7 +452,7 @@ Seja objetivo e factual. Análise assistiva — revisão humana obrigatória.`,
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       overallRisk?: string;
       riskScore?: number;
       findings?: Array<{
@@ -453,7 +462,7 @@ Seja objetivo e factual. Análise assistiva — revisão humana obrigatória.`,
         detail?: string;
       }>;
       explanation?: string;
-    };
+    }>(content, {}, this.logger, 'analyzeRiskPatterns');
 
     return {
       overallRisk: parsed.overallRisk ?? 'medium',
@@ -507,13 +516,13 @@ Seja atrativo, claro e direto ao ponto. Use a língua portuguesa do Brasil.`,
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       summary?: string;
       responsibilities?: string[];
       requiredSkills?: string[];
       desiredSkills?: string[];
       keywords?: string[];
-    };
+    }>(content, {}, this.logger, 'generateAssistiveVacancy');
 
     return {
       summary: parsed.summary ?? `Buscamos ${input.title} para integrar nosso time.`,
@@ -568,7 +577,7 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
     });
 
     const content = response.choices[0]?.message?.content ?? '{}';
-    const parsed = JSON.parse(content) as {
+    const parsed = safeJsonParse<{
       experience?: Array<{
         company?: string;
         role?: string;
@@ -590,7 +599,7 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
         confidence?: number;
       };
       summary?: string;
-    };
+    }>(content, {}, this.logger, 'parseResume');
 
     this.logger.log(
       JSON.stringify({

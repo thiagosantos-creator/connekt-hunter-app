@@ -34,12 +34,12 @@ export function PageContent({ children, style }: { children: React.ReactNode; st
 /** Inline status message (toast-like feedback) */
 export type MessageVariant = 'success' | 'error' | 'info' | 'warning';
 
-export function InlineMessage({ children, variant = 'info', onDismiss }: { children: React.ReactNode; variant?: MessageVariant; onDismiss?: () => void }) {
+export function InlineMessage({ children, variant = 'info', onDismiss, style }: { children: React.ReactNode; variant?: MessageVariant; onDismiss?: () => void; style?: React.CSSProperties }) {
   const styleMap: Record<MessageVariant, React.CSSProperties> = {
-    success: { background: colors.successLight, color: colors.success, borderColor: colors.success },
-    error: { background: colors.dangerLight, color: colors.danger, borderColor: colors.danger },
-    info: { background: colors.infoLight, color: colors.info, borderColor: colors.info },
-    warning: { background: colors.warningLight, color: colors.warning, borderColor: colors.warning },
+    success: { background: colors.successLight, color: colors.successDark, borderColor: colors.success },
+    error: { background: colors.dangerLight, color: colors.dangerDark, borderColor: colors.danger },
+    info: { background: colors.infoLight, color: colors.infoDark, borderColor: colors.info },
+    warning: { background: colors.warningLight, color: colors.warningDark, borderColor: colors.warning },
   };
   return (
     <div
@@ -53,6 +53,7 @@ export function InlineMessage({ children, variant = 'info', onDismiss }: { child
         borderLeft: '4px solid',
         marginBottom: spacing.md,
         ...styleMap[variant],
+        ...style,
       }}
     >
       <span>{children}</span>
@@ -211,10 +212,10 @@ export function Toast({ items, onDismiss }: { items: ToastItem[]; onDismiss: (id
             gap: spacing.sm,
             boxShadow: shadows.lg,
             animation: 'slideIn 0.25s ease',
-            ...(item.variant === 'success' ? { background: colors.successLight, color: colors.success } : {}),
-            ...(item.variant === 'error' ? { background: colors.dangerLight, color: colors.danger } : {}),
-            ...(item.variant === 'info' ? { background: colors.infoLight, color: colors.info } : {}),
-            ...(item.variant === 'warning' ? { background: colors.warningLight, color: colors.warning } : {}),
+            ...(item.variant === 'success' ? { background: colors.successLight, color: colors.successDark } : {}),
+            ...(item.variant === 'error' ? { background: colors.dangerLight, color: colors.dangerDark } : {}),
+            ...(item.variant === 'info' ? { background: colors.infoLight, color: colors.infoDark } : {}),
+            ...(item.variant === 'warning' ? { background: colors.warningLight, color: colors.warningDark } : {}),
           }}
         >
           <span>{item.message}</span>
@@ -331,11 +332,33 @@ export function GlobalStyles() {
         background: ${colors.surfaceAlt};
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        line-height: 1.5;
       }
       a { color: ${colors.accent}; text-decoration: none; transition: color 0.15s ease; }
       a:hover { color: ${colors.accentLight}; text-decoration: none; }
 
-      /* Glassmorphism utility classes */
+      /* ─── Focus-visible utility: all interactive elements ─── */
+      a:focus-visible,
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid ${colors.accent};
+        outline-offset: 2px;
+      }
+
+      /* ─── Nav link utilities (dark bg) ─── */
+      .connekt-nav-link {
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+      }
+      .connekt-nav-link:hover {
+        color: ${colors.textInverse} !important;
+        background: ${colors.overlayLight};
+      }
+      .connekt-nav-link:focus-visible {
+        outline: 2px solid ${colors.accent};
+        outline-offset: -2px;
+      }
+
+      /* ─── Glassmorphism utility classes ─── */
       .glass-panel {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(12px);
@@ -344,13 +367,16 @@ export function GlobalStyles() {
         box-shadow: ${shadows.glass};
       }
         
-      /* Component utilities */
+      /* ─── Component utilities ─── */
       .stat-box:hover {
         transform: translateY(-2px);
         box-shadow: ${shadows.md};
         border-color: ${colors.border};
       }
       
+      .hover-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      }
       .hover-card:hover {
         transform: translateY(-4px);
         box-shadow: ${shadows.lg};

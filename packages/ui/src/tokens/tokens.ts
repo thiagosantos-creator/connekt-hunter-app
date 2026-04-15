@@ -7,15 +7,20 @@ export const colors = {
   primaryHover: '#020617', // Slate 950
   accent: '#3b82f6', // Blue 500
   accentLight: '#2563eb', // Blue 600
+  accentDark: '#1d4ed8', // Blue 700 — for text on light accent backgrounds
 
   /** Semantic */
   success: '#10b981', // Emerald 500
+  successDark: '#047857', // Emerald 700 — high-contrast text
   successLight: '#d1fae5', // Emerald 100
   warning: '#f59e0b', // Amber 500
+  warningDark: '#92400e', // Amber 800 — high-contrast text on warningLight
   warningLight: '#fef3c7', // Amber 100
   danger: '#ef4444', // Red 500
+  dangerDark: '#991b1b', // Red 800 — high-contrast text on dangerLight
   dangerLight: '#fee2e2', // Red 100
   info: '#3b82f6', // Blue 500
+  infoDark: '#1e40af', // Blue 800 — high-contrast text on infoLight
   infoLight: '#dbeafe', // Blue 100
 
   /** Surface */
@@ -28,8 +33,17 @@ export const colors = {
   /** Text */
   text: '#0f172a', // Slate 900
   textSecondary: '#475569', // Slate 600
-  textMuted: '#94a3b8', // Slate 400
+  textMuted: '#64748b', // Slate 500 — improved from 400 for better contrast
+  textDisabled: '#94a3b8', // Slate 400 — explicit disabled text color
   textInverse: '#ffffff',
+
+  /** Overlay / glass (for dark backgrounds) */
+  overlayLight: 'rgba(255,255,255,0.12)',
+  overlayMedium: 'rgba(255,255,255,0.20)',
+  overlayHeavy: 'rgba(255,255,255,0.45)',
+  overlayInverseLight: 'rgba(0,0,0,0.06)',
+  overlayInverseMedium: 'rgba(0,0,0,0.15)',
+  overlayInverseHeavy: 'rgba(0,0,0,0.45)',
 } as const;
 
 export const spacing = {

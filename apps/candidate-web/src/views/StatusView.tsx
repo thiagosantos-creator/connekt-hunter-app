@@ -236,17 +236,17 @@ function VideoRecorderWidget({ sessionId, questionId, onDone }: { sessionId: str
 
   return (
     <div>
-      <div style={{ borderRadius: radius.lg, overflow: 'hidden', background: '#000', marginBottom: spacing.sm, position: 'relative', minHeight: 140 }}>
+      <div style={{ borderRadius: radius.lg, overflow: 'hidden', background: colors.primary, marginBottom: spacing.sm, position: 'relative', minHeight: 140 }}>
         <video ref={videoRef} muted playsInline style={{ width: '100%', maxHeight: 220, display: phase === 'preview' ? 'none' : 'block', objectFit: 'cover' }} />
         <video ref={previewRef} controls playsInline style={{ width: '100%', maxHeight: 220, display: phase === 'preview' ? 'block' : 'none', objectFit: 'cover' }} />
         {phase === 'recording' && (
-          <div style={{ position: 'absolute', top: spacing.xs, left: spacing.xs, background: 'rgba(0,0,0,0.6)', padding: '3px 10px', borderRadius: radius.full, color: '#fff', fontSize: fontSize.xs, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', display: 'inline-block', animation: 'recordPulse 1s ease infinite' }} />
+          <div style={{ position: 'absolute', top: spacing.xs, left: spacing.xs, background: colors.overlayInverseHeavy, padding: `${spacing.xs}px ${spacing.sm + 2}px`, borderRadius: radius.full, color: colors.textInverse, fontSize: fontSize.xs, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: colors.danger, display: 'inline-block', animation: 'recordPulse 1s ease infinite' }} />
             REC {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')}
           </div>
         )}
         {(phase === 'idle' || phase === 'requesting') && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: fontSize.sm, opacity: 0.5 }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: colors.textInverse, fontSize: fontSize.sm, opacity: 0.5 }}>
             {phase === 'requesting' ? 'Abrindo câmera...' : '📹 Câmera'}
           </div>
         )}

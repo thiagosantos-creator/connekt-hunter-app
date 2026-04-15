@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { colors, fontSize, fontWeight, spacing, zIndex } from '@connekt/ui';
+import { colors, fontSize, fontWeight, radius, spacing, zIndex } from '@connekt/ui';
 import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';
@@ -106,7 +106,7 @@ export function NavBar() {
         alignItems: 'center',
         gap: 0,
         height: 56,
-        boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.15)',
+        boxShadow: `0 1px 0 ${colors.overlayInverseLight}, 0 2px 8px ${colors.overlayInverseMedium}`,
         zIndex: zIndex.sticky,
         position: 'sticky',
         top: 0,
@@ -114,7 +114,7 @@ export function NavBar() {
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginRight: spacing.xl, flexShrink: 0 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: colors.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: fontWeight.bold }}>
+        <div style={{ width: 28, height: 28, borderRadius: radius.md, background: colors.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: fontWeight.bold, color: colors.textInverse }}>
           C
         </div>
         <strong style={{ fontSize: fontSize.md, letterSpacing: -0.3, whiteSpace: 'nowrap' }}>Connekt Hunter</strong>
@@ -127,7 +127,7 @@ export function NavBar() {
             {sIdx > 0 && (
               <span
                 aria-hidden="true"
-                style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.15)', margin: `0 ${spacing.xs}px`, flexShrink: 0 }}
+                style={{ width: 1, height: 18, background: colors.overlayMedium, margin: `0 ${spacing.xs}px`, flexShrink: 0 }}
               />
             )}
             {section.items.map((item) => {
@@ -137,15 +137,16 @@ export function NavBar() {
                   key={item.to}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
+                  className="connekt-nav-link"
                   style={{
-                    color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+                    color: active ? colors.textInverse : colors.overlayHeavy,
                     textDecoration: 'none',
                     fontSize: fontSize.sm,
                     fontWeight: active ? fontWeight.semibold : fontWeight.normal,
                     padding: `${spacing.md + 2}px ${spacing.sm + 2}px`,
                     borderBottom: active ? `2px solid ${colors.accent}` : '2px solid transparent',
-                    transition: 'color 0.15s, border-color 0.15s',
                     whiteSpace: 'nowrap',
+                    borderRadius: 0,
                   }}
                 >
                   {item.label}
@@ -159,14 +160,14 @@ export function NavBar() {
       {/* User info + logout */}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: spacing.sm, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: '#fff', flexShrink: 0 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: colors.overlayMedium, border: `1px solid ${colors.overlayMedium}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textInverse, flexShrink: 0 }}>
             {userInitials}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: 'rgba(255,255,255,0.9)', lineHeight: 1.2 }}>
+            <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.medium, color: colors.textInverse, lineHeight: 1.2, opacity: 0.9 }}>
               {user?.name ?? user?.email}
             </span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'capitalize' }}>
+            <span style={{ fontSize: 11, color: colors.overlayHeavy, textTransform: 'capitalize' }}>
               {user?.role}
             </span>
           </div>
@@ -178,20 +179,22 @@ export function NavBar() {
               .finally(() => { logout(); navigate('/login'); });
           }}
           aria-label="Sair da conta"
+          className="connekt-nav-link"
           style={{
             fontSize: fontSize.sm,
             fontWeight: fontWeight.medium,
             padding: `${spacing.xs}px ${spacing.sm + 4}px`,
-            background: 'rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.85)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 8,
+            background: colors.overlayLight,
+            color: colors.textInverse,
+            border: `1px solid ${colors.overlayMedium}`,
+            borderRadius: radius.sm,
             cursor: 'pointer',
             transition: 'background 0.15s',
             letterSpacing: '0.01em',
+            opacity: 0.9,
           }}
-          onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.18)'; }}
-          onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.1)'; }}
+          onMouseEnter={(e) => { (e.target as HTMLElement).style.background = colors.overlayMedium; }}
+          onMouseLeave={(e) => { (e.target as HTMLElement).style.background = colors.overlayLight; }}
         >
           Sair
         </button>

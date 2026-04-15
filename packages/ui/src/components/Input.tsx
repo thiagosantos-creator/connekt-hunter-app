@@ -41,6 +41,10 @@ const controlFocusStyles = `
     box-shadow: 0 0 0 3px ${colors.infoLight};
     outline: none;
   }
+  .connekt-field-control[aria-invalid="true"]:focus-visible {
+    border-color: ${colors.danger};
+    box-shadow: 0 0 0 3px ${colors.dangerLight};
+  }
 `;
 
 function buildAriaDescribedBy(ids: Array<string | undefined>, current?: string) {

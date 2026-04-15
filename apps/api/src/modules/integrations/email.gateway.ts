@@ -153,18 +153,18 @@ export class EmailGateway {
       case 'candidate-invite':
         return {
           subject: `Convite para candidatura: ${vacancyTitle}`,
-          text: `Voce recebeu um convite para a vaga ${vacancyTitle}.\n\nAcesse o link: ${accessUrl}`,
-          html: `<p>Voce recebeu um convite para a vaga <strong>${this.escapeHtml(vacancyTitle)}</strong>.</p><p><a href="${this.escapeHtml(accessUrl)}">Acessar candidatura</a></p>`,
+          text: `Você recebeu um convite para a vaga ${vacancyTitle}.\n\nAcesse o link: ${accessUrl}`,
+          html: `<p>Você recebeu um convite para a vaga <strong>${this.escapeHtml(vacancyTitle)}</strong>.</p><p><a href="${this.escapeHtml(accessUrl)}">Acessar candidatura</a></p>`,
         };
       case 'candidate-password-reset':
         return {
-          subject: 'Redefinicao de acesso',
+          subject: 'Redefinição de acesso',
           text: `Use este link para redefinir o acesso: ${resetUrl}`,
           html: `<p>Use este link para redefinir o acesso:</p><p><a href="${this.escapeHtml(resetUrl)}">Redefinir acesso</a></p>`,
         };
       default:
         return {
-          subject: `Notificacao Connekt Hunter: ${templateKey}`,
+          subject: `Notificação Connekt Hunter: ${templateKey}`,
           text: `Evento ${templateKey}\n\n${eventSummary}`,
           html: `<p>Evento <strong>${this.escapeHtml(templateKey)}</strong></p><pre>${this.escapeHtml(eventSummary)}</pre>`,
         };

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setSessionToken } from '../services/api.js';
-import { colors, fontSize, fontWeight, spacing } from '@connekt/ui';
+import { colors, fontSize, fontWeight, radius, shadows, spacing } from '@connekt/ui';
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
@@ -27,6 +27,7 @@ export function AuthCallbackView() {
 
     if (errorParam) {
       setPhase('error');
+      const errorDesc = params.get('error_description');
       setErrorMsg(errorDesc ?? errorParam);
       return;
     }
@@ -47,7 +48,7 @@ export function AuthCallbackView() {
         if (stateObj.inviteToken) {
           inviteToken = stateObj.inviteToken;
           // Se recebemos um token novo via state, já fixamos no storage
-          localStorage.setItem('invite_token', inviteToken);
+          localStorage.setItem('invite_token', inviteToken as string);
         }
       } catch (err) {
         console.warn('Could not parse OAuth state parameter');
@@ -117,7 +118,7 @@ export function AuthCallbackView() {
         maxWidth: 420,
         width: '100%',
         textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        boxShadow: shadows.xl,
       }}>
         {phase === 'exchanging' && (
           <>
@@ -158,7 +159,7 @@ export function AuthCallbackView() {
                 background: colors.primary,
                 color: colors.textInverse,
                 border: 'none',
-                borderRadius: 10,
+                borderRadius: radius.md,
                 padding: `${spacing.sm}px ${spacing.xl}px`,
                 fontSize: fontSize.sm,
                 fontWeight: fontWeight.semibold,

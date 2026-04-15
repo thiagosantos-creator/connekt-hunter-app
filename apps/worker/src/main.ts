@@ -5,6 +5,7 @@ import {
   StartTranscriptionJobCommand,
   GetTranscriptionJobCommand,
   type LanguageCode as TranscribeLanguageCode,
+  type MediaFormat,
 } from '@aws-sdk/client-transcribe';
 import {
   ComprehendClient,
@@ -52,7 +53,7 @@ function safeJsonParse<T = unknown>(json: string, fallback: T, context: string):
 }
 
 /** Detect media format from object key extension. Defaults to webm. */
-function detectMediaFormat(objectKey: string): string {
+function detectMediaFormat(objectKey: string): MediaFormat {
   const lower = objectKey.toLowerCase();
   if (lower.endsWith('.mp3')) return 'mp3';
   if (lower.endsWith('.mp4')) return 'mp4';
@@ -485,7 +486,10 @@ export async function processMatchingComputeJobs(): Promise<number> {
             const [candidate, vacancy, resumeParse] = await Promise.all([
               prisma.candidate.findUnique({ where: { id: payload.candidateId }, include: { profile: true } }),
               prisma.vacancy.findUnique({ where: { id: payload.vacancyId } }),
-              prisma.resumeParseResult.findFirst({ where: { resume: { candidateId: payload.candidateId } } }),
+              prisma.resumeParseResult.findFirst({
+                where: { resume: { session: { candidateId: payload.candidateId } } },
+                orderBy: { createdAt: 'desc' },
+              }),
             ]);
 
             const candidateContext = {
@@ -551,11 +555,22 @@ Score final deve ser a média ponderada das dimensões. Análise assistiva — d
         }
       }
 
-      await prisma.matchingScore.upsert({
+      const matchingRecord = await prisma.matchingScore.upsert({
         where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
-        update: { score, computedAt: new Date(), modelVersion, dimensions: dimensions as never },
-        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion, dimensions: dimensions as never },
+        update: { score, computedAt: new Date(), modelVersion },
+        create: { candidateId: payload.candidateId, vacancyId: payload.vacancyId, score, modelVersion },
       });
+
+      // Store dimensions as MatchingBreakdown records
+      if (dimensions.length > 0) {
+        for (const dim of dimensions) {
+          await prisma.matchingBreakdown.upsert({
+            where: { matchingScoreId_dimension: { matchingScoreId: matchingRecord.id, dimension: dim.dimension } },
+            update: { score: dim.score, weight: dim.weight, reasoning: dim.reasoning },
+            create: { matchingScoreId: matchingRecord.id, dimension: dim.dimension, score: dim.score, weight: dim.weight, reasoning: dim.reasoning },
+          });
+        }
+      }
 
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
     });
@@ -663,9 +678,11 @@ export async function processComparisonGenerateJobs(): Promise<number> {
         const openai = getOpenAiClient();
         if (openai) {
           try {
-            const [leftScore, rightScore] = await Promise.all([
+            const [leftScore, rightScore, leftBreakdowns, rightBreakdowns] = await Promise.all([
               prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.leftCandidateId, vacancyId: payload.vacancyId } } }),
               prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: payload.rightCandidateId, vacancyId: payload.vacancyId } } }),
+              prisma.matchingBreakdown.findMany({ where: { matchingScore: { candidateId: payload.leftCandidateId, vacancyId: payload.vacancyId } } }),
+              prisma.matchingBreakdown.findMany({ where: { matchingScore: { candidateId: payload.rightCandidateId, vacancyId: payload.vacancyId } } }),
             ]);
 
             const response = await openai.chat.completions.create({
@@ -688,7 +705,7 @@ Retorne EXCLUSIVAMENTE um JSON:
                 },
                 {
                   role: 'user',
-                  content: `Vaga: ${payload.vacancyId} (${vacancy.title ?? ''})\n\nCandidato A (${payload.leftCandidateId}): Score ${leftScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(leftScore?.dimensions ?? {})}\n\nCandidato B (${payload.rightCandidateId}): Score ${rightScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(rightScore?.dimensions ?? {})}`,
+                  content: `Vaga: ${payload.vacancyId} (${vacancy.title ?? ''})\n\nCandidato A (${payload.leftCandidateId}): Score ${leftScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(leftBreakdowns)}\n\nCandidato B (${payload.rightCandidateId}): Score ${rightScore?.score ?? 'N/A'}/100\nDimensões: ${JSON.stringify(rightBreakdowns)}`,
                 },
               ],
             });
@@ -829,6 +846,7 @@ export async function processRiskAnalyzeJobs(): Promise<number> {
           try {
             const matchingScore = await prisma.matchingScore.findUnique({
               where: { candidateId_vacancyId: { candidateId: payload.candidateId, vacancyId: payload.vacancyId } },
+              include: { breakdowns: true },
             });
 
             const response = await openai.chat.completions.create({
@@ -852,7 +870,7 @@ Seja objetivo e factual. Análise assistiva — revisão humana obrigatória.`,
                 },
                 {
                   role: 'user',
-                  content: `Candidato: ${payload.candidateId}\nVaga: ${payload.vacancyId}\nMatching score: ${matchingScore?.score ?? 'N/A'}\nDimensões: ${JSON.stringify(matchingScore?.dimensions ?? {})}`,
+                  content: `Candidato: ${payload.candidateId}\nVaga: ${payload.vacancyId}\nMatching score: ${matchingScore?.score ?? 'N/A'}\nDimensões: ${JSON.stringify(matchingScore?.breakdowns ?? [])}`,
                 },
               ],
             });

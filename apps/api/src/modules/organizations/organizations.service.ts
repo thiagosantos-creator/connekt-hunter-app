@@ -239,10 +239,10 @@ export class OrganizationsService {
     return { ok: true, publicUrl };
   }
 
-  private async resolveOwnerAdminUserId(ownerAdminRef?: string, fallbackUserId?: string) {
+  private async resolveOwnerAdminUserId(ownerAdminRef?: string, fallbackUserId?: string): Promise<string> {
     const normalized = ownerAdminRef?.trim();
     if (!normalized) {
-      if (!fallbackUserId) return undefined;
+      if (!fallbackUserId) throw new BadRequestException('owner_admin_user_id_required');
       return fallbackUserId;
     }
 

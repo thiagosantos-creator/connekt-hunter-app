@@ -11,17 +11,33 @@ vi.mock('@connekt/db', () => ({
       update: vi.fn(),
     },
     auditEvent: { create: vi.fn() },
+    aiExecutionLog: { create: vi.fn().mockResolvedValue({ id: 'log-1' }) },
   },
 }));
 
 import { prisma } from '@connekt/db';
 import { VacanciesService } from './vacancies.service.js';
+import { AiGateway } from '../integrations/ai.gateway.js';
 
 describe('VacanciesService', () => {
   let service: VacanciesService;
 
+  const mockAiGateway = {
+    generateAssistiveVacancy: vi.fn().mockResolvedValue({
+      summary: 'Test summary',
+      responsibilities: ['resp1'],
+      requiredSkills: ['skill1'],
+      desiredSkills: ['desired1'],
+      keywords: ['Backend Engineer'],
+      provider: 'ai-mock',
+      generatedByAI: true,
+      requiresHumanReview: true,
+      generatedAt: new Date().toISOString(),
+    }),
+  } as unknown as AiGateway;
+
   beforeEach(() => {
-    service = new VacanciesService();
+    service = new VacanciesService(mockAiGateway);
     vi.clearAllMocks();
   });
 
@@ -53,8 +69,8 @@ describe('VacanciesService', () => {
     expect(result).toEqual([]);
   });
 
-  it('generates assistive content with human review flag', () => {
-    const result = service.generateAssistiveContent({ title: 'Backend Engineer', seniority: 'senior', sector: 'tecnologia', workModel: 'remote', location: 'Sao Paulo' });
+  it('generates assistive content with human review flag', async () => {
+    const result = await service.generateAssistiveContent({ title: 'Backend Engineer', seniority: 'senior', sector: 'tecnologia', workModel: 'remote', location: 'Sao Paulo' });
     expect(result.generatedByAI).toBe(true);
     expect(result.requiresHumanReview).toBe(true);
     expect(result.keywords).toContain('Backend Engineer');

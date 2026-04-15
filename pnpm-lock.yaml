@@ -188,6 +188,9 @@ importers:
       '@connekt/db':
         specifier: workspace:*
         version: link:../../packages/db
+      openai:
+        specifier: ^4.104.0
+        version: 4.104.0(ws@8.20.0)(zod@3.25.76)
     devDependencies:
       '@types/node':
         specifier: ^22.14.1

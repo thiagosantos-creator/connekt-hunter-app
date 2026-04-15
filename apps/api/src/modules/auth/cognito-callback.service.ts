@@ -44,6 +44,7 @@ export class CognitoCallbackService {
     redirectUri: string;
     region: string;
     inviteToken?: string;
+    state?: string;
   }): Promise<CognitoCallbackResult> {
     // 1. Exchange authorization code → tokens
     const tokenSet = await this.exchangeCode(input);
@@ -90,7 +91,7 @@ export class CognitoCallbackService {
     // 6. Link candidate if an invite token was provided
     let candidateProfile: { photoUrl?: string | null; fullName?: string | null } | undefined;
     if (input.inviteToken) {
-      const candidate = await prisma.candidate.findUnique({ where: { token: input.inviteToken } });
+      const candidate = await prisma.candidate.findUnique({ where: { token: input.inviteToken }, include: { profile: true } });
       if (candidate && !candidate.userId) {
         await prisma.candidate.update({
           where: { id: candidate.id },

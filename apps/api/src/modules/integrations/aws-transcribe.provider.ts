@@ -5,6 +5,7 @@ import {
   GetTranscriptionJobCommand,
   type TranscriptionJob,
   type LanguageCode as TranscribeLanguageCode,
+  type MediaFormat,
 } from '@aws-sdk/client-transcribe';
 
 export interface TranscribeJobResult {
@@ -140,7 +141,7 @@ export class AwsTranscribeProvider {
   }
 
   /** Detect media format from file URI extension. Defaults to webm. */
-  private detectMediaFormat(mediaUri: string): string {
+  private detectMediaFormat(mediaUri: string): MediaFormat {
     const lower = mediaUri.toLowerCase();
     if (lower.endsWith('.mp3')) return 'mp3';
     if (lower.endsWith('.mp4')) return 'mp4';

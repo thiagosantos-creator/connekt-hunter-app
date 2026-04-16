@@ -53,13 +53,15 @@ const decisionOrder: DecisionKind[] = ['approve', 'interview', 'hold', 'reject']
 
 /* ── Utility helpers ─────────────────────────────────────────────────── */
 
+const MS_PER_DAY = 86_400_000;
+
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 
 const formatRelativeDate = (iso?: string) => {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86_400_000);
+  const days = Math.floor(diff / MS_PER_DAY);
   if (days === 0) return 'Hoje';
   if (days === 1) return 'Ontem';
   if (days < 30) return `${days} dias atrás`;
@@ -132,7 +134,7 @@ export function ClientReviewView() {
     const inGuarantee = vacancyList.filter((v) => v.guaranteeEndDate && new Date(v.guaranteeEndDate) > new Date()).length;
     const closedWithTime = vacancyList.filter((v) => v.closedAt && v.publishedAt);
     const avgClosingDays = closedWithTime.length > 0
-      ? Math.round(closedWithTime.reduce((sum, v) => sum + (new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime()) / 86_400_000, 0) / closedWithTime.length)
+      ? Math.round(closedWithTime.reduce((sum, v) => sum + (new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime()) / MS_PER_DAY, 0) / closedWithTime.length)
       : 0;
     return { total, open, closed, inGuarantee, avgClosingDays };
   }, [vacancyList]);
@@ -314,10 +316,10 @@ export function ClientReviewView() {
                     <tbody>
                       {vacancyList.map((v) => {
                         const closingDays = v.closedAt && v.publishedAt
-                          ? Math.round((new Date(v.closedAt).getTime() - new Date(v.publishedAt).getTime()) / 86_400_000)
+                          ? Math.round((new Date(v.closedAt).getTime() - new Date(v.publishedAt).getTime()) / MS_PER_DAY)
                           : null;
                         const guaranteeDays = v.guaranteeEndDate
-                          ? Math.ceil((new Date(v.guaranteeEndDate).getTime() - Date.now()) / 86_400_000)
+                          ? Math.ceil((new Date(v.guaranteeEndDate).getTime() - Date.now()) / MS_PER_DAY)
                           : null;
                         const statusMap: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
                           active: { label: 'Ativa', variant: 'success' },
@@ -325,11 +327,11 @@ export function ClientReviewView() {
                           disabled: { label: 'Fechada', variant: 'danger' },
                           expired: { label: 'Expirada', variant: 'danger' },
                         };
-                        const sMeta = statusMap[v.status ?? 'active'] ?? { label: v.status ?? '-', variant: 'info' as const };
+                        const statusConfig = statusMap[v.status ?? 'active'] ?? { label: v.status ?? '-', variant: 'info' as const };
                         return (
                           <tr key={v.id} style={{ borderBottom: `1px solid ${colors.borderLight}` }}>
                             <td style={{ padding: spacing.sm, fontWeight: fontWeight.medium }}>{v.title}</td>
-                            <td style={{ padding: spacing.sm }}><Badge variant={sMeta.variant} size="sm">{sMeta.label}</Badge></td>
+                            <td style={{ padding: spacing.sm }}><Badge variant={statusConfig.variant} size="sm">{statusConfig.label}</Badge></td>
                             <td style={{ padding: spacing.sm }}>{v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '-'}</td>
                             <td style={{ padding: spacing.sm }}>{v.closedAt ? new Date(v.closedAt).toLocaleDateString('pt-BR') : '-'}</td>
                             <td style={{ padding: spacing.sm }}>{closingDays != null ? `${closingDays}d` : '-'}</td>

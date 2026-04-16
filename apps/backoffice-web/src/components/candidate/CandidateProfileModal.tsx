@@ -33,6 +33,7 @@ import type {
 } from '../../services/types.js';
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+const FEEDBACK_SUCCESS_DISPLAY_MS = 2000;
 
 interface Props {
   applicationId: string | null;
@@ -238,7 +239,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
       setFeedbackStatus('Feedback enviado com sucesso!');
       setFeedbackMessage('');
       setFeedbackSaveDefault(false);
-      setTimeout(() => { setFeedbackOpen(false); setFeedbackStatus(''); }, 2000);
+      setTimeout(() => { setFeedbackOpen(false); setFeedbackStatus(''); }, FEEDBACK_SUCCESS_DISPLAY_MS);
     } catch (err) {
       setFeedbackStatus(err instanceof Error ? err.message : 'Erro ao enviar feedback.');
     } finally {

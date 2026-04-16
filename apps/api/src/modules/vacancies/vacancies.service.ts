@@ -52,6 +52,9 @@ type VacancyPayload = {
   createdBy: string;
 };
 
+/** 90 days guarantee period in milliseconds */
+const GUARANTEE_PERIOD_MS = 90 * 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class VacanciesService {
   private readonly logger = new Logger(VacanciesService.name);
@@ -170,7 +173,7 @@ export class VacanciesService {
       const closedAt = new Date();
       (updateData as Record<string, unknown>).closedAt = closedAt;
       (updateData as Record<string, unknown>).closedBy = actorId;
-      (updateData as Record<string, unknown>).guaranteeEndDate = new Date(closedAt.getTime() + 90 * 24 * 60 * 60 * 1000);
+      (updateData as Record<string, unknown>).guaranteeEndDate = new Date(closedAt.getTime() + GUARANTEE_PERIOD_MS);
     }
 
     if (isReopened) {

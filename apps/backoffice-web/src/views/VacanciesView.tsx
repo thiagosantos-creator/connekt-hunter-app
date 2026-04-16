@@ -58,6 +58,7 @@ type TemplateForm = {
 };
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+const MS_PER_DAY = 86_400_000;
 
 const emptyVacancyForm = (): VacancyForm => ({
   title: '',
@@ -270,7 +271,7 @@ export function VacanciesView() {
     if (closed.length === 0) return 0;
     const totalDays = closed.reduce((sum, v) => {
       const diff = new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime();
-      return sum + diff / 86_400_000;
+      return sum + diff / MS_PER_DAY;
     }, 0);
     return Math.round(totalDays / closed.length);
   }, [vacancies]);
@@ -582,13 +583,13 @@ export function VacanciesView() {
     if (!iso) return null;
     const diff = new Date(iso).getTime() - Date.now();
     if (diff <= 0) return 0;
-    return Math.ceil(diff / 86_400_000);
+    return Math.ceil(diff / MS_PER_DAY);
   };
 
   const closingTimeDays = (publishedAt?: string, closedAt?: string) => {
     if (!publishedAt || !closedAt) return null;
     const diff = new Date(closedAt).getTime() - new Date(publishedAt).getTime();
-    return Math.round(diff / 86_400_000);
+    return Math.round(diff / MS_PER_DAY);
   };
 
   return (
@@ -632,8 +633,8 @@ export function VacanciesView() {
                     disabled: { label: 'Fechada', variant: 'danger' },
                     expired: { label: 'Expirada', variant: 'danger' },
                   };
-                  const s = statusLabels[row.status ?? 'active'] ?? { label: row.status ?? '-', variant: 'info' as const };
-                  return <Badge variant={s.variant} size="sm">{s.label}</Badge>;
+                  const statusConfig = statusLabels[row.status ?? 'active'] ?? { label: row.status ?? '-', variant: 'info' as const };
+                  return <Badge variant={statusConfig.variant} size="sm">{statusConfig.label}</Badge>;
                 }},
                 { key: 'publicationType', header: 'Publicação', render: (row) => row.publicationType ?? '-' },
                 { key: 'publishedAt', header: 'Aberta em', render: (row) => formatDate(row.publishedAt) },

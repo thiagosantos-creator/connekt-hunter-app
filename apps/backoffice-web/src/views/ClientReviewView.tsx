@@ -27,7 +27,7 @@ import {
 } from '@connekt/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { apiGet, apiPost } from '../services/api.js';
-import type { Decision, ShortlistItemWithApplication } from '../services/types.js';
+import type { Decision, ShortlistItemWithApplication, Vacancy } from '../services/types.js';
 
 /* ── Decision helpers ────────────────────────────────────────────────── */
 
@@ -75,6 +75,7 @@ export function ClientReviewView() {
   /* data state */
   const [items, setItems] = useState<ShortlistItemWithApplication[]>([]);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
+  const [vacancyList, setVacancyList] = useState<Vacancy[]>([]);
   const [loading, setLoading] = useState(true);
 
   /* UI state */
@@ -107,6 +108,7 @@ export function ClientReviewView() {
           setDecisions(map);
         })
         .catch(() => undefined),
+      apiGet<Vacancy[]>('/vacancies').then(setVacancyList).catch(() => undefined),
     ]).finally(() => setLoading(false));
   }, []);
 
@@ -122,6 +124,18 @@ export function ClientReviewView() {
     const progress = total > 0 ? Math.round(((total - pending) / total) * 100) : 0;
     return { total, pending, approved, rejected, interview, hold, progress };
   }, [items, decisions]);
+
+  const vacancyStats = useMemo(() => {
+    const total = vacancyList.length;
+    const open = vacancyList.filter((v) => v.status === 'active').length;
+    const closed = vacancyList.filter((v) => v.status === 'disabled' || v.status === 'expired').length;
+    const inGuarantee = vacancyList.filter((v) => v.guaranteeEndDate && new Date(v.guaranteeEndDate) > new Date()).length;
+    const closedWithTime = vacancyList.filter((v) => v.closedAt && v.publishedAt);
+    const avgClosingDays = closedWithTime.length > 0
+      ? Math.round(closedWithTime.reduce((sum, v) => sum + (new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime()) / 86_400_000, 0) / closedWithTime.length)
+      : 0;
+    return { total, open, closed, inGuarantee, avgClosingDays };
+  }, [vacancyList]);
 
   const vacancies = useMemo(() => {
     const seen = new Map<string, string>();
@@ -269,6 +283,70 @@ export function ClientReviewView() {
               <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }}>Progresso</div>
             </div>
           </div>
+
+          {/* ── Vacancy metrics for the company ──────────────────────── */}
+          {vacancyList.length > 0 && (
+            <Card style={{ marginBottom: spacing.lg }}>
+              <CardHeader>
+                <CardTitle>📊 Métricas de Vagas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md, marginBottom: spacing.md }}>
+                  <StatBox label="Total de vagas" value={vacancyStats.total} />
+                  <StatBox label="Abertas" value={vacancyStats.open} subtext="Vagas ativas" />
+                  <StatBox label="Fechadas" value={vacancyStats.closed} subtext="Desativadas/expiradas" />
+                  <StatBox label="Em Garantia" value={vacancyStats.inGuarantee} subtext="Dentro dos 90 dias" />
+                  <StatBox label="Tempo médio" value={`${vacancyStats.avgClosingDays}d`} subtext="Dias para fechamento" />
+                </div>
+                {/* Vacancy summary table */}
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: fontSize.sm }}>
+                    <thead>
+                      <tr style={{ borderBottom: `2px solid ${colors.border}`, textAlign: 'left' }}>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Vaga</th>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Status</th>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Aberta em</th>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Fechada em</th>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Tempo (dias)</th>
+                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Garantia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vacancyList.map((v) => {
+                        const closingDays = v.closedAt && v.publishedAt
+                          ? Math.round((new Date(v.closedAt).getTime() - new Date(v.publishedAt).getTime()) / 86_400_000)
+                          : null;
+                        const guaranteeDays = v.guaranteeEndDate
+                          ? Math.ceil((new Date(v.guaranteeEndDate).getTime() - Date.now()) / 86_400_000)
+                          : null;
+                        const statusMap: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
+                          active: { label: 'Ativa', variant: 'success' },
+                          frozen: { label: 'Congelada', variant: 'warning' },
+                          disabled: { label: 'Fechada', variant: 'danger' },
+                          expired: { label: 'Expirada', variant: 'danger' },
+                        };
+                        const sMeta = statusMap[v.status ?? 'active'] ?? { label: v.status ?? '-', variant: 'info' as const };
+                        return (
+                          <tr key={v.id} style={{ borderBottom: `1px solid ${colors.borderLight}` }}>
+                            <td style={{ padding: spacing.sm, fontWeight: fontWeight.medium }}>{v.title}</td>
+                            <td style={{ padding: spacing.sm }}><Badge variant={sMeta.variant} size="sm">{sMeta.label}</Badge></td>
+                            <td style={{ padding: spacing.sm }}>{v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '-'}</td>
+                            <td style={{ padding: spacing.sm }}>{v.closedAt ? new Date(v.closedAt).toLocaleDateString('pt-BR') : '-'}</td>
+                            <td style={{ padding: spacing.sm }}>{closingDays != null ? `${closingDays}d` : '-'}</td>
+                            <td style={{ padding: spacing.sm }}>
+                              {guaranteeDays == null ? '-' : guaranteeDays <= 0
+                                ? <Badge variant="danger" size="sm">Expirada</Badge>
+                                : <Badge variant={guaranteeDays <= 15 ? 'warning' : 'success'} size="sm">{guaranteeDays}d restantes</Badge>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Filters bar */}
           <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: spacing.md }}>

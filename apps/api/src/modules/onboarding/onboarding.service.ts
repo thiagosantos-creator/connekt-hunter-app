@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { prisma } from '@connekt/db';
 import { StorageGateway } from '../integrations/storage.gateway.js';
 import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
@@ -258,10 +257,10 @@ export class OnboardingService {
         introVideoTranscript: null,
         introVideoTranscriptLanguage: null,
         introVideoSummary: null,
-        introVideoTags: Prisma.JsonNull,
-        introVideoSentimentJson: Prisma.JsonNull,
-        introVideoEntitiesJson: Prisma.JsonNull,
-        introVideoKeyPhrasesJson: Prisma.JsonNull,
+        introVideoTags: null as never,
+        introVideoSentimentJson: null as never,
+        introVideoEntitiesJson: null as never,
+        introVideoKeyPhrasesJson: null as never,
         introVideoAnalyzedAt: null,
       },
       create: {

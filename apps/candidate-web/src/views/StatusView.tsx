@@ -44,6 +44,7 @@ interface CandidateStatus {
     transcript: string | null;
     tags: string[];
     sentiment: unknown;
+    playbackUrl?: string | null;
   } | null;
 }
 

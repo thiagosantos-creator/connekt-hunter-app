@@ -192,6 +192,12 @@ export interface Application {
       phone?: string;
       photoUrl?: string;
       photoProvider?: string;
+      introVideoKey?: string;
+      introVideoSummary?: string;
+      introVideoTags?: string[];
+      introVideoSentimentJson?: Record<string, unknown>;
+      introVideoAnalysisStatus?: string;
+      introVideoDurationSec?: number;
     };
   };
   vacancy: {

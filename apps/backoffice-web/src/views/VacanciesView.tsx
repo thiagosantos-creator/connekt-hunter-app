@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiGet, apiPatch, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../services/rbac.js';
@@ -59,6 +59,7 @@ type TemplateForm = {
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
 const MS_PER_DAY = 86_400_000;
+const AUTO_SUGGEST_DEBOUNCE_MS = 2000;
 
 const emptyVacancyForm = (): VacancyForm => ({
   title: '',
@@ -230,6 +231,43 @@ export function VacanciesView() {
   const [desiredSkillInput, setDesiredSkillInput] = useState('');
   const [editingVacancyId, setEditingVacancyId] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ vacancyId: string; action: string; label: string } | null>(null);
+
+  // Auto-trigger AI suggestion when title + seniority are filled (debounce 2s)
+  const autoSuggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoSuggestRef = useRef('');
+
+  const triggerAutoSuggest = useCallback(async () => {
+    const key = `${form.title}|${form.seniority}|${form.sector || form.department}`;
+    if (key === lastAutoSuggestRef.current) return;
+    lastAutoSuggestRef.current = key;
+    try {
+      const ai = await apiPost<VacancyAssistSuggestion>('/vacancies/assist-content', {
+        title: form.title,
+        seniority: form.seniority,
+        sector: form.sector || form.department || 'geral',
+        workModel: form.workModel,
+        location: form.location,
+      });
+      setSuggestion(ai);
+    } catch {
+      // Silent failure for auto-suggest
+    }
+  }, [form.title, form.seniority, form.sector, form.department, form.workModel, form.location]);
+
+  useEffect(() => {
+    if (!showCreateForm || editingVacancyId) return;
+    if (!form.title.trim() || !form.seniority.trim()) return;
+    if (suggestion) return; // Don't re-trigger if suggestion already exists
+
+    if (autoSuggestTimerRef.current) clearTimeout(autoSuggestTimerRef.current);
+    autoSuggestTimerRef.current = setTimeout(() => {
+      void triggerAutoSuggest();
+    }, AUTO_SUGGEST_DEBOUNCE_MS);
+
+    return () => {
+      if (autoSuggestTimerRef.current) clearTimeout(autoSuggestTimerRef.current);
+    };
+  }, [form.title, form.seniority, showCreateForm, editingVacancyId, suggestion, triggerAutoSuggest]);
 
   const orgOptions = useMemo(() => {
     if (organizations.length > 0) {

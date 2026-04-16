@@ -30,8 +30,16 @@ export class AuthController {
   }
 
   @Post('guest-upgrade')
-  guestUpgrade(@Body() body: { token: string; email: string; fullName: string }) {
-    return this.authService.guestUpgrade(body.token, body.email, body.fullName);
+  guestUpgrade(@Body() body: { token: string; email: string; fullName: string; password?: string }) {
+    return this.authService.guestUpgrade(body.token, body.email, body.fullName, body.password);
+  }
+
+  @Post('candidate-login')
+  candidateLogin(@Body() body: { email: string; password: string }) {
+    if (!body.email || !body.password) {
+      throw new BadRequestException('email_and_password_required');
+    }
+    return this.authService.candidateLogin(body.email, body.password);
   }
 
   /**

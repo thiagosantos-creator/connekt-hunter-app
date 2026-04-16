@@ -13,7 +13,28 @@ export class CandidateInsightsService {
 
   async generate(candidateId: string, vacancyId: string, actorId?: string) {
     const [candidate, vacancy] = await Promise.all([
-      prisma.candidate.findUnique({ where: { id: candidateId } }),
+      prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: {
+          profile: {
+            include: {
+              experiences: true,
+              educations: true,
+              skills: true,
+              languages: true,
+            },
+          },
+          onboarding: {
+            include: {
+              resumes: {
+                include: { parseResult: true },
+                orderBy: { uploadedAt: 'desc' as const },
+                take: 1,
+              },
+            },
+          },
+        },
+      }),
       prisma.vacancy.findUnique({ where: { id: vacancyId } }),
     ]);
     if (!candidate) throw new NotFoundException('candidate_not_found');
@@ -28,7 +49,35 @@ export class CandidateInsightsService {
       include: { breakdowns: true },
     });
 
-    const response = await this.aiGateway.generateCandidateInsights({ candidateId, vacancyId, matching });
+    // Build enriched candidate context for the AI prompt
+    const candidateContext: Record<string, unknown> = {
+      fullName: candidate.profile?.fullName ?? null,
+      resumeSummary: candidate.profile?.resumeSummary
+        ?? (candidate.onboarding?.resumes[0]?.parseResult?.parsedJson as Record<string, unknown> | undefined)?.summary
+        ?? null,
+      experience: candidate.profile?.experiences?.map((e) => ({
+        company: e.company,
+        role: e.role,
+        period: e.period,
+      })) ?? [],
+      education: candidate.profile?.educations?.map((e) => ({
+        institution: e.institution,
+        degree: e.degree,
+        period: e.period,
+      })) ?? [],
+      skills: candidate.profile?.skills?.map((s) => s.name) ?? [],
+      languages: candidate.profile?.languages?.map((l) => ({
+        name: l.name,
+        level: l.level,
+      })) ?? [],
+      introVideoSummary: candidate.profile?.introVideoSummary ?? null,
+      introVideoTags: Array.isArray(candidate.profile?.introVideoTags) ? candidate.profile.introVideoTags : [],
+      vacancyTitle: vacancy.title,
+      vacancyDescription: vacancy.description,
+      vacancyRequiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills : [],
+    };
+
+    const response = await this.aiGateway.generateCandidateInsights({ candidateId, vacancyId, matching, candidateContext });
 
     const insight = await prisma.candidateInsight.upsert({
       where: { candidateId_vacancyId: { candidateId, vacancyId } },

@@ -66,6 +66,11 @@ export class OnboardingController {
     return this.onboardingService.getParsedResume(token);
   }
 
+  @Get('intro-video/playback/:token')
+  introVideoPlayback(@Param('token') token: string) {
+    return this.onboardingService.getIntroVideoPlaybackUrl(token);
+  }
+
   @Get('status/:token')
   status(@Param('token') token: string) {
     return this.onboardingService.getStatus(token);

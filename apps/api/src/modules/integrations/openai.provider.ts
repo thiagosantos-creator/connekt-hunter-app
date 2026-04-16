@@ -215,6 +215,7 @@ Seja factual e cite as dimensões com maior e menor aderência. Esta é uma expl
     candidateId: string;
     vacancyId: string;
     matching: unknown;
+    candidateContext?: unknown;
   }): Promise<{
     summary: string;
     strengths: string[];
@@ -222,6 +223,40 @@ Seja factual e cite as dimensões com maior e menor aderência. Esta é uma expl
     recommendations: string[];
     explanation: string;
   }> {
+    // Build enriched context for the AI prompt
+    const contextParts: string[] = [];
+    contextParts.push(`Candidato ID: ${input.candidateId}`);
+    contextParts.push(`Vaga ID: ${input.vacancyId}`);
+
+    if (input.candidateContext && typeof input.candidateContext === 'object') {
+      const ctx = input.candidateContext as Record<string, unknown>;
+      if (ctx.fullName) contextParts.push(`Nome: ${ctx.fullName}`);
+      if (ctx.resumeSummary) contextParts.push(`Resumo do CV: ${ctx.resumeSummary}`);
+      if (Array.isArray(ctx.experience) && ctx.experience.length > 0) {
+        contextParts.push(`Experiências: ${JSON.stringify(ctx.experience)}`);
+      }
+      if (Array.isArray(ctx.education) && ctx.education.length > 0) {
+        contextParts.push(`Formação: ${JSON.stringify(ctx.education)}`);
+      }
+      if (Array.isArray(ctx.skills) && ctx.skills.length > 0) {
+        contextParts.push(`Habilidades: ${(ctx.skills as string[]).join(', ')}`);
+      }
+      if (Array.isArray(ctx.languages) && ctx.languages.length > 0) {
+        contextParts.push(`Idiomas: ${JSON.stringify(ctx.languages)}`);
+      }
+      if (ctx.introVideoSummary) contextParts.push(`Resumo do vídeo: ${ctx.introVideoSummary}`);
+      if (Array.isArray(ctx.introVideoTags) && ctx.introVideoTags.length > 0) {
+        contextParts.push(`Tags do vídeo: ${(ctx.introVideoTags as string[]).join(', ')}`);
+      }
+      if (ctx.vacancyTitle) contextParts.push(`Título da vaga: ${ctx.vacancyTitle}`);
+      if (ctx.vacancyDescription) contextParts.push(`Descrição da vaga: ${ctx.vacancyDescription}`);
+      if (Array.isArray(ctx.vacancyRequiredSkills) && ctx.vacancyRequiredSkills.length > 0) {
+        contextParts.push(`Skills requeridas na vaga: ${(ctx.vacancyRequiredSkills as string[]).join(', ')}`);
+      }
+    }
+
+    contextParts.push(`Dados de matching:\n${JSON.stringify(input.matching)}`);
+
     const response = await this.getClient().chat.completions.create({
       model: this.modelVersion,
       temperature: 0.4,
@@ -229,7 +264,7 @@ Seja factual e cite as dimensões com maior e menor aderência. Esta é uma expl
       messages: [
         {
           role: 'system',
-          content: `Você é um consultor sênior de RH especializado em análise de candidatos. Com base nos dados de matching, forneça insights acionáveis.
+          content: `Você é um consultor sênior de RH especializado em análise de candidatos. Com base nos dados completos do candidato (experiência, formação, skills, idiomas, vídeo de apresentação) e nos requisitos da vaga, forneça insights acionáveis.
 Retorne EXCLUSIVAMENTE um JSON:
 {
   "summary": "resumo conciso de 2-3 frases sobre o candidato",
@@ -238,11 +273,11 @@ Retorne EXCLUSIVAMENTE um JSON:
   "recommendations": ["ação recomendada 1", "ação 2", ...],
   "explanation": "justificativa metodológica da análise"
 }
-Seja específico e acionável. Esta é uma análise assistiva — a decisão final é sempre humana.`,
+Seja específico e acionável. Referencie dados concretos do perfil e CV do candidato. Esta é uma análise assistiva — a decisão final é sempre humana.`,
         },
         {
           role: 'user',
-          content: `Candidato: ${input.candidateId}\nVaga: ${input.vacancyId}\nDados de matching:\n${JSON.stringify(input.matching)}`,
+          content: contextParts.join('\n\n'),
         },
       ],
     });

@@ -7,6 +7,8 @@ vi.mock('@connekt/db', () => ({
     },
     candidateProfile: {
       upsert: vi.fn().mockResolvedValue({ id: 'cp1' }),
+      findUnique: vi.fn().mockResolvedValue({ id: 'cp1', candidateId: 'c1' }),
+      update: vi.fn().mockResolvedValue({}),
     },
     candidateOnboardingSession: {
       update: vi.fn().mockResolvedValue({}),
@@ -26,8 +28,30 @@ vi.mock('@connekt/db', () => ({
     candidatePreferences: {
       upsert: vi.fn().mockResolvedValue({ id: 'pref1' }),
     },
+    candidateExperience: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({}),
+    },
+    candidateEducation: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({}),
+    },
+    candidateSkill: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({}),
+    },
+    candidateLanguage: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({}),
+    },
+    outboxEvent: {
+      create: vi.fn().mockResolvedValue({}),
+    },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
+    },
+    storedAsset: {
+      upsert: vi.fn().mockResolvedValue({}),
     },
   },
 }));
@@ -157,7 +181,7 @@ describe('OnboardingService', () => {
     }));
     expect(result).toEqual(expect.objectContaining({ ok: true, resumeId: 'cr1' }));
     expect(prisma.candidateOnboardingSession.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ resumeCompleted: true, status: 'completed' }) }),
+      expect.objectContaining({ data: expect.objectContaining({ resumeCompleted: true, status: 'pending' }) }),
     );
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'onboarding.resume_completed' }) }),

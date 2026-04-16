@@ -479,6 +479,51 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </Card>
             </section>
 
+            {/* Intro video section */}
+            {detail.candidate.profile?.introVideoKey && (
+              <section style={{ marginBottom: spacing.lg }}>
+                <Card>
+                  <CardHeader><CardTitle>Vídeo de apresentação</CardTitle></CardHeader>
+                  <CardContent style={{ display: 'grid', gap: spacing.md }}>
+                    <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, flexWrap: 'wrap', gap: spacing.xs }}>
+                        <Badge variant={detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? 'success' : 'warning'}>
+                          {detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? '✅ Analisado' : '⏳ Processando'}
+                        </Badge>
+                        {detail.candidate.profile.introVideoDurationSec != null && (
+                          <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
+                            Duração: {Math.floor(detail.candidate.profile.introVideoDurationSec / 60)}:{String(detail.candidate.profile.introVideoDurationSec % 60).padStart(2, '0')}
+                          </span>
+                        )}
+                      </div>
+                      {detail.candidate.profile.introVideoSummary && (
+                        <div style={{ marginTop: spacing.sm }}>
+                          <AiTag />
+                          <div style={{ marginTop: spacing.xs, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>
+                            {detail.candidate.profile.introVideoSummary}
+                          </div>
+                        </div>
+                      )}
+                      {Array.isArray(detail.candidate.profile.introVideoTags) && detail.candidate.profile.introVideoTags.length > 0 && (
+                        <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                          {detail.candidate.profile.introVideoTags.map((tag, idx) => (
+                            <span key={idx} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.infoLight, color: colors.infoDark, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
+                              {String(tag)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {detail.candidate.profile.introVideoSentimentJson && (
+                        <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, color: colors.textMuted }}>
+                          Sentimento: {String((detail.candidate.profile.introVideoSentimentJson as Record<string, unknown>).sentiment ?? 'N/A')}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </section>
+            )}
+
             {/* Smart Interview section (visible to all when data exists) */}
             {safeArray(detail.smartInterviewSessions).length > 0 && (
               <section style={{ marginBottom: spacing.lg }}>

@@ -3,9 +3,46 @@ import { prisma } from '@connekt/db';
 import { IntegrationsConfigService } from './integrations-config.service.js';
 import { OpenAiProvider } from './openai.provider.js';
 
+/** Simple token bucket rate limiter for AI provider calls */
+class ProviderRateLimiter {
+  private tokens: number;
+  private lastRefill: number;
+
+  constructor(
+    private readonly maxTokens: number = 60,
+    private readonly refillRatePerSecond: number = 1,
+  ) {
+    this.tokens = maxTokens;
+    this.lastRefill = Date.now();
+  }
+
+  async acquire(): Promise<void> {
+    this.refill();
+    if (this.tokens > 0) {
+      this.tokens--;
+      return;
+    }
+    const waitMs = Math.ceil((1 / this.refillRatePerSecond) * 1000);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    this.refill();
+    this.tokens = Math.max(0, this.tokens - 1);
+  }
+
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = (now - this.lastRefill) / 1000;
+    this.tokens = Math.min(this.maxTokens, this.tokens + elapsed * this.refillRatePerSecond);
+    this.lastRefill = now;
+  }
+}
+
 @Injectable()
 export class AiGateway {
   private readonly logger = new Logger(AiGateway.name);
+  private readonly rateLimiter = new ProviderRateLimiter(
+    parseInt(process.env.AI_RATE_LIMIT_MAX_TOKENS ?? '60', 10),
+    parseFloat(process.env.AI_RATE_LIMIT_REFILL_PER_SEC ?? '1'),
+  );
 
   constructor(
     @Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService,
@@ -30,6 +67,7 @@ export class AiGateway {
 
     if (this.isReal) {
       try {
+        await this.rateLimiter.acquire();
         const result = await realFn();
         return { result, provider, modelVersion };
       } catch (err) {
@@ -203,6 +241,33 @@ export class AiGateway {
     });
 
     return { provider, ...result };
+  }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    const useReal = process.env.FF_EMBEDDINGS_REAL === 'true';
+    if (useReal && this.isReal) {
+      try {
+        const embedding = await this.openai.generateEmbedding(text);
+        return embedding;
+      } catch (err) {
+        this.logger.warn(JSON.stringify({ event: 'embedding_real_failed', error: String(err) }));
+        if (this.config.shouldFallbackToMock('ai')) {
+          return this.mockEmbedding(text);
+        }
+        throw err;
+      }
+    }
+    return this.mockEmbedding(text);
+  }
+
+  private mockEmbedding(text: string): number[] {
+    const base = text.length || 1;
+    return [
+      Number(((base % 97) / 100).toFixed(3)),
+      Number(((base % 53) / 100).toFixed(3)),
+      Number(((base % 31) / 100).toFixed(3)),
+      Number(((base % 17) / 100).toFixed(3)),
+    ];
   }
 
   async analyzeRiskPatterns(input: { candidateId: string; vacancyId: string; context?: unknown }) {

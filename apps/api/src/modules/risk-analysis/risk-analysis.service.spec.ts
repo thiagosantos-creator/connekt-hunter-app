@@ -15,7 +15,7 @@ vi.mock('@connekt/db', () => ({
       findUnique: vi.fn().mockResolvedValue(null),
     },
     riskSignal: {
-      deleteMany: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({}),
       create: vi.fn().mockResolvedValue({}),
     },
     riskEvaluation: {

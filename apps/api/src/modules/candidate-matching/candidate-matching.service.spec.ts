@@ -54,6 +54,7 @@ const mockAiGateway = {
     evidences: [{ sourceType: 'resume', sourceRef: 'ref1', excerpt: 'text', confidence: 0.8 }],
   }),
   compareCandidates: vi.fn().mockResolvedValue({ winner: 'left', reason: 'higher score' }),
+  generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3, 0.4]),
 };
 
 import { CandidateMatchingService } from './candidate-matching.service.js';

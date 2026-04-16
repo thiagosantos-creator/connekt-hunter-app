@@ -25,7 +25,10 @@ export class RiskAnalysisService {
 
     const result = await this.aiGateway.analyzeRiskPatterns({ candidateId, vacancyId });
 
-    await prisma.riskSignal.deleteMany({ where: { candidateId, vacancyId } });
+    await prisma.riskSignal.updateMany({
+      where: { candidateId, vacancyId, status: 'active' },
+      data: { status: 'superseded' },
+    });
     for (const finding of result.findings) {
       await prisma.riskSignal.create({
         data: { candidateId, vacancyId, signalType: finding.type, severity: finding.severity, score: finding.score, details: { detail: finding.detail } as never },

@@ -21,7 +21,7 @@ vi.mock('@connekt/db', () => ({
       findUnique: vi.fn().mockResolvedValue({ id: 're1', riskScore: 0.3 }),
     },
     candidateRecommendation: {
-      deleteMany: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({}),
       create: vi.fn().mockResolvedValue({ id: 'cr1' }),
       findMany: vi.fn().mockResolvedValue([]),
     },

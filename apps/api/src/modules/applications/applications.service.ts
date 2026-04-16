@@ -3,16 +3,32 @@ import { prisma } from '@connekt/db';
 
 @Injectable()
 export class ApplicationsService {
-  findAll(organizationIds: string[], role: string) {
-    if (role === 'admin') {
-      return prisma.application.findMany({ include: { candidate: true, vacancy: true } });
+  findAll(organizationIds: string[], role: string, options?: { limit?: number; offset?: number; search?: string; status?: string }) {
+    const limit = Math.min(options?.limit ?? 50, 100);
+    const offset = options?.offset ?? 0;
+
+    const where: Record<string, unknown> = {};
+    if (role !== 'admin') {
+      where.vacancy = { organizationId: { in: organizationIds } };
     }
+    if (options?.status) {
+      where.status = options.status;
+    }
+    if (options?.search) {
+      const searchLike = `%${options.search}%`;
+      where.OR = [
+        { candidate: { email: { contains: options.search, mode: 'insensitive' } } },
+        { candidate: { profile: { fullName: { contains: options.search, mode: 'insensitive' } } } },
+        { vacancy: { title: { contains: options.search, mode: 'insensitive' } } },
+      ];
+    }
+
     return prisma.application.findMany({
-      where: { vacancy: { organizationId: { in: organizationIds } } },
-      include: {
-        candidate: true,
-        vacancy: true,
-      },
+      where,
+      include: { candidate: true, vacancy: true },
+      take: limit,
+      skip: offset,
+      orderBy: { createdAt: 'desc' },
     });
   }
 

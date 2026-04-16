@@ -24,10 +24,14 @@ describe('ApplicationsService', () => {
     vi.mocked(prisma.application.findMany).mockResolvedValue([]);
     const result = await service.findAll(['org_demo'], 'headhunter');
     expect(result).toEqual([]);
-    expect(prisma.application.findMany).toHaveBeenCalledWith({
-      where: { vacancy: { organizationId: { in: ['org_demo'] } } },
-      include: { candidate: true, vacancy: true },
-    });
+    expect(prisma.application.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { vacancy: { organizationId: { in: ['org_demo'] } } },
+        include: { candidate: true, vacancy: true },
+        take: 50,
+        skip: 0,
+      }),
+    );
   });
 
   it('returns rich application dossier for authorized users', async () => {

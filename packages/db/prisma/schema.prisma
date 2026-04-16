@@ -1072,11 +1072,13 @@ model RiskSignal {
   severity    String
   score       Float
   details     Json
+  status      String   @default("active")
   createdAt   DateTime @default(now())
   candidate   Candidate @relation(fields: [candidateId], references: [id])
   vacancy     Vacancy   @relation(fields: [vacancyId], references: [id])
 
   @@index([vacancyId, severity])
+  @@index([vacancyId, status])
 }
 
 model RiskEvaluation {

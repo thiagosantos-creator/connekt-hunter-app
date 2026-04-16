@@ -53,4 +53,30 @@ describe('ApplicationsService', () => {
       }),
     );
   });
+
+  it('applies pagination with limit and offset', async () => {
+    vi.mocked(prisma.application.findMany).mockResolvedValue([]);
+    await service.findAll(['org_demo'], 'headhunter', { limit: 10, offset: 20 });
+    expect(prisma.application.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 10, skip: 20 }),
+    );
+  });
+
+  it('caps limit at 100', async () => {
+    vi.mocked(prisma.application.findMany).mockResolvedValue([]);
+    await service.findAll(['org_demo'], 'headhunter', { limit: 999 });
+    expect(prisma.application.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 100 }),
+    );
+  });
+
+  it('applies status filter', async () => {
+    vi.mocked(prisma.application.findMany).mockResolvedValue([]);
+    await service.findAll(['org_demo'], 'headhunter', { status: 'shortlisted' });
+    expect(prisma.application.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'shortlisted' }),
+      }),
+    );
+  });
 });

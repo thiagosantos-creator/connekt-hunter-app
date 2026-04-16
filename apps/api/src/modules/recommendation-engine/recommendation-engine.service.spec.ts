@@ -87,4 +87,26 @@ describe('RecommendationEngineService', () => {
     vi.mocked(prisma.vacancy.findUnique).mockResolvedValue(null);
     await expect(service.list('v1', 'u1')).rejects.toThrow('vacancy_not_found');
   });
+
+  it('should supersede previous recommendations instead of deleting', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+
+    await service.generate('c1', 'v1', 'u1');
+    expect(prisma.candidateRecommendation.updateMany).toHaveBeenCalledWith({
+      where: { candidateId: 'c1', vacancyId: 'v1', status: 'active' },
+      data: { status: 'superseded' },
+    });
+  });
+
+  it('should list only active recommendations', async () => {
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+
+    await service.list('v1', 'u1');
+    expect(prisma.candidateRecommendation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { vacancyId: 'v1', status: 'active' } }),
+    );
+  });
 });

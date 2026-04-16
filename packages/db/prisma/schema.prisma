@@ -171,6 +171,7 @@ model TenantSettings {
   publicName              String?
   communicationDomain     String?
   contactEmail            String?
+  defaultFeedbackMessage  String?
   dataRetentionDays       Int      @default(365)
   auditRetentionDays      Int      @default(365)
   mfaRequiredRoles        String[]

@@ -162,6 +162,16 @@ export class EmailGateway {
           text: `Use este link para redefinir o acesso: ${resetUrl}`,
           html: `<p>Use este link para redefinir o acesso:</p><p><a href="${this.escapeHtml(resetUrl)}">Redefinir acesso</a></p>`,
         };
+      case 'candidate-feedback': {
+        const candidateName = this.toStringValue(payload.candidateName) || 'Candidato';
+        const feedbackMessage = this.toStringValue(payload.feedbackMessage);
+        const senderName = this.toStringValue(payload.senderName) || 'Equipe Connekt Hunter';
+        return {
+          subject: `Feedback sobre sua candidatura: ${vacancyTitle}`,
+          text: `Olá ${candidateName},\n\nSegue o feedback sobre sua candidatura para a vaga ${vacancyTitle}:\n\n${feedbackMessage}\n\nAtenciosamente,\n${senderName}`,
+          html: `<p>Olá <strong>${this.escapeHtml(candidateName)}</strong>,</p><p>Segue o feedback sobre sua candidatura para a vaga <strong>${this.escapeHtml(vacancyTitle)}</strong>:</p><div style="padding:16px;border-left:4px solid #4A90D9;margin:16px 0;background:#f8f9fa">${this.escapeHtml(feedbackMessage)}</div><p>Atenciosamente,<br/><strong>${this.escapeHtml(senderName)}</strong></p>`,
+        };
+      }
       default:
         return {
           subject: `Notificação Connekt Hunter: ${templateKey}`,

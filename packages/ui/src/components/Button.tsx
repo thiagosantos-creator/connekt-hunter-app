@@ -15,7 +15,7 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   secondary: { background: colors.surfaceAlt, color: colors.text, border: `1px solid ${colors.border}` },
   danger: { background: colors.danger, color: colors.textInverse, border: 'none' },
   ghost: { background: 'transparent', color: colors.textSecondary, border: 'none' },
-  outline: { background: 'transparent', color: colors.accent, border: `1px solid ${colors.border}` },
+  outline: { background: 'transparent', color: colors.accentDark, border: `1.5px solid ${colors.accentDark}` },
   success: { background: colors.success, color: colors.textInverse, border: 'none' },
 };
 

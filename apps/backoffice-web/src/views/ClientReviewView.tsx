@@ -455,7 +455,7 @@ export function ClientReviewView() {
                                   padding: '2px 8px',
                                   borderRadius: radius.full,
                                   background: colors.infoLight,
-                                  color: colors.info,
+                                  color: colors.infoDark,
                                   fontSize: fontSize.xs,
                                   fontWeight: fontWeight.medium,
                                 }}>
@@ -591,12 +591,17 @@ export function ClientReviewView() {
             <div style={{
               padding: spacing.md,
               borderRadius: radius.lg,
-              background: colors.surfaceAlt,
-              border: `1px solid ${colors.borderLight}`,
+              background: confirmDialog.kind === 'reject' ? colors.dangerLight : colors.surfaceAlt,
+              border: `2px solid ${confirmDialog.kind === 'reject' ? colors.danger : confirmDialog.kind === 'approve' ? colors.success : colors.borderLight}`,
               fontSize: fontSize.sm,
-              color: colors.textSecondary,
+              color: confirmDialog.kind === 'reject' ? colors.dangerDark : colors.textSecondary,
               lineHeight: 1.6,
             }}>
+              {confirmDialog.kind === 'reject' && (
+                <div style={{ fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>
+                  ⚠️ Ação irreversível
+                </div>
+              )}
               {decisionMeta[confirmDialog.kind].description}
             </div>
 
@@ -670,7 +675,7 @@ export function ClientReviewView() {
               borderRadius: radius.md,
               background: colors.infoLight,
               fontSize: fontSize.xs,
-              color: colors.info,
+              color: colors.infoDark,
               lineHeight: 1.6,
             }}>
               💡 Seu comentário será visível para o recrutador responsável e ficará registrado no histórico do candidato.

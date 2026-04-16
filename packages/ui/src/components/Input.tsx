@@ -213,7 +213,7 @@ export function Checkbox({ label, description, checked, onChange, disabled, id }
           height: 18,
           margin: 0,
           marginTop: 1,
-          accentColor: colors.primary,
+          accentColor: colors.accent,
           cursor: disabled ? 'not-allowed' : 'pointer',
           flexShrink: 0,
         }}

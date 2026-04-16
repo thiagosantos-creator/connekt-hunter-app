@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors, radius, spacing, fontSize, fontWeight, shadows } from '../tokens/tokens.js';
+import { colors, radius, spacing, fontSize, fontWeight, shadows, zIndex } from '../tokens/tokens.js';
 
 /* -------------------------------------------------------------------------- */
 /*  Layout components — AppShell, PageHeader, Sidebar-like nav                */
@@ -102,7 +102,7 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
 /** AI tag provenance */
 export function AiTag() {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: fontSize.xs, color: colors.info, fontWeight: fontWeight.medium }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: fontSize.xs, color: colors.infoDark, fontWeight: fontWeight.medium }}>
       🤖 Assistido por IA
     </span>
   );
@@ -198,7 +198,7 @@ export interface ToastItem {
 
 export function Toast({ items, onDismiss }: { items: ToastItem[]; onDismiss: (id: string) => void }) {
   return (
-    <div style={{ position: 'fixed', top: spacing.lg, right: spacing.lg, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: spacing.sm, maxWidth: 400 }}>
+    <div style={{ position: 'fixed', top: spacing.lg, right: spacing.lg, zIndex: zIndex.toast, display: 'flex', flexDirection: 'column', gap: spacing.sm, maxWidth: 400 }}>
       {items.map((item) => (
         <div
           key={item.id}
@@ -237,18 +237,22 @@ export interface Tab {
 
 export function Tabs({ tabs, active, onChange }: { tabs: Tab[]; active: string; onChange: (key: string) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 0, borderBottom: `2px solid ${colors.borderLight}`, marginBottom: spacing.lg }}>
+    <div role="tablist" aria-label="Abas de navegação" style={{ display: 'flex', gap: 0, borderBottom: `2px solid ${colors.borderLight}`, marginBottom: spacing.lg }}>
       {tabs.map((tab) => {
         const isActive = tab.key === active;
         return (
           <button
             key={tab.key}
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`tabpanel-${tab.key}`}
+            id={`tab-${tab.key}`}
             onClick={() => onChange(tab.key)}
             style={{
               padding: `${spacing.sm + 2}px ${spacing.md}px`,
               fontSize: fontSize.sm,
               fontWeight: isActive ? fontWeight.semibold : fontWeight.normal,
-              color: isActive ? colors.accent : colors.textSecondary,
+              color: isActive ? colors.accentDark : colors.textSecondary,
               background: 'none',
               border: 'none',
               borderBottom: isActive ? `2px solid ${colors.accent}` : '2px solid transparent',
@@ -335,7 +339,7 @@ export function GlobalStyles() {
         line-height: 1.5;
       }
       a { color: ${colors.accent}; text-decoration: none; transition: color 0.15s ease; }
-      a:hover { color: ${colors.accentLight}; text-decoration: none; }
+      a:hover { color: ${colors.accentHover}; text-decoration: none; }
 
       /* ─── Focus-visible utility: all interactive elements ─── */
       a:focus-visible,
@@ -381,6 +385,26 @@ export function GlobalStyles() {
         transform: translateY(-4px);
         box-shadow: ${shadows.lg};
         border-color: ${colors.border};
+      }
+
+      /* ─── Motion preferences ─── */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* ─── High-contrast preferences ─── */
+      @media (prefers-contrast: more) {
+        body { background: #ffffff; color: #000000; }
+        a { color: #0000cc; }
+        a:hover { color: #000080; }
+        button, input, select, textarea {
+          border-color: #000000 !important;
+          outline-color: #000000 !important;
+        }
       }
     `}</style>
   );

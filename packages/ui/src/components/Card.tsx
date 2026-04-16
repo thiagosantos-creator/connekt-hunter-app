@@ -30,11 +30,12 @@ export function CardHeader({ children, style }: { children: React.ReactNode; sty
   );
 }
 
-export function CardTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+export function CardTitle({ children, style, level = 3 }: { children: React.ReactNode; style?: React.CSSProperties; level?: 1 | 2 | 3 | 4 }) {
+  const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
   return (
-    <h3 style={{ margin: 0, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text, ...style }}>
+    <Tag style={{ margin: 0, fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text, ...style }}>
       {children}
-    </h3>
+    </Tag>
   );
 }
 

@@ -474,13 +474,33 @@ export function StatusView() {
           <CardContent>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.md }}>
               <span style={{ fontSize: 32, flexShrink: 0 }}>✅</span>
-              <div>
-                <div style={{ fontWeight: fontWeight.bold, fontSize: fontSize.md, color: colors.success, marginBottom: spacing.xs }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: fontWeight.bold, fontSize: fontSize.md, color: colors.successDark, marginBottom: spacing.xs }}>
                   Candidatura enviada com sucesso!
                 </div>
                 <p style={{ margin: `0 0 ${spacing.md}px`, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 1.6 }}>
                   Seu currículo foi recebido. Nossa equipe irá analisar seu perfil e entraremos em contato sobre as próximas etapas.
                 </p>
+
+                {/* Next steps timeline */}
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: spacing.sm }}>
+                    O que acontece agora?
+                  </div>
+                  <div style={{ display: 'grid', gap: spacing.xs }}>
+                    {[
+                      { icon: '🔍', text: 'Revisão do perfil pela equipe de recrutamento' },
+                      { icon: '🤖', text: 'Análise de compatibilidade com a vaga (IA assistida)' },
+                      { icon: '📬', text: 'Retorno por e-mail em até 5–10 dias úteis' },
+                    ].map(({ icon, text }) => (
+                      <div key={text} style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, padding: `${spacing.xs}px 0` }}>
+                        <span style={{ flexShrink: 0 }}>{icon}</span>
+                        <span style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>{text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {(!preferencesComplete || !introVideoComplete) && (
                   <div>
                     <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: spacing.sm }}>
@@ -582,7 +602,7 @@ export function StatusView() {
                     <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>Habilidades identificadas</div>
                     <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
                       {parsedResume.parsedData.skills!.map((skill, i) => (
-                        <span key={i} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.infoLight, color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
+                        <span key={i} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.infoLight, color: colors.infoDark, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
                           {typeof skill === 'string' ? skill : skill.name ?? ''}
                         </span>
                       ))}

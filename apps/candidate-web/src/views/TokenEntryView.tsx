@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiGet } from '../services/api.js';
+import { extractErrorMessage } from '../services/error-messages.js';
 import type { CandidateInfo } from '../services/types.js';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, InlineMessage, Input, spacing } from '@connekt/ui';
 
@@ -27,14 +28,14 @@ export function TokenEntryView() {
     try {
       const candidate = await apiGet<CandidateInfo>(`/candidate/token/${encodeURIComponent(normalized)}`);
       if (!candidate) {
-        setError('Token não encontrado.');
+        setError('Código de acesso não encontrado. Verifique se o código está correto.');
         return;
       }
       localStorage.setItem('invite_token', normalized);
       localStorage.setItem('candidate_info', JSON.stringify(candidate));
       navigate(getNextStep(candidate), { replace: true });
     } catch (err) {
-      setError(String(err));
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -65,7 +66,8 @@ export function TokenEntryView() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               required
-              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              placeholder="Cole aqui o código recebido"
+              hint="Use o código enviado por e-mail, SMS ou WhatsApp. O código é longo — copie e cole para evitar erros."
               style={{ fontFamily: 'monospace' }}
             />
             {error && <InlineMessage variant="error">{error}</InlineMessage>}

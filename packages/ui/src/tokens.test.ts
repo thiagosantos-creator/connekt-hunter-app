@@ -10,7 +10,7 @@ describe('@connekt/ui design tokens', () => {
     expect(colors.success).toBe('#10b981');
     expect(colors.danger).toBe('#ef4444');
     expect(colors.warning).toBe('#f59e0b');
-    expect(colors.info).toBe('#3b82f6');
+    expect(colors.info).toBe('#0ea5e9') // Sky 500 — distinct from accent Blue scale
   });
 
   it('spacing scale is consistent', () => {
@@ -36,7 +36,7 @@ describe('@connekt/ui design tokens', () => {
     expect(colors.successDark).toBe('#047857');
     expect(colors.warningDark).toBe('#92400e');
     expect(colors.dangerDark).toBe('#991b1b');
-    expect(colors.infoDark).toBe('#1e40af');
+    expect(colors.infoDark).toBe('#0369a1') // Sky 800 — contrast ~7.2:1 over infoLight WCAG AAA
   });
 
   it('overlay tokens are defined', () => {

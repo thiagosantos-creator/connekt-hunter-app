@@ -5,6 +5,11 @@ import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';
 
+const navLinksStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', flex: 1,
+  scrollbarWidth: 'none', msOverflowStyle: 'none',
+};
+
 interface NavSection {
   group?: string;
   items: Array<{ label: string; to: string }>;
@@ -13,6 +18,7 @@ interface NavSection {
 const navByRole: Record<string, NavSection[]> = {
   admin: [
     {
+      group: 'Pipeline',
       items: [
         { label: 'Vagas', to: '/vacancies' },
         { label: 'Candidatos', to: '/candidates' },
@@ -21,6 +27,7 @@ const navByRole: Record<string, NavSection[]> = {
       ],
     },
     {
+      group: 'Avaliação',
       items: [
         { label: 'Shortlist', to: '/shortlist' },
         { label: 'Avaliação do Cliente', to: '/client-review' },
@@ -29,6 +36,7 @@ const navByRole: Record<string, NavSection[]> = {
       ],
     },
     {
+      group: 'Administração',
       items: [
         { label: 'Usuários', to: '/admin/users' },
         { label: 'Empresas', to: '/admin/organizations' },
@@ -38,6 +46,7 @@ const navByRole: Record<string, NavSection[]> = {
       ],
     },
     {
+      group: 'Conta',
       items: [
         { label: 'Notificações', to: '/notifications' },
         { label: 'Conta', to: '/account' },
@@ -121,14 +130,31 @@ export function NavBar() {
       </div>
 
       {/* Nav links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflow: 'hidden', flex: 1 }}>
+      <div style={navLinksStyle}>
         {sections.map((section, sIdx) => (
           <React.Fragment key={sIdx}>
             {sIdx > 0 && (
               <span
                 aria-hidden="true"
-                style={{ width: 1, height: 18, background: colors.overlayMedium, margin: `0 ${spacing.xs}px`, flexShrink: 0 }}
+                style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.25)', margin: `0 ${spacing.xs}px`, flexShrink: 0 }}
               />
+            )}
+            {section.group && (
+              <span
+                aria-hidden="true"
+                style={{
+                  fontSize: 10,
+                  fontWeight: fontWeight.bold,
+                  color: 'rgba(255,255,255,0.45)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  padding: `0 ${spacing.xs}px`,
+                  whiteSpace: 'nowrap',
+                  alignSelf: 'center',
+                }}
+              >
+                {section.group}
+              </span>
             )}
             {section.items.map((item) => {
               const active = location.pathname === item.to;
@@ -139,7 +165,7 @@ export function NavBar() {
                   aria-current={active ? 'page' : undefined}
                   className="connekt-nav-link"
                   style={{
-                    color: active ? colors.textInverse : colors.overlayHeavy,
+                    color: active ? colors.textInverse : 'rgba(255,255,255,0.75)',
                     textDecoration: 'none',
                     fontSize: fontSize.sm,
                     fontWeight: active ? fontWeight.semibold : fontWeight.normal,

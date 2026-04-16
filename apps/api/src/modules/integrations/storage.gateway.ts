@@ -35,6 +35,7 @@ export class StorageGateway {
    *  so browsers can upload directly to MinIO. Defaults to S3_ENDPOINT. */
   private readonly publicEndpoint = process.env.S3_PUBLIC_ENDPOINT ?? process.env.S3_ENDPOINT;
   private readonly s3: S3Client;
+  private readonly publicS3: S3Client;
   private bucketReady = false;
 
   constructor(@Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService) {
@@ -42,6 +43,13 @@ export class StorageGateway {
       region: this.region,
       endpoint: this.endpoint,
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' || Boolean(this.endpoint),
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
+    });
+    this.publicS3 = new S3Client({
+      region: this.region,
+      endpoint: this.publicEndpoint,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' || Boolean(this.publicEndpoint),
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
     });
@@ -59,6 +67,9 @@ export class StorageGateway {
       parsed.protocol = pub.protocol;
       parsed.hostname = pub.hostname;
       parsed.port = pub.port;
+      if (parsed.hostname === 'host.docker.internal' && process.env.APP_ENV === 'local') {
+        parsed.hostname = 'localhost';
+      }
       return parsed.toString();
     } catch {
       // If the URL cannot be parsed (e.g. relative or malformed), return it unchanged.
@@ -119,7 +130,8 @@ export class StorageGateway {
       },
     });
 
-    const internalUrl = await getSignedUrl(this.s3, command, { expiresIn: 900 });
+    const signingClient = this.publicEndpoint ? this.publicS3 : this.s3;
+    const internalUrl = await getSignedUrl(signingClient, command, { expiresIn: 900 });
     const url = this.toPublicUrl(internalUrl);
 
     await prisma.providerExecutionLog.create({
@@ -166,7 +178,8 @@ export class StorageGateway {
       Bucket: this.bucket,
       Key: objectKey,
     });
-    const internalUrl = await getSignedUrl(this.s3, command, { expiresIn });
+    const signingClient = this.publicEndpoint ? this.publicS3 : this.s3;
+    const internalUrl = await getSignedUrl(signingClient, command, { expiresIn });
     return this.toPublicUrl(internalUrl);
   }
 

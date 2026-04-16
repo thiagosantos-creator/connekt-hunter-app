@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
+  CandidateDossier,
   Card,
   CardContent,
   CardHeader,
@@ -14,6 +15,7 @@ import {
   PageHeader,
   ScoreGauge,
   Select,
+  Spinner,
   StatBox,
   StatusPill,
   TableSkeleton,
@@ -29,11 +31,31 @@ import {
 } from '@connekt/ui';
 import { useAuth } from '../hooks/useAuth.js';
 import { apiGet, apiPost } from '../services/api.js';
-import type { Decision, ShortlistItemWithApplication, Vacancy } from '../services/types.js';
+import type { 
+  ApplicationDetail, 
+  Decision, 
+  ShortlistItemWithApplication, 
+  Vacancy,
+  CandidateInsightRecord,
+  CandidateMatchingRecord,
+  CandidateRecommendation,
+  CandidateRiskRecord,
+  WorkflowSuggestion,
+} from '../services/types.js';
 
-/* ── Decision helpers ────────────────────────────────────────────────── */
+/* ── Types & Helpers ────────────────────────────────────────────────── */
+
+const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
 
 type DecisionKind = 'approve' | 'reject' | 'interview' | 'hold';
+
+interface IntelligenceBundle {
+  matching?: CandidateMatchingRecord;
+  risk?: CandidateRiskRecord;
+  insights?: CandidateInsightRecord;
+  recommendations: CandidateRecommendation[];
+  workflowSuggestions: WorkflowSuggestion[];
+}
 
 interface DecisionMetaEntry {
   label: string;
@@ -53,22 +75,12 @@ const decisionMeta: Record<DecisionKind, DecisionMetaEntry> = {
 
 const decisionOrder: DecisionKind[] = ['approve', 'interview', 'hold', 'reject'];
 
-/* ── Utility helpers ─────────────────────────────────────────────────── */
-
-const MS_PER_DAY = 86_400_000;
+async function getOrCompute<T>(getUrl: string, postUrl: string, body: Record<string, string>): Promise<T> {
+  return apiGet<T>(getUrl).catch(() => apiPost<T>(postUrl, body));
+}
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
-
-const formatRelativeDate = (iso?: string) => {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / MS_PER_DAY);
-  if (days === 0) return 'Hoje';
-  if (days === 1) return 'Ontem';
-  if (days < 30) return `${days} dias atrás`;
-  return new Date(iso).toLocaleDateString('pt-BR');
-};
 
 /* ── Main view ───────────────────────────────────────────────────────── */
 
@@ -76,70 +88,118 @@ export function ClientReviewView() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  /* data state */
+  /* ── State ─────────────────────────────────────────────────────────── */
   const [items, setItems] = useState<ShortlistItemWithApplication[]>([]);
   const [decisions, setDecisions] = useState<Record<string, string>>({});
   const [vacancyList, setVacancyList] = useState<Vacancy[]>([]);
   const [loading, setLoading] = useState(true);
 
+  /* Workspace selection */
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ApplicationDetail | null>(null);
+  const [selectedIntelligence, setSelectedIntelligence] = useState<IntelligenceBundle>({ recommendations: [], workflowSuggestions: [] });
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
   /* UI state */
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('pending');
   const [vacancyFilter, setVacancyFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  /* feedback */
+  /* Feedback */
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
 
-  /* decision confirm dialog */
-  const [confirmDialog, setConfirmDialog] = useState<{ itemId: string; kind: DecisionKind; candidateName: string } | null>(null);
+  /* Decision & Comments */
+  const [confirmDialog, setConfirmDialog] = useState<{ itemId: string; kind: DecisionKind; candidateName: string; shortlistItemId: string } | null>(null);
   const [deciding, setDeciding] = useState(false);
-
-  /* comment dialog */
   const [commentDialog, setCommentDialog] = useState<{ appId: string; candidateName: string } | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commenting, setCommenting] = useState(false);
 
-  /* ── Data loading ─────────────────────────────────────────────────── */
+  /* ── Initial Load ─────────────────────────────────────────────────── */
 
   useEffect(() => {
     void Promise.all([
-      apiGet<ShortlistItemWithApplication[]>('/shortlist/items').then(setItems),
+      apiGet<ShortlistItemWithApplication[]>('/shortlist/items').then((data) => {
+          setItems(data);
+          const pending = data.filter(i => !decisions[i.id]);
+          if (pending.length > 0 && !selectedAppId) {
+            setSelectedAppId(pending[0].applicationId);
+          }
+      }),
       apiGet<Array<{ id: string; shortlistItemId: string; decision: string }>>('/client-decisions')
         .then((list) => {
           const map: Record<string, string> = {};
           list.forEach((d) => { map[d.shortlistItemId] = d.decision; });
           setDecisions(map);
-        })
-        .catch(() => undefined),
-      apiGet<Vacancy[]>('/vacancies').then(setVacancyList).catch(() => undefined),
+        }),
+      apiGet<Vacancy[]>('/vacancies').then(setVacancyList),
     ]).finally(() => setLoading(false));
   }, []);
 
-  /* ── Computed data ────────────────────────────────────────────────── */
+  /* ── Selection Synch ──────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!selectedAppId) {
+      setSelectedDetail(null);
+      setSelectedIntelligence({ recommendations: [], workflowSuggestions: [] });
+      return;
+    }
+
+    let cancelled = false;
+    const loadSelection = async () => {
+      setLoadingDetail(true);
+      try {
+        const detail = await apiGet<ApplicationDetail>(`/applications/${selectedAppId}`);
+        if (cancelled) return;
+        setSelectedDetail(detail);
+
+        const candidateId = detail.candidate.id;
+        const vacancyId = detail.vacancy.id;
+        const [matching, risk, insights, recommendations, workflowSuggestions] = await Promise.all([
+          getOrCompute<CandidateMatchingRecord>(
+            `/candidate-matching/${vacancyId}/${candidateId}`,
+            '/candidate-matching/compute',
+            { applicationId: selectedAppId },
+          ),
+          getOrCompute<CandidateRiskRecord>(
+            `/risk-analysis?candidateId=${encodeURIComponent(candidateId)}&vacancyId=${encodeURIComponent(vacancyId)}`,
+            '/risk-analysis/analyze',
+            { candidateId, vacancyId },
+          ),
+          getOrCompute<CandidateInsightRecord>(
+            `/candidate-insights/${vacancyId}/${candidateId}`,
+            '/candidate-insights/generate',
+            { candidateId, vacancyId },
+          ),
+          apiGet<CandidateRecommendation[]>(`/recommendation-engine/${vacancyId}`)
+            .then((items) => items.filter((item) => item.candidateId === candidateId))
+            .then(async (items) => items.length > 0 ? items : apiPost<CandidateRecommendation[]>('/recommendation-engine/generate', { candidateId, vacancyId }))
+            .catch(() => []),
+          Promise.resolve([]),
+        ]);
+
+        if (cancelled) return;
+        setSelectedIntelligence({ matching, risk, insights, recommendations, workflowSuggestions });
+      } catch (err) {
+        console.error('Error loading dossier for workspace:', err);
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    };
+
+    void loadSelection();
+    return () => { cancelled = true; };
+  }, [selectedAppId]);
+
+  /* ── Computed ─────────────────────────────────────────────────────── */
 
   const stats = useMemo(() => {
     const total = items.length;
     const pending = items.filter((i) => !decisions[i.id]).length;
-    const approved = items.filter((i) => decisions[i.id] === 'approve').length;
-    const rejected = items.filter((i) => decisions[i.id] === 'reject').length;
-    const interview = items.filter((i) => decisions[i.id] === 'interview').length;
-    const hold = items.filter((i) => decisions[i.id] === 'hold').length;
     const progress = total > 0 ? Math.round(((total - pending) / total) * 100) : 0;
-    return { total, pending, approved, rejected, interview, hold, progress };
+    return { total, pending, progress };
   }, [items, decisions]);
-
-  const vacancyStats = useMemo(() => {
-    const total = vacancyList.length;
-    const open = vacancyList.filter((v) => v.status === 'active').length;
-    const closed = vacancyList.filter((v) => v.status === 'disabled' || v.status === 'expired').length;
-    const inGuarantee = vacancyList.filter((v) => v.guaranteeEndDate && new Date(v.guaranteeEndDate) > new Date()).length;
-    const closedWithTime = vacancyList.filter((v) => v.closedAt && v.publishedAt);
-    const avgClosingDays = closedWithTime.length > 0
-      ? Math.round(closedWithTime.reduce((sum, v) => sum + (new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime()) / MS_PER_DAY, 0) / closedWithTime.length)
-      : 0;
-    return { total, open, closed, inGuarantee, avgClosingDays };
-  }, [vacancyList]);
 
   const vacancies = useMemo(() => {
     const seen = new Map<string, string>();
@@ -149,27 +209,17 @@ export function ClientReviewView() {
 
   const filteredItems = useMemo(() => {
     let result = items;
-
-    /* tab filter */
     if (activeTab === 'pending') result = result.filter((i) => !decisions[i.id]);
     else if (activeTab === 'decided') result = result.filter((i) => Boolean(decisions[i.id]));
-    else if (activeTab === 'approved') result = result.filter((i) => decisions[i.id] === 'approve');
-    else if (activeTab === 'rejected') result = result.filter((i) => decisions[i.id] === 'reject');
-
-    /* vacancy filter */
     if (vacancyFilter) result = result.filter((i) => i.application.vacancy.id === vacancyFilter);
-
-    /* search */
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter((i) => {
         const name = (i.application.candidate.profile?.fullName ?? '').toLowerCase();
-        const email = i.application.candidate.email.toLowerCase();
         const vacancy = i.application.vacancy.title.toLowerCase();
-        return name.includes(q) || email.includes(q) || vacancy.includes(q);
+        return name.includes(q) || vacancy.includes(q);
       });
     }
-
     return result;
   }, [items, decisions, activeTab, vacancyFilter, searchTerm]);
 
@@ -179,17 +229,13 @@ export function ClientReviewView() {
     if (!user) return;
     setDeciding(true);
     try {
-      await apiPost<Decision>('/client-decisions', {
-        shortlistItemId,
-        reviewerId: user.id,
-        decision,
-      });
+      await apiPost<Decision>('/client-decisions', { shortlistItemId, reviewerId: user.id, decision });
       setDecisions((prev) => ({ ...prev, [shortlistItemId]: decision }));
-      setMsg(`Decisão "${decisionMeta[decision].label}" registrada com sucesso.`);
+      setMsg(`Candidato ${decision === 'approve' ? 'aprovado' : decision === 'reject' ? 'recusado' : 'atualizado'} com sucesso.`);
       setMsgVariant('success');
       setConfirmDialog(null);
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : String(error));
+      setMsg(error instanceof Error ? error.message : 'Falha ao registrar decisão.');
       setMsgVariant('error');
     } finally {
       setDeciding(false);
@@ -201,462 +247,267 @@ export function ClientReviewView() {
     setCommenting(true);
     try {
       await apiPost('/client-comments', { applicationId: commentDialog.appId, comment: commentText });
-      setMsg('Comentário enviado com sucesso.');
+      setMsg('Feedback enviado para o recrutador.');
       setMsgVariant('success');
       setCommentDialog(null);
       setCommentText('');
     } catch (error) {
-      setMsg(error instanceof Error ? error.message : String(error));
+      setMsg('Falha ao enviar comentário.');
       setMsgVariant('error');
     } finally {
       setCommenting(false);
     }
   }, [commentDialog, commentText]);
 
-  const openDecisionConfirm = (itemId: string, kind: DecisionKind, candidateName: string) => {
-    setConfirmDialog({ itemId, kind, candidateName });
-  };
-
-  const changeDecision = (itemId: string, candidateName: string) => {
-    setDecisions((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
-    setMsg(`Decisão anterior removida. Selecione uma nova decisão para ${candidateName}.`);
-    setMsgVariant('success');
-  };
-
-  /* ── Tab configuration ────────────────────────────────────────────── */
-
-  const tabs = [
-    { key: 'all', label: 'Todos', badge: stats.total },
-    { key: 'pending', label: 'Pendentes', badge: stats.pending },
-    { key: 'approved', label: 'Aprovados', badge: stats.approved },
-    { key: 'decided', label: 'Decididos', badge: stats.total - stats.pending },
-    { key: 'rejected', label: 'Rejeitados', badge: stats.rejected },
-  ];
-
   /* ── Render ────────────────────────────────────────────────────────── */
 
-  return (
-    <PageContent>
-      {/* Header */}
-      <PageHeader
-        title="Avaliação de Candidatos"
-        description="Analise o perfil de cada candidato com inteligência assistiva e registre sua decisão."
-      />
-
-      {/* Feedback message */}
-      {msg && (
-        <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>
-          {msg}
-        </InlineMessage>
-      )}
-
-      {/* Loading state */}
-      {loading ? (
-        <div style={{ display: 'grid', gap: spacing.lg }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md }}>
-            <TableSkeleton rows={1} columns={5} />
-          </div>
-          <TableSkeleton rows={3} columns={4} />
+  if (loading) {
+    return (
+      <PageContent>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: spacing.md }}>
+          <Spinner size={40} />
+          <div style={{ color: colors.textSecondary }}>Carregando painel de decisões...</div>
         </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          title="Nenhum candidato na shortlist"
-          description="Os candidatos pré-selecionados aparecerão aqui quando o recrutador enviar para sua revisão."
-          icon="📋"
-        />
-      ) : (
-        <>
-          {/* Stats dashboard */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
-            <StatBox label="Total na shortlist" value={stats.total} subtext="candidatos para revisão" />
-            <StatBox label="Pendentes" value={stats.pending} subtext={stats.pending === 0 ? 'Tudo revisado!' : 'aguardando decisão'} />
-            <StatBox label="Aprovados" value={stats.approved} subtext="candidatos aprovados" />
-            <StatBox label="Entrevistas" value={stats.interview} subtext="agendamentos solicitados" />
-            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.borderLight}`, borderRadius: radius.lg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: shadows.sm, transition: 'all 0.2s ease', cursor: 'default' }} className="hover-card">
-              <ScoreGauge value={stats.progress} size={56} strokeWidth={5} />
-              <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }}>Progresso</div>
-            </div>
-          </div>
+      </PageContent>
+    );
+  }
 
-          {/* ── Vacancy metrics for the company ──────────────────────── */}
-          {vacancyList.length > 0 && (
-            <Card style={{ marginBottom: spacing.lg }}>
-              <CardHeader>
-                <CardTitle>📊 Métricas de Vagas</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md, marginBottom: spacing.md }}>
-                  <StatBox label="Total de vagas" value={vacancyStats.total} />
-                  <StatBox label="Abertas" value={vacancyStats.open} subtext="Vagas ativas" />
-                  <StatBox label="Fechadas" value={vacancyStats.closed} subtext="Desativadas/expiradas" />
-                  <StatBox label="Em Garantia" value={vacancyStats.inGuarantee} subtext="Dentro dos 90 dias" />
-                  <StatBox label="Tempo médio" value={`${vacancyStats.avgClosingDays}d`} subtext="Dias para fechamento" />
-                </div>
-                {/* Vacancy summary table */}
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: fontSize.sm }}>
-                    <thead>
-                      <tr style={{ borderBottom: `2px solid ${colors.border}`, textAlign: 'left' }}>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Vaga</th>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Status</th>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Aberta em</th>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Fechada em</th>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Tempo (dias)</th>
-                        <th style={{ padding: spacing.sm, color: colors.textSecondary }}>Garantia</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {vacancyList.map((v) => {
-                        const closingDays = v.closedAt && v.publishedAt
-                          ? Math.round((new Date(v.closedAt).getTime() - new Date(v.publishedAt).getTime()) / MS_PER_DAY)
-                          : null;
-                        const guaranteeDays = v.guaranteeEndDate
-                          ? Math.ceil((new Date(v.guaranteeEndDate).getTime() - Date.now()) / MS_PER_DAY)
-                          : null;
-                        const statusMap: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
-                          active: { label: 'Ativa', variant: 'success' },
-                          frozen: { label: 'Congelada', variant: 'warning' },
-                          disabled: { label: 'Fechada', variant: 'danger' },
-                          expired: { label: 'Expirada', variant: 'danger' },
-                        };
-                        const statusConfig = statusMap[v.status ?? 'active'] ?? { label: v.status ?? '-', variant: 'info' as const };
-                        return (
-                          <tr key={v.id} style={{ borderBottom: `1px solid ${colors.borderLight}` }}>
-                            <td style={{ padding: spacing.sm, fontWeight: fontWeight.medium }}>{v.title}</td>
-                            <td style={{ padding: spacing.sm }}><Badge variant={statusConfig.variant} size="sm">{statusConfig.label}</Badge></td>
-                            <td style={{ padding: spacing.sm }}>{v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('pt-BR') : '-'}</td>
-                            <td style={{ padding: spacing.sm }}>{v.closedAt ? new Date(v.closedAt).toLocaleDateString('pt-BR') : '-'}</td>
-                            <td style={{ padding: spacing.sm }}>{closingDays != null ? `${closingDays}d` : '-'}</td>
-                            <td style={{ padding: spacing.sm }}>
-                              {guaranteeDays == null ? '-' : guaranteeDays <= 0
-                                ? <Badge variant="danger" size="sm">Expirada</Badge>
-                                : <Badge variant={guaranteeDays <= 15 ? 'warning' : 'success'} size="sm">{guaranteeDays}d restantes</Badge>}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Filters bar */}
-          <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: spacing.md }}>
-            <div style={{ flex: '1 1 280px', minWidth: 200 }}>
-              <Input
-                label="Buscar candidato"
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nome, e-mail ou vaga..."
+  return (
+    <PageContent style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', background: colors.surface }}>
+        
+        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+          <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
+            <h1 style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, margin: 0, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              Shortlist <Badge variant="info">{stats.total}</Badge>
+            </h1>
+            <p style={{ fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 }}>Selecione um perfil para analisar e decidir.</p>
+            
+            <div style={{ marginTop: spacing.md, display: 'grid', gap: spacing.xs }}>
+              <Input 
+                placeholder="Filtrar por nome..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)}
+                size="sm"
+              />
+              <Select 
+                value={vacancyFilter} 
+                onChange={e => setVacancyFilter(e.target.value)}
+                options={[{ value: '', label: 'Todas as vagas' }, ...vacancies]}
+                size="sm"
               />
             </div>
-            {vacancies.length > 1 && (
-              <div style={{ flex: '0 1 260px', minWidth: 180 }}>
-                <Select
-                  label="Filtrar por vaga"
-                  value={vacancyFilter}
-                  onChange={(e) => setVacancyFilter(e.target.value)}
-                  options={[{ value: '', label: 'Todas as vagas' }, ...vacancies]}
-                />
+          </div>
+
+          <div style={{ padding: `${spacing.sm}px ${spacing.lg}px`, background: colors.surface, borderBottom: `1px solid ${colors.borderLight}` }}>
+             <Tabs 
+                tabs={[
+                  { key: 'pending', label: 'Pendentes', badge: stats.pending },
+                  { key: 'decided', label: 'Decididos', badge: stats.total - stats.pending },
+                ]} 
+                active={activeTab} 
+                onChange={setActiveTab} 
+                size="sm"
+             />
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: spacing.sm }}>
+            {filteredItems.length === 0 ? (
+              <EmptyState title="Nenhum perfil" description="Ajuste os filtros" size="sm" />
+            ) : (
+              <div style={{ display: 'grid', gap: spacing.sm }}>
+                {filteredItems.map(item => {
+                  const isActive = selectedAppId === item.applicationId;
+                  const decision = decisions[item.id] as DecisionKind;
+                  const candidateName = item.application.candidate.profile?.fullName || item.application.candidate.email;
+                  
+                  return (
+                    <div 
+                      key={item.id}
+                      onClick={() => setSelectedAppId(item.applicationId)}
+                      style={{
+                        padding: spacing.md,
+                        borderRadius: radius.lg,
+                        background: isActive ? colors.primaryLight : colors.surface,
+                        border: `1px solid ${isActive ? colors.primary : colors.borderLight}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isActive ? shadows.sm : 'none',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                        <div style={{ 
+                          width: 36, height: 36, borderRadius: radius.full, 
+                          background: isActive ? colors.surface : colors.primaryLight,
+                          color: isActive ? colors.primary : colors.textInverse,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: fontSize.sm, fontWeight: fontWeight.bold, flexShrink: 0
+                        }}>
+                          {item.application.candidate.profile?.photoUrl ? (
+                            <img src={item.application.candidate.profile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          ) : initials(candidateName)}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isActive ? colors.textInverse : colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {candidateName}
+                          </div>
+                          <div style={{ fontSize: fontSize.xs, color: isActive ? 'rgba(255,255,255,0.8)' : colors.textSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.application.vacancy.title}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {decision && (
+                        <div style={{ marginTop: spacing.xs }}>
+                          <Badge variant={decisionMeta[decision].badge} size="xs">
+                            {decisionMeta[decision].icon} {decisionMeta[decision].label}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Tabs */}
-          <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
-
-          {/* Candidate cards */}
-          {filteredItems.length === 0 ? (
-            <EmptyState
-              title="Nenhum candidato encontrado"
-              description="Ajuste os filtros ou a aba para ver outros candidatos."
-              icon="🔍"
-            />
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.md }}>
-              {filteredItems.map((item) => {
-                const candidate = item.application.candidate;
-                const vacancy = item.application.vacancy;
-                const name = candidate.profile?.fullName || candidate.email;
-                const current = decisions[item.id] as DecisionKind | undefined;
-                const meta = current ? decisionMeta[current] : null;
-
-                return (
-                  <Card key={item.id} className="hover-card" style={{ overflow: 'hidden', border: current ? `1px solid ${meta!.cardBorder}` : undefined }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
-                      {/* Left: candidate info */}
-                      <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>
-                        {/* Avatar */}
-                        <div style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: radius.full,
-                          background: colors.primaryLight,
-                          color: colors.textInverse,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: fontSize.lg,
-                          fontWeight: fontWeight.bold,
-                          flexShrink: 0,
-                          overflow: 'hidden',
-                        }}>
-                          {candidate.profile?.photoUrl ? (
-                            <img src={candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                          ) : (
-                            initials(name)
-                          )}
-                        </div>
-
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          {/* Name + status */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-                            <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text }}>{name}</span>
-                            <StatusPill status={item.application.status} />
-                            {current && <Badge variant={meta!.badge}>{meta!.icon} {meta!.label}</Badge>}
-                          </div>
-
-                          {/* Meta row */}
-                          <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>
-                            <span title="Vaga">📋 {vacancy.title}</span>
-                            {vacancy.location && <span title="Localização">📍 {vacancy.location}</span>}
-                            {vacancy.seniority && <span title="Senioridade">🎯 {vacancy.seniority}</span>}
-                            <span title="Recebido em">📅 {formatRelativeDate(item.createdAt)}</span>
-                          </div>
-
-                          {/* Skills preview */}
-                          {(vacancy.requiredSkills?.length ?? 0) > 0 && (
-                            <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                              {vacancy.requiredSkills!.slice(0, 5).map((skill) => (
-                                <span key={skill} style={{
-                                  display: 'inline-flex',
-                                  padding: '2px 8px',
-                                  borderRadius: radius.full,
-                                  background: colors.infoLight,
-                                  color: colors.infoDark,
-                                  fontSize: fontSize.xs,
-                                  fontWeight: fontWeight.medium,
-                                }}>
-                                  {skill}
-                                </span>
-                              ))}
-                              {(vacancy.requiredSkills!.length > 5) && (
-                                <span style={{ fontSize: fontSize.xs, color: colors.textMuted, alignSelf: 'center' }}>
-                                  +{vacancy.requiredSkills!.length - 5}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Right: actions */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm, alignItems: 'flex-end', justifyContent: 'space-between' }}>
-                        {/* Action buttons */}
-                        <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          <Button variant="outline" size="sm" onClick={() => navigate(`/applications/${item.applicationId}/dossier`)}>
-                            Ver perfil
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => { setCommentDialog({ appId: item.applicationId, candidateName: name }); setCommentText(''); }}>
-                            💬 Comentar
-                          </Button>
-                        </div>
-
-                        {/* Decision area */}
-                        {current ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => changeDecision(item.id, name)}
-                              style={{ fontSize: fontSize.xs, color: colors.textMuted }}
-                            >
-                              Alterar decisão
-                            </Button>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                            {decisionOrder.map((kind) => (
-                              <Button
-                                key={kind}
-                                variant={decisionMeta[kind].button}
-                                size="sm"
-                                onClick={() => openDecisionConfirm(item.id, kind, name)}
-                              >
-                                {decisionMeta[kind].icon} {decisionMeta[kind].label}
-                              </Button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+          <div style={{ padding: spacing.md, borderTop: `1px solid ${colors.borderLight}`, background: colors.surface }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
+              <span style={{ fontSize: fontSize.xs, color: colors.textSecondary }}>Progresso da revisão</span>
+              <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold }}>{stats.progress}%</span>
             </div>
-          )}
-
-          {/* Summary footer */}
-          {filteredItems.length > 0 && (
-            <div style={{
-              marginTop: spacing.lg,
-              padding: spacing.md,
-              borderRadius: radius.lg,
-              background: colors.surfaceAlt,
-              border: `1px solid ${colors.borderLight}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: spacing.sm,
-              fontSize: fontSize.sm,
-              color: colors.textSecondary,
-            }}>
-              <span>
-                Exibindo <strong style={{ color: colors.text }}>{filteredItems.length}</strong> de {items.length} candidatos
-              </span>
-              <span>
-                {stats.pending > 0
-                  ? `${stats.pending} decisão(ões) pendente(s)`
-                  : '✅ Todas as decisões foram registradas'}
-              </span>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* ── Decision confirmation dialog ──────────────────────────── */}
-      {confirmDialog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="confirm-dialog-title"
-          onClick={() => !deciding && setConfirmDialog(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape' && !deciding) setConfirmDialog(null); }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15,23,42,0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: zIndex.modal,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: colors.surface,
-              padding: spacing.xl,
-              borderRadius: radius.xl,
-              width: '100%',
-              maxWidth: 460,
-              boxShadow: shadows.lg,
-              display: 'grid',
-              gap: spacing.md,
-            }}
-          >
-            <div>
-              <h3 id="confirm-dialog-title" style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
-                Confirmar decisão
-              </h3>
-              <p style={{ margin: `${spacing.sm}px 0 0`, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.6 }}>
-                Você está prestes a registrar a decisão <Badge variant={decisionMeta[confirmDialog.kind].badge}>{decisionMeta[confirmDialog.kind].icon} {decisionMeta[confirmDialog.kind].label}</Badge> para <strong>{confirmDialog.candidateName}</strong>.
-              </p>
-            </div>
-
-            <div style={{
-              padding: spacing.md,
-              borderRadius: radius.lg,
-              background: confirmDialog.kind === 'reject' ? colors.dangerLight : colors.surfaceAlt,
-              border: `2px solid ${confirmDialog.kind === 'reject' ? colors.danger : confirmDialog.kind === 'approve' ? colors.success : colors.borderLight}`,
-              fontSize: fontSize.sm,
-              color: confirmDialog.kind === 'reject' ? colors.dangerDark : colors.textSecondary,
-              lineHeight: 1.6,
-            }}>
-              {confirmDialog.kind === 'reject' && (
-                <div style={{ fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>
-                  ⚠️ Ação irreversível
-                </div>
-              )}
-              {decisionMeta[confirmDialog.kind].description}
-            </div>
-
-            <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
-              <Button variant="ghost" onClick={() => setConfirmDialog(null)} disabled={deciding}>
-                Cancelar
-              </Button>
-              <Button
-                variant={decisionMeta[confirmDialog.kind].button}
-                onClick={() => { void decide(confirmDialog.itemId, confirmDialog.kind); }}
-                loading={deciding}
-              >
-                {decisionMeta[confirmDialog.kind].icon} Confirmar: {decisionMeta[confirmDialog.kind].label}
-              </Button>
+            <div style={{ height: 6, width: '100%', background: colors.borderLight, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${stats.progress}%`, background: colors.success, transition: 'width 0.4s ease' }} />
             </div>
           </div>
-        </div>
+        </aside>
+
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative' }}>
+          {!selectedAppId ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <EmptyState 
+                title="Selecione um candidato" 
+                description="Clique em um perfil na lista ao lado para iniciar a avaliação premium."
+                icon="👈"
+              />
+            </div>
+          ) : (
+            <>
+              <div style={{ 
+                height: 72, padding: `0 ${spacing.xl}px`, borderBottom: `1px solid ${colors.borderLight}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: colors.surface, zIndex: 10, position: 'sticky', top: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                  <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold }}>Ações de Decisão</div>
+                  <div style={{ width: 1, height: 24, background: colors.borderLight }} />
+                  {msg ? (
+                    <Badge variant={msgVariant === 'success' ? 'success' : 'danger'}>{msg}</Badge>
+                  ) : (
+                    <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Avalie os sinais abaixo antes de decidir</div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                  {decisions[items.find(i => i.applicationId === selectedAppId)?.id || ''] ? (
+                     <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                       <Badge variant={decisionMeta[decisions[items.find(i => i.applicationId === selectedAppId)?.id || ''] as DecisionKind].badge} size="lg">
+                         Decisão: {decisionMeta[decisions[items.find(i => i.applicationId === selectedAppId)?.id || ''] as DecisionKind].label}
+                       </Badge>
+                       <Button variant="outline" size="sm" onClick={() => {
+                          const itemId = items.find(i => i.applicationId === selectedAppId)?.id;
+                          if (itemId) setDecisions(prev => {
+                            const next = {...prev};
+                            delete next[itemId];
+                            return next;
+                          });
+                       }}>Alterar</Button>
+                     </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                      <Button variant="ghost" size="sm" onClick={() => setCommentDialog({ appId: selectedAppId, candidateName: selectedDetail?.candidate.profile?.fullName || '' })}>
+                        💬 Feedback p/ Recrutador
+                      </Button>
+                      {decisionOrder.map(kind => (
+                        <Button 
+                          key={kind} 
+                          variant={decisionMeta[kind].button} 
+                          size="sm"
+                          onClick={() => {
+                            const item = items.find(i => i.applicationId === selectedAppId);
+                            if (item) setConfirmDialog({ 
+                              itemId: item.id, 
+                              shortlistItemId: item.id,
+                              kind, 
+                              candidateName: item.application.candidate.profile?.fullName || item.application.candidate.email 
+                            });
+                          }}
+                        >
+                          {decisionMeta[kind].icon} {decisionMeta[kind].label}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd' }}>
+                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl }}>
+                  {loadingDetail ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', gap: spacing.md }}>
+                      <Spinner size={32} />
+                      <div style={{ color: colors.textSecondary }}>Consolidando dossiê premium...</div>
+                    </div>
+                  ) : selectedDetail && (
+                    <CandidateDossier 
+                      detail={selectedDetail} 
+                      intelligence={selectedIntelligence} 
+                      viewerRole="client" 
+                      candidateWebBase={candidateWebBase}
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      {confirmDialog && (
+         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setConfirmDialog(null)}>
+            <div style={{ background: '#fff', padding: spacing.xl, borderRadius: radius.xl, maxWidth: 450, width: '90%', display: 'grid', gap: spacing.md }} onClick={e => e.stopPropagation()}>
+               <h3 style={{ margin: 0, fontSize: fontSize.xl }}>Confirmar Decisão</h3>
+               <p style={{ margin: 0, fontSize: fontSize.sm, color: colors.textSecondary }}>
+                 Registrar <strong>{decisionMeta[confirmDialog.kind].label}</strong> para {confirmDialog.candidateName}?
+               </p>
+               <div style={{ padding: spacing.md, background: colors.surfaceAlt, borderRadius: radius.md, fontSize: fontSize.sm, color: colors.textMuted }}>
+                 {decisionMeta[confirmDialog.kind].description}
+               </div>
+               <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end', marginTop: spacing.md }}>
+                 <Button variant="ghost" onClick={() => setConfirmDialog(null)}>Cancelar</Button>
+                 <Button variant={decisionMeta[confirmDialog.kind].button} loading={deciding} onClick={() => decide(confirmDialog.shortlistItemId, confirmDialog.kind)}>
+                   {confirmDialog.kind === 'approve' ? 'Sim, Aprovar' : 'Confirmar'}
+                 </Button>
+               </div>
+            </div>
+         </div>
       )}
 
-      {/* ── Comment dialog ────────────────────────────────────────── */}
       {commentDialog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="comment-modal-title"
-          onClick={() => !commenting && setCommentDialog(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape' && !commenting) setCommentDialog(null); }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15,23,42,0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: zIndex.modal,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: colors.surface,
-              padding: spacing.xl,
-              borderRadius: radius.xl,
-              width: '100%',
-              maxWidth: 520,
-              boxShadow: shadows.lg,
-              display: 'grid',
-              gap: spacing.md,
-            }}
-          >
-            <div>
-              <h3 id="comment-modal-title" style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
-                Comentário para o recrutador
-              </h3>
-              <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.sm, color: colors.textSecondary }}>
-                Sobre <strong>{commentDialog.candidateName}</strong>
-              </p>
-            </div>
-
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setCommentDialog(null)}>
+          <div style={{ background: '#fff', padding: spacing.xl, borderRadius: radius.xl, maxWidth: 500, width: '90%', display: 'grid', gap: spacing.md }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: 0, fontSize: fontSize.xl }}>Adicionar Comentário</h3>
             <Textarea
-              label="Seu comentário"
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Escreva seu feedback, observações ou dúvidas sobre o candidato..."
-              rows={5}
+              onChange={e => setCommentText(e.target.value)}
+              placeholder="Descreva o motivo da decisão ou envie uma observação para o recrutador..."
+              rows={4}
+              autoFocus
             />
-
             <div style={{
-              padding: spacing.sm,
+              padding: spacing.md,
               borderRadius: radius.md,
               background: colors.infoLight,
               fontSize: fontSize.xs,

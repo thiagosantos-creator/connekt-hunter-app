@@ -8,6 +8,12 @@ export type { ButtonProps, ButtonVariant } from './components/Button.js';
 export { Input, Textarea, Select, Checkbox } from './components/Input.js';
 export type { InputProps, TextareaProps, SelectProps, SelectOption, CheckboxProps } from './components/Input.js';
 
+export { FileUpload } from './components/FileUpload.js';
+export type { FileUploadProps } from './components/FileUpload.js';
+
+export { CandidateDossier } from './components/CandidateDossier.js';
+export type { CandidateDossierProps } from './components/CandidateDossier.js';
+
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/Card.js';
 export type { CardProps } from './components/Card.js';
 

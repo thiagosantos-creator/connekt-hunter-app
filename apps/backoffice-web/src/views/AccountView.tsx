@@ -12,6 +12,7 @@ import {
   Button,
   Input,
   InlineMessage,
+  FileUpload,
   spacing,
   colors,
   radius,
@@ -37,10 +38,11 @@ export function AccountView() {
   const { user, refreshAuth } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [title, setTitle] = useState(user?.title ?? '');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
   const [feedback, setFeedback] = useState('');
   const [feedbackVariant, setFeedbackVariant] = useState<'success' | 'error'>('success');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const exp = useMemo(() => roleExperience[user?.role ?? 'client'], [user?.role]);
   const organizationSummary = user?.organizationIds?.length
@@ -55,6 +57,22 @@ export function AccountView() {
 
   if (!user) return null;
 
+  const handleAvatarUpload = async (file: File) => {
+    setUploading(true);
+    setFeedback('');
+    try {
+      const result = await uploadMyAvatar(file);
+      setAvatarUrl(result.avatarUrl);
+      setFeedback('Foto de perfil enviada com sucesso. Clique em salvar para persistir os outros dados.');
+      setFeedbackVariant('success');
+    } catch (err) {
+      setFeedback(`Erro no upload: ${String(err)}`);
+      setFeedbackVariant('error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const save = async () => {
     if (!name.trim()) {
       setFeedback('O nome é obrigatório.');
@@ -63,15 +81,8 @@ export function AccountView() {
     }
     setSaving(true);
     try {
-      let avatarUrl = user.avatarUrl;
-      if (avatarFile) {
-        const uploaded = await uploadMyAvatar(avatarFile);
-        avatarUrl = uploaded.avatarUrl;
-      }
-
       await updateMyProfile({ name: name.trim(), title: title.trim(), avatarUrl });
       await refreshAuth();
-      setAvatarFile(null);
       setFeedback('Perfil atualizado com sucesso.');
       setFeedbackVariant('success');
     } catch (err) {
@@ -88,61 +99,37 @@ export function AccountView() {
 
       {feedback && <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
         <Card>
           <CardHeader>
             <CardTitle>Perfil</CardTitle>
-            <CardDescription>Dados básicos da conta e avatar com upload para storage.</CardDescription>
+            <CardDescription>Dados básicos da conta e avatar corporativo.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md }}>
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.name}
-                  style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', background: colors.surfaceAlt }}
-                  referrerPolicy="no-referrer"
+            <div style={{ background: colors.surfaceAlt, padding: spacing.lg, borderRadius: radius.lg, border: `1px solid ${colors.border}` }}>
+                <FileUpload
+                    label="Foto de perfil"
+                    description="JPG, PNG ou GIF. Máximo 2MB."
+                    value={avatarUrl}
+                    onFileSelect={handleAvatarUpload}
+                    previewType="avatar"
+                    loading={uploading}
                 />
-              ) : (
-                <div
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: colors.surfaceAlt,
-                    color: colors.textSecondary,
-                    fontSize: fontSize.lg,
-                    fontWeight: 700,
-                  }}
-                >
-                  {(user.name || user.email).slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <div style={{ flex: 1 }}>
-                <label htmlFor="avatar-upload" style={{ display: 'block', fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>
-                  Foto de perfil
-                </label>
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
-                />
-                <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs }}>
-                  {avatarFile ? `Arquivo selecionado: ${avatarFile.name}` : 'Selecione uma imagem para enviar ao bucket S3/MinIO.'}
-                </div>
-              </div>
             </div>
-            <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
-            <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
+                <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+
             <div style={{ padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md, background: colors.surfaceAlt }}>
               <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Organizações vinculadas</div>
-              <strong>{organizationSummary}</strong>
+              <strong style={{ display: 'block', fontSize: fontSize.md }}>{organizationSummary}</strong>
             </div>
-            <Button onClick={() => { void save(); }} loading={saving}>Salvar perfil</Button>
+
+            <Button onClick={() => { void save(); }} loading={saving} style={{ alignSelf: 'flex-start', minWidth: 160 }}>
+                Salvar alterações
+            </Button>
           </CardContent>
         </Card>
 

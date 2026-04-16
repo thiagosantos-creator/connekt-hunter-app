@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Badge,
   Button,
-  Card,
+  CandidateDossier,
   EmptyState,
   InlineMessage,
   PageContent,
@@ -37,10 +37,16 @@ export function PublicClientReviewView() {
   const { token } = useParams<{ token: string }>();
 
   const [items, setItems] = useState<PublicReviewShortlistItem[]>([]);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
+
+  /* Dossier state */
+  const [dossierDetail, setDossierDetail] = useState<any>(null);
+  const [dossierIntelligence, setDossierIntelligence] = useState<any>(null);
+  const [dossierLoading, setDossierLoading] = useState(false);
 
   /* decision dialog */
   const [confirmDialog, setConfirmDialog] = useState<{ itemId: string; kind: DecisionKind; candidateName: string } | null>(null);
@@ -49,10 +55,38 @@ export function PublicClientReviewView() {
   useEffect(() => {
     if (!token) { setError('Link inválido.'); setLoading(false); return; }
     apiPublicGet<PublicReviewShortlistItem[]>(`/shortlist/public/${token}`)
-      .then(setItems)
+      .then((data) => {
+        setItems(data);
+        if (data.length > 0) setSelectedAppId(data[0].applicationId);
+      })
       .catch((err: unknown) => setError(String(err)))
       .finally(() => setLoading(false));
   }, [token]);
+
+  useEffect(() => {
+    if (!token || !selectedAppId) return;
+
+    setDossierLoading(true);
+    Promise.all([
+      apiPublicGet<any>(`/shortlist/public/${token}/application/${selectedAppId}`),
+      apiPublicGet<any>(`/shortlist/public/${token}/application/${selectedAppId}/intelligence`),
+    ])
+    .then(([detail, intelligence]) => {
+      setDossierDetail(detail);
+      setDossierIntelligence({
+        matching: intelligence?.matching || {},
+        risk: intelligence?.risk || intelligence?.risks || null,
+        insights: intelligence || {},
+        recommendations: intelligence?.recommendations || [],
+        workflowSuggestions: [],
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to fetch dossier:', err);
+      setDossierDetail(null);
+    })
+    .finally(() => setDossierLoading(false));
+  }, [token, selectedAppId]);
 
   const decide = useCallback(async (itemId: string, kind: DecisionKind) => {
     if (!token) return;
@@ -75,7 +109,7 @@ export function PublicClientReviewView() {
     setConfirmDialog({ itemId, kind, candidateName });
   };
 
-  /* Derive tenant branding from first item */
+  /* Derive tenant branding */
   const tenantSettings = items[0]?.vacancy.organization.tenantSettings;
   const brandPrimary = tenantSettings?.primaryColor ?? colors.primary;
   const brandPublicName = tenantSettings?.publicName ?? items[0]?.vacancy.organization.name ?? 'Connekt Hunter';
@@ -83,159 +117,196 @@ export function PublicClientReviewView() {
 
   const pendingCount = items.filter((i) => !i.currentDecision).length;
 
+  const selectedItem = useMemo(() => items.find(i => i.applicationId === selectedAppId), [items, selectedAppId]);
+
+  if (loading) return <div style={{ padding: spacing.xl }}><TableSkeleton rows={8} columns={1} /></div>;
+
+  if (error) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors.surfaceAlt }}>
+        <div style={{ padding: spacing.xl, textAlign: 'center', background: colors.surface, borderRadius: radius.xl, boxShadow: shadows.lg, maxWidth: 400 }}>
+          <div style={{ fontSize: 48, marginBottom: spacing.md }}>🔒</div>
+          <h2 style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.dangerDark }}>Acesso restrito</h2>
+          <p style={{ color: colors.textSecondary, marginBottom: spacing.lg }}>{error}</p>
+          <Button variant="primary" onClick={() => window.location.reload()}>Tentar novamente</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: colors.surfaceAlt }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Brand header */}
       <header style={{
         background: brandPrimary,
         color: colors.textInverse,
-        padding: `${spacing.md}px ${spacing.xl}px`,
+        padding: `${spacing.sm}px ${spacing.xl}px`,
         display: 'flex',
         alignItems: 'center',
-        gap: spacing.md,
-        boxShadow: shadows.lg,
+        justifyContent: 'space-between',
+        boxShadow: shadows.md,
+        zIndex: zIndex.header,
+        flexShrink: 0,
       }}>
-        {tenantSettings?.logoUrl && (
-          <img src={tenantSettings.logoUrl} alt={brandPublicName} style={{ height: 36, borderRadius: radius.sm }} referrerPolicy="no-referrer" />
-        )}
-        <div>
-          <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{brandPublicName}</div>
-          {vacancyTitle && (
-            <div style={{ fontSize: fontSize.sm, opacity: 0.8 }}>Revisão de candidatos — {vacancyTitle}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+          {tenantSettings?.logoUrl && (
+            <img src={tenantSettings.logoUrl} alt={brandPublicName} style={{ height: 28, borderRadius: radius.sm }} referrerPolicy="no-referrer" />
+          )}
+          <div>
+            <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold }}>{brandPublicName}</div>
+            <div style={{ fontSize: fontSize.xs, opacity: 0.8 }}>Review Dashboard • {vacancyTitle}</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+          {pendingCount > 0 ? (
+            <Badge variant="warning">⏳ {pendingCount} pendentes</Badge>
+          ) : (
+            <Badge variant="success">✅ Finalizado</Badge>
           )}
         </div>
       </header>
 
-      <PageContent>
-        <div style={{ marginBottom: spacing.lg, marginTop: spacing.lg }}>
-          <h2 style={{ margin: 0, fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text }}>
-            Avaliação de Candidatos
-          </h2>
-          <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.md, color: colors.textSecondary }}>
-            Revise os candidatos pré-selecionados e registre sua decisão para cada um.
-          </p>
-        </div>
-
-        {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
-
-        {loading ? (
-          <TableSkeleton rows={4} columns={3} />
-        ) : error ? (
-          <div style={{ padding: spacing.xl, textAlign: 'center', background: colors.dangerLight, borderRadius: radius.xl, color: colors.dangerDark, fontSize: fontSize.md }}>
-            <div style={{ fontSize: 40, marginBottom: spacing.md }}>🔒</div>
-            <div style={{ fontWeight: fontWeight.semibold, marginBottom: spacing.sm }}>Link inválido ou expirado</div>
-            <div style={{ fontSize: fontSize.sm }}>{error}</div>
+      <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Sidebar */}
+        <aside style={{
+          width: 380,
+          background: colors.surface,
+          borderRight: `1px solid ${colors.border}`,
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+        }}>
+          <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.border}` }}>
+            <h2 style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, margin: 0 }}>Candidatos</h2>
+            <p style={{ fontSize: fontSize.xs, color: colors.textSecondary, margin: `${spacing.xs}px 0 0` }}>
+              {items.length} pessoas pré-selecionadas para sua análise
+            </p>
           </div>
-        ) : items.length === 0 ? (
-          <EmptyState title="Nenhum candidato na lista" description="Aguarde o recrutador adicionar candidatos à shortlist." icon="📋" />
-        ) : (
-          <>
-            {/* Summary bar */}
-            <div style={{
-              display: 'flex',
-              gap: spacing.md,
-              flexWrap: 'wrap',
-              marginBottom: spacing.lg,
-              padding: spacing.md,
-              background: colors.surface,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radius.lg,
-              fontSize: fontSize.sm,
-              color: colors.textSecondary,
-              alignItems: 'center',
-            }}>
-              <span><strong style={{ color: colors.text }}>{items.length}</strong> candidato(s) para avaliar</span>
-              <span>·</span>
-              {pendingCount > 0
-                ? <span style={{ color: colors.warningDark }}>⏳ {pendingCount} decisão(ões) pendente(s)</span>
-                : <span style={{ color: colors.successDark }}>✅ Todas as decisões registradas</span>}
-            </div>
 
-            <div style={{ display: 'grid', gap: spacing.md }}>
-              {items.map((item) => {
-                const name = item.candidate.fullName ?? `Candidato ${item.candidate.id.slice(0, 6)}`;
-                const currentDecision = item.currentDecision as DecisionKind | null;
-                const decidedMeta = currentDecision ? decisionMeta[currentDecision] : null;
+          <div style={{ flex: 1, overflowY: 'auto', padding: spacing.sm }}>
+            {items.map((item) => {
+              const isActive = selectedAppId === item.applicationId;
+              const name = item.candidate.fullName ?? 'Candidato';
+              const currentDecision = item.currentDecision as DecisionKind | null;
 
-                return (
-                  <Card key={item.id} style={{ overflow: 'hidden', borderLeft: currentDecision ? `4px solid ${currentDecision === 'approve' ? colors.success : currentDecision === 'reject' ? colors.danger : currentDecision === 'interview' ? colors.accent : colors.warning}` : undefined }}>
-                    <div style={{ padding: spacing.lg, display: 'grid', gap: spacing.md }}>
-                      {/* Candidate header */}
-                      <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start' }}>
-                        <div style={{
-                          width: 52, height: 52, borderRadius: radius.full,
-                          background: colors.primaryLight, color: colors.textInverse,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: fontSize.md, fontWeight: fontWeight.bold,
-                          overflow: 'hidden', flexShrink: 0,
-                        }}>
-                          {item.candidate.photoUrl ? (
-                            <img src={item.candidate.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                          ) : initials(item.candidate.fullName)}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-                            <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text }}>{name}</span>
-                            {decidedMeta && (
-                              <Badge variant={decidedMeta.badge}>{decidedMeta.icon} {decidedMeta.label}</Badge>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap', fontSize: fontSize.sm, color: colors.textSecondary }}>
-                            {item.vacancy.seniority && <span>🎯 {item.vacancy.seniority}</span>}
-                            {item.vacancy.location && <span>📍 {item.vacancy.location}</span>}
-                          </div>
-                          {item.vacancy.requiredSkills.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm }}>
-                              {item.vacancy.requiredSkills.slice(0, 6).map((skill) => (
-                                <span key={skill} style={{
-                                  display: 'inline-flex', padding: '3px 8px', borderRadius: radius.full,
-                                  background: colors.infoLight, color: colors.infoDark,
-                                  fontSize: fontSize.xs, fontWeight: fontWeight.medium,
-                                }}>
-                                  {skill}
-                                </span>
-                              ))}
-                              {item.vacancy.requiredSkills.length > 6 && (
-                                <span style={{ fontSize: fontSize.xs, color: colors.textMuted, alignSelf: 'center' }}>
-                                  +{item.vacancy.requiredSkills.length - 6}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: spacing.md, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs }}>
-                        {decisionOrder.map((kind) => (
-                            <Button
-                              key={kind}
-                              variant={decisionMeta[kind].button}
-                              size="sm"
-                              onClick={() => openDecisionConfirm(item.id, kind, name)}
-                              style={{ opacity: currentDecision === kind ? 1 : currentDecision ? 0.6 : 1 }}
-                            >
-                              {decisionMeta[kind].icon} {decisionMeta[kind].label}
-                            </Button>
-                          ))}
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedAppId(item.applicationId)}
+                  style={{
+                    padding: spacing.md,
+                    borderRadius: radius.lg,
+                    cursor: 'pointer',
+                    background: isActive ? colors.primaryLight : 'transparent',
+                    border: `1px solid ${isActive ? brandPrimary : 'transparent'}`,
+                    marginBottom: spacing.xs,
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: radius.full,
+                      background: colors.surfaceAlt, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: fontSize.sm, fontWeight: fontWeight.bold, overflow: 'hidden', flexShrink: 0
+                    }}>
+                      {item.candidate.photoUrl ? (
+                         <img src={item.candidate.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                      ) : initials(name)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isActive ? colors.textInverse : colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                      <div style={{ fontSize: fontSize.xs, color: isActive ? colors.textInverse : colors.textSecondary, opacity: 0.8 }}>
+                        {currentDecision ? decisionMeta[currentDecision].label : 'Aguardando decisão'}
                       </div>
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </PageContent>
+                    {currentDecision && (
+                      <div style={{ fontSize: 18 }}>{decisionMeta[currentDecision].icon}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
 
-      {/* Decision confirmation dialog */}
-      {confirmDialog && (
+        {/* Dossier Area */}
+        <section style={{ flex: 1, overflowY: 'auto', background: colors.surfaceAlt, paddingBottom: 100 }}>
+          {selectedAppId ? (
+            <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl }}>
+              {msg && <div style={{ marginBottom: spacing.lg }}><InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage></div>}
+              
+              {dossierLoading ? (
+                <TableSkeleton rows={10} columns={1} />
+              ) : dossierDetail ? (
+                <>
+                  <CandidateDossier
+                    detail={dossierDetail}
+                    intelligence={dossierIntelligence}
+                    viewerRole="client"
+                  />
+                  
+                  {/* Floating Action Bar */}
+                  <div style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 380,
+                    right: 0,
+                    background: 'rgba(255,255,255,0.8)',
+                    backdropFilter: 'blur(12px)',
+                    borderTop: `1px solid ${colors.border}`,
+                    padding: `${spacing.md}px ${spacing.xl}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    zIndex: zIndex.header,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                       <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSecondary }}>
+                        Decisão para {selectedItem?.candidate.fullName}:
+                       </div>
+                       {selectedItem?.currentDecision && (
+                         <Badge variant={decisionMeta[selectedItem.currentDecision as DecisionKind].badge}>
+                           {decisionMeta[selectedItem.currentDecision as DecisionKind].icon} {decisionMeta[selectedItem.currentDecision as DecisionKind].label}
+                         </Badge>
+                       )}
+                    </div>
+                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                      {decisionOrder.map((kind) => {
+                        const meta = decisionMeta[kind];
+                        const isCurrent = selectedItem?.currentDecision === kind;
+                        return (
+                          <Button
+                            key={kind}
+                            variant={meta.button}
+                            onClick={() => openDecisionConfirm(selectedItem!.id, kind, selectedItem!.candidate.fullName || 'Candidato')}
+                            style={{ opacity: isCurrent ? 1 : 0.8, border: isCurrent ? `2px solid rgba(0,0,0,0.2)` : 'none' }}
+                          >
+                            {meta.icon} {meta.label}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <EmptyState title="Erro ao carregar dossiê" description="Não conseguimos recuperar os dados detalhados deste candidato." />
+              )}
+            </div>
+          ) : (
+           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <EmptyState title="Selecione um candidato" description="Escolha um perfil na lista lateral para iniciar a revisão premium." icon="👈" />
+           </div>
+          )}
+        </section>
+      </main>
+
+       {/* Decision confirmation dialog */}
+       {confirmDialog && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="confirm-dialog-title"
           onClick={() => !deciding && setConfirmDialog(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape' && !deciding) setConfirmDialog(null); }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: zIndex.modal }}
         >
           <div
@@ -243,7 +314,7 @@ export function PublicClientReviewView() {
             style={{ background: colors.surface, padding: spacing.xl, borderRadius: radius.xl, width: '100%', maxWidth: 460, boxShadow: shadows.lg, display: 'grid', gap: spacing.md }}
           >
             <div>
-              <h3 id="confirm-dialog-title" style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>Confirmar decisão</h3>
+              <h3 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>Confirmar decisão</h3>
               <p style={{ margin: `${spacing.sm}px 0 0`, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.6 }}>
                 Você está prestes a registrar a decisão <Badge variant={decisionMeta[confirmDialog.kind].badge}>{decisionMeta[confirmDialog.kind].icon} {decisionMeta[confirmDialog.kind].label}</Badge> para <strong>{confirmDialog.candidateName}</strong>.
               </p>
@@ -256,13 +327,12 @@ export function PublicClientReviewView() {
               color: confirmDialog.kind === 'reject' ? colors.dangerDark : colors.textSecondary,
               lineHeight: 1.6,
             }}>
-              {confirmDialog.kind === 'reject' && <div style={{ fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>⚠️ Esta ação ficará registrada.</div>}
               {decisionMeta[confirmDialog.kind].description}
             </div>
             <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
               <Button variant="ghost" onClick={() => setConfirmDialog(null)} disabled={deciding}>Cancelar</Button>
               <Button variant={decisionMeta[confirmDialog.kind].button} onClick={() => { void decide(confirmDialog.itemId, confirmDialog.kind); }} loading={deciding}>
-                {decisionMeta[confirmDialog.kind].icon} Confirmar: {decisionMeta[confirmDialog.kind].label}
+                Confirmar
               </Button>
             </div>
           </div>

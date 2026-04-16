@@ -19,12 +19,14 @@ import {
   SectionTitle,
   Select,
   Skeleton,
+  FileUpload,
   StatBox,
   Textarea,
   colors,
   radius,
   spacing,
 } from '@connekt/ui';
+import { uploadOrganizationBrandingAsset } from '../services/account.js';
 
 type PolicyRow = { id: string; roleKey: string; resource: string; action: string; scope: string; allowed: boolean };
 type TemplateRow = { id: string; name: string; type: string; channel: string; versions?: Array<{ id: string; version: number; status: string }> };
@@ -140,6 +142,23 @@ export function EnterpriseGovernanceView() {
     } catch (err) { setError(String(err)); } finally { setLoading(false); }
   };
 
+  const handleBrandingUpload = async (file: File, type: 'logo' | 'banner') => {
+    if (!organizationId) return;
+    setBusy(type);
+    try {
+      const { publicUrl } = await uploadOrganizationBrandingAsset(organizationId, type, file);
+      setSettings((current) => ({
+          ...current,
+          branding: { ...current.branding, [type === 'logo' ? 'logoUrl' : 'bannerUrl']: publicUrl }
+      }));
+      msg('success', `${type === 'logo' ? 'Logo' : 'Banner'} enviado com sucesso para o storage.`);
+    } catch (err) {
+      msg('error', `Erro no upload do ${type}: ${String(err)}`);
+    } finally {
+      setBusy('');
+    }
+  };
+
   useEffect(() => { if (!hasPermission(user, 'users:manage')) return; void apiGet<Organization[]>('/organizations').then(setOrganizations).catch(() => setOrganizations([])); }, [user]);
   useEffect(() => { if (!organizationId && orgOptions.length > 0) setOrganizationId(orgOptions[0].value); }, [organizationId, orgOptions]);
   useEffect(() => { if (organizationId) void load(organizationId); }, [organizationId, canManageTenant, canManageAccess, canManageComms]);
@@ -174,8 +193,26 @@ export function EnterpriseGovernanceView() {
           <Select label="Status" value={settings.tenantStatus} onChange={(e) => setSettings((current) => ({ ...current, tenantStatus: e.target.value as Settings['tenantStatus'] }))} disabled={!canManageTenant} options={[{ value: 'trial', label: 'Trial' }, { value: 'active', label: 'Ativo' }, { value: 'suspended', label: 'Suspenso' }]} />
           <Input label="Domínio" value={settings.branding.communicationDomain} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, communicationDomain: e.target.value } }))} disabled={!canManageTenant} />
           <Input label="E-mail de contato" type="email" value={settings.branding.contactEmail} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, contactEmail: e.target.value } }))} disabled={!canManageTenant} />
-          <Input label="Logo URL" value={settings.branding.logoUrl} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, logoUrl: e.target.value } }))} disabled={!canManageTenant} />
-          <Input label="Banner URL" value={settings.branding.bannerUrl} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, bannerUrl: e.target.value } }))} disabled={!canManageTenant} />
+          
+          <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
+              <FileUpload 
+                label="Logo da Organização"
+                description="PNG ou SVG transparente recomendado. Máximo 1MB."
+                value={settings.branding.logoUrl ?? undefined}
+                onFileSelect={(file) => handleBrandingUpload(file, 'logo')}
+                previewType="rectangular"
+                loading={busy === 'logo'}
+              />
+              <FileUpload 
+                label="Banner do Portal"
+                description="Imagem panorâmica de alta qualidade. Máximo 2MB."
+                value={settings.branding.bannerUrl ?? undefined}
+                onFileSelect={(file) => handleBrandingUpload(file, 'banner')}
+                previewType="banner"
+                loading={busy === 'banner'}
+              />
+          </div>
+
           <Input label="Cor primária" value={settings.branding.primaryColor} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, primaryColor: e.target.value } }))} disabled={!canManageTenant} />
           <Input label="Cor secundária" value={settings.branding.secondaryColor} onChange={(e) => setSettings((current) => ({ ...current, branding: { ...current.branding, secondaryColor: e.target.value } }))} disabled={!canManageTenant} />
           <Input label="SLA resposta (h)" type="number" value={settings.slaResponseHours} onChange={(e) => setSettings((current) => ({ ...current, slaResponseHours: Number(e.target.value) }))} disabled={!canManageTenant} />

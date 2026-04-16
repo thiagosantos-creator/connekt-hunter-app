@@ -47,4 +47,18 @@ export class ShortlistController {
   getPublicShortlist(@Param('token') token: string) {
     return this.shortlistService.findPublicShortlist(token);
   }
+
+  @Get('public/:token/application/:applicationId')
+  @UseGuards(RateLimitGuard, PublicTokenGuard)
+  @RateLimit({ scope: 'public-review', windowSec: 60, maxRequests: 30 })
+  getPublicApplicationDetail(@Param('token') token: string, @Param('applicationId') applicationId: string) {
+    return this.shortlistService.findPublicApplicationDetail(token, applicationId);
+  }
+
+  @Get('public/:token/application/:applicationId/intelligence')
+  @UseGuards(RateLimitGuard, PublicTokenGuard)
+  @RateLimit({ scope: 'public-review', windowSec: 60, maxRequests: 30 })
+  getPublicApplicationIntelligence(@Param('token') token: string, @Param('applicationId') applicationId: string) {
+    return this.shortlistService.findPublicApplicationIntelligence(token, applicationId);
+  }
 }

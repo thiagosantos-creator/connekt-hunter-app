@@ -1,12 +1,19 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { randomBytes } from 'node:crypto';
+import { ApplicationsService } from '../applications/applications.service.js';
+import { CandidateInsightsService } from '../candidate-insights/candidate-insights.service.js';
 
 const REVIEW_LINK_TTL_HOURS = 72;
 const REVIEW_LINK_ORIGIN_ENV = process.env.BACKOFFICE_ORIGIN ?? 'http://localhost:5173';
 
 @Injectable()
 export class ShortlistService {
+  constructor(
+    @Inject(ApplicationsService) private readonly applicationsService: ApplicationsService,
+    @Inject(CandidateInsightsService) private readonly insightsService: CandidateInsightsService,
+  ) {}
+
   async addToShortlist(applicationId: string, actorId?: string) {
     const app = await prisma.application.findUnique({
       where: { id: applicationId },
@@ -133,10 +140,15 @@ export class ShortlistService {
     return { url, expiresAt: expiresAt.toISOString() };
   }
 
-  async findPublicShortlist(token: string) {
+  private async verifySession(token: string) {
     const session = await prisma.clientReviewSession.findUnique({ where: { token } });
     if (!session) throw new UnauthorizedException('token_not_found');
     if (new Date(session.expiresAt) < new Date()) throw new UnauthorizedException('token_expired');
+    return session;
+  }
+
+  async findPublicShortlist(token: string) {
+    const session = await this.verifySession(token);
 
     const items = await prisma.shortlistItem.findMany({
       where: { shortlist: { vacancyId: session.vacancyId } },
@@ -197,5 +209,43 @@ export class ShortlistService {
         },
       },
     }));
+  }
+
+  async findPublicApplicationDetail(token: string, applicationId: string) {
+    const session = await this.verifySession(token);
+
+    // Verify application belongs to the same vacancy/org as the session
+    const item = await prisma.shortlistItem.findFirst({
+      where: {
+        applicationId,
+        shortlist: { vacancyId: session.vacancyId },
+      },
+    });
+
+    if (!item) throw new ForbiddenException('application_not_in_shortlist_session');
+
+    return this.applicationsService.findById(applicationId, [], 'admin');
+  }
+
+  async findPublicApplicationIntelligence(token: string, applicationId: string) {
+    const session = await this.verifySession(token);
+
+    const item = await prisma.shortlistItem.findFirst({
+      where: {
+        applicationId,
+        shortlist: { vacancyId: session.vacancyId },
+      },
+    });
+
+    if (!item) throw new ForbiddenException('application_not_in_shortlist_session');
+
+    const app = await prisma.application.findUnique({
+      where: { id: applicationId },
+      select: { candidateId: true, vacancyId: true },
+    });
+
+    if (!app) throw new NotFoundException('application_not_found');
+
+    return this.insightsService.get(app.candidateId, app.vacancyId);
   }
 }

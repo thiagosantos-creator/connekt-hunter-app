@@ -3,15 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiGet } from '../services/api.js';
 import { extractErrorMessage } from '../services/error-messages.js';
 import type { CandidateInfo } from '../services/types.js';
+import { resolveNextOnboardingStep } from './onboarding-flow.js';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, InlineMessage, Input, spacing } from '@connekt/ui';
-
-function getNextStep(candidate: CandidateInfo): string {
-  const onboarding = candidate.onboarding;
-  if (onboarding?.status === 'completed') return '/status';
-  if (!onboarding?.basicCompleted) return '/onboarding/basic';
-  if (!onboarding?.consentCompleted) return '/onboarding/consent';
-  return '/onboarding/resume';
-}
 
 export function TokenEntryView() {
   const navigate = useNavigate();
@@ -33,7 +26,7 @@ export function TokenEntryView() {
       }
       localStorage.setItem('invite_token', normalized);
       localStorage.setItem('candidate_info', JSON.stringify(candidate));
-      navigate(getNextStep(candidate), { replace: true });
+      navigate(resolveNextOnboardingStep(candidate.onboarding), { replace: true });
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {

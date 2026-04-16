@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiPost, getToken } from '../services/api.js';
+import { apiGet, apiPost, getToken } from '../services/api.js';
+import type { CandidateStatus, ParsedResumeData } from '../services/types.js';
 import { StepIndicator } from '../components/layout/StepIndicator.js';
-import { Button, Card, CardContent, InlineMessage, Input, colors, spacing, fontSize, fontWeight, radius } from '@connekt/ui';
+import { derivePreferenceDraft } from './onboarding-flow.js';
+import { Button, Card, CardContent, InlineMessage, Input, Spinner, colors, spacing, fontSize, fontWeight, radius } from '@connekt/ui';
 
 const LANGUAGES = ['Português', 'Inglês', 'Espanhol', 'Francês', 'Alemão', 'Mandarim', 'Italiano', 'Japonês'];
 const MAX_JOB_TITLES = 3;
@@ -14,12 +16,35 @@ export function Step4PreferencesView() {
   const [salaryMax, setSalaryMax] = useState('');
   const [jobTitles, setJobTitles] = useState<string[]>(Array(MAX_JOB_TITLES).fill(''));
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setInitializing(false);
+      return;
+    }
+
+    void Promise.all([
+      apiGet<CandidateStatus>(`/candidate/onboarding/status/${encodeURIComponent(token)}`),
+      apiGet<ParsedResumeData>(`/candidate/onboarding/parsed-resume/${encodeURIComponent(token)}`),
+    ])
+      .then(([status, parsedResume]) => {
+        const draft = derivePreferenceDraft(parsedResume, status.preferences);
+        setSalaryMin(draft.salaryMin);
+        setSalaryMax(draft.salaryMax);
+        setJobTitles(Array.from({ length: MAX_JOB_TITLES }, (_, index) => draft.jobTitles[index] ?? ''));
+        setSelectedLanguages(draft.languages.filter(Boolean));
+      })
+      .catch(() => undefined)
+      .finally(() => setInitializing(false));
+  }, []);
+
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages((prev) =>
-      prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang],
+      prev.includes(lang) ? prev.filter((value) => value !== lang) : [...prev, lang],
     );
   };
 
@@ -41,7 +66,7 @@ export function Step4PreferencesView() {
       setError('O salário mínimo não pode ser maior que o máximo.');
       return;
     }
-    const titles = jobTitles.map((t) => t.trim()).filter(Boolean);
+
     setLoading(true);
     setError('');
     try {
@@ -49,7 +74,7 @@ export function Step4PreferencesView() {
         token: getToken(),
         salaryMin: min,
         salaryMax: max,
-        jobTitles: titles,
+        jobTitles: jobTitles.map((title) => title.trim()).filter(Boolean),
         languages: selectedLanguages,
       });
       navigate('/onboarding/intro-video');
@@ -65,106 +90,99 @@ export function Step4PreferencesView() {
       <StepIndicator current={4} />
       <Card>
         <CardContent>
-          <h2 style={{ margin: `0 0 ${spacing.xs}px`, color: colors.text }}>Passo 4 — Preferências Profissionais</h2>
-          <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, marginBottom: spacing.lg }}>
-            Compartilhe suas preferências para que possamos encontrar as melhores oportunidades para você. Todos os campos são opcionais.
-          </p>
+          {initializing ? (
+            <div style={{ display: 'grid', placeItems: 'center', minHeight: 240 }}>
+              <Spinner size={32} />
+            </div>
+          ) : (
+            <>
+              <h2 style={{ margin: `0 0 ${spacing.xs}px`, color: colors.text }}>Passo 4 — Preferências Profissionais</h2>
+              <p style={{ color: colors.textSecondary, fontSize: fontSize.sm, marginBottom: spacing.lg }}>
+                Revisamos seu currículo e trouxemos sugestões iniciais quando possível. Ajuste livremente antes de continuar.
+              </p>
 
-          <form onSubmit={(e) => { void submit(e); }}>
-            {/* Salary */}
-            <div style={{ marginBottom: spacing.lg }}>
-              <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
-                Pretensão salarial (R$)
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.sm }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: 4 }}>Mínimo</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="ex: 5000"
-                    value={salaryMin}
-                    onChange={(e) => setSalaryMin(e.target.value)}
-                  />
+              <form onSubmit={(e) => { void submit(e); }}>
+                <div style={{ marginBottom: spacing.lg }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
+                    Pretensão salarial (R$)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.sm }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: 4 }}>Mínimo</label>
+                      <Input type="number" min={0} placeholder="ex: 5000" value={salaryMin} onChange={(e) => setSalaryMin(e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: 4 }}>Máximo</label>
+                      <Input type="number" min={0} placeholder="ex: 10000" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: 4 }}>Máximo</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="ex: 10000"
-                    value={salaryMax}
-                    onChange={(e) => setSalaryMax(e.target.value)}
-                  />
+
+                <div style={{ marginBottom: spacing.lg }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
+                    Cargos de interesse (até {MAX_JOB_TITLES})
+                  </div>
+                  <div style={{ display: 'grid', gap: spacing.xs }}>
+                    {Array.from({ length: MAX_JOB_TITLES }, (_, index) => (
+                      <Input
+                        key={index}
+                        type="text"
+                        placeholder={`Cargo ${index + 1} — ex: Software Engineer`}
+                        value={jobTitles[index] ?? ''}
+                        onChange={(e) => setJobTitle(index, e.target.value)}
+                        maxLength={80}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Job titles */}
-            <div style={{ marginBottom: spacing.lg }}>
-              <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
-                Cargos de interesse (até {MAX_JOB_TITLES})
-              </div>
-              <div style={{ display: 'grid', gap: spacing.xs }}>
-                {Array.from({ length: MAX_JOB_TITLES }, (_, i) => (
-                  <Input
-                    key={i}
-                    type="text"
-                    placeholder={`Cargo ${i + 1} — ex: Software Engineer`}
-                    value={jobTitles[i] ?? ''}
-                    onChange={(e) => setJobTitle(i, e.target.value)}
-                    maxLength={80}
-                  />
-                ))}
-              </div>
-            </div>
+                <div style={{ marginBottom: spacing.lg }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
+                    Idiomas
+                  </div>
+                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                    {LANGUAGES.map((lang) => {
+                      const active = selectedLanguages.includes(lang);
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => toggleLanguage(lang)}
+                          style={{
+                            padding: `${spacing.xs}px ${spacing.sm}px`,
+                            borderRadius: radius.full,
+                            border: `1.5px solid ${active ? colors.accent : colors.border}`,
+                            background: active ? colors.infoLight : colors.surface,
+                            color: active ? colors.accent : colors.textSecondary,
+                            fontSize: fontSize.sm,
+                            fontWeight: active ? fontWeight.semibold : fontWeight.normal,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {active ? '✓ ' : ''}{lang}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* Languages */}
-            <div style={{ marginBottom: spacing.lg }}>
-              <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
-                Idiomas
-              </div>
-              <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                {LANGUAGES.map((lang) => {
-                  const active = selectedLanguages.includes(lang);
-                  return (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => toggleLanguage(lang)}
-                      style={{
-                        padding: `${spacing.xs}px ${spacing.sm}px`,
-                        borderRadius: radius.full,
-                        border: `1.5px solid ${active ? colors.accent : colors.border}`,
-                        background: active ? colors.infoLight : colors.surface,
-                        color: active ? colors.accent : colors.textSecondary,
-                        fontSize: fontSize.sm,
-                        fontWeight: active ? fontWeight.semibold : fontWeight.normal,
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      {active ? '✓ ' : ''}{lang}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                {error && <div style={{ marginBottom: spacing.md }}><InlineMessage variant="error">{error}</InlineMessage></div>}
 
-            {error && <div style={{ marginBottom: spacing.md }}><InlineMessage variant="error">{error}</InlineMessage></div>}
-
-            <div style={{ display: 'flex', gap: spacing.sm }}>
-              <Button variant="secondary" type="button" onClick={() => navigate('/onboarding/resume')}>
-                ← Voltar
-              </Button>
-              <Button variant="ghost" type="button" onClick={skip} disabled={loading}>
-                Pular por agora
-              </Button>
-              <Button type="submit" loading={loading} style={{ flex: 1 }}>
-                {loading ? 'Salvando…' : 'Continuar →'}
-              </Button>
-            </div>
-          </form>
+                <div style={{ display: 'flex', gap: spacing.sm }}>
+                  <Button variant="secondary" type="button" onClick={() => navigate('/onboarding/resume')}>
+                    ← Voltar
+                  </Button>
+                  <Button variant="ghost" type="button" onClick={skip} disabled={loading}>
+                    Pular por agora
+                  </Button>
+                  <Button type="submit" loading={loading} style={{ flex: 1 }}>
+                    {loading ? 'Salvando...' : 'Continuar →'}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

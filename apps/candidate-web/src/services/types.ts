@@ -15,6 +15,8 @@ export interface CandidateInfo {
     basicCompleted: boolean;
     consentCompleted: boolean;
     resumeCompleted: boolean;
+    preferencesCompleted?: boolean;
+    introVideoCompleted?: boolean;
     status: string;
   };
 }

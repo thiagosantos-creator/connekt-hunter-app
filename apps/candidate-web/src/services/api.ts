@@ -112,3 +112,20 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return handleResponse<T>(res);
 }
 
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetchWithRetry(`${API}${path}`, {
+    method: 'PATCH',
+    headers: buildHeaders(),
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(res);
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const res = await fetchWithRetry(`${API}${path}`, {
+    method: 'DELETE',
+    headers: buildHeaders(),
+  });
+  return handleResponse<T>(res);
+}
+

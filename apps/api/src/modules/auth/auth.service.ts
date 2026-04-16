@@ -90,7 +90,7 @@ export class AuthService {
     await prisma.userSession.updateMany({ where: { token, revokedAt: null }, data: { revokedAt: new Date() } });
   }
 
-  async guestUpgrade(token: string, email: string, fullName: string) {
+  async guestUpgrade(token: string, email: string, fullName: string, password?: string) {
     const candidate = await prisma.candidate.findUniqueOrThrow({ where: { token }, include: { profile: true } });
 
     const user = await prisma.user.upsert({
@@ -99,11 +99,21 @@ export class AuthService {
       create: { email, name: fullName || candidate.profile?.fullName || 'Candidate', role: 'candidate' },
     });
 
-    await prisma.authIdentity.upsert({
-      where: { provider_subject: { provider: 'candidate-passwordless', subject: email } },
-      update: { userId: user.id },
-      create: { provider: 'candidate-passwordless', subject: email, userId: user.id, email },
-    });
+    if (password) {
+      // Create a local password-based identity for the candidate
+      const passwordHash = await AuthService.hashPassword(password);
+      await prisma.authIdentity.upsert({
+        where: { provider_subject: { provider: 'candidate-local', subject: email } },
+        update: { userId: user.id, passwordHash },
+        create: { provider: 'candidate-local', subject: email, userId: user.id, email, passwordHash },
+      });
+    } else {
+      await prisma.authIdentity.upsert({
+        where: { provider_subject: { provider: 'candidate-passwordless', subject: email } },
+        update: { userId: user.id },
+        create: { provider: 'candidate-passwordless', subject: email, userId: user.id, email },
+      });
+    }
 
     await prisma.guestSession.updateMany({ where: { token }, data: { upgradedAt: new Date() } });
     await this.tokenCache.invalidate(token);
@@ -113,7 +123,67 @@ export class AuthService {
       data: { userId: user.id, guestUpgradeAt: new Date() },
     });
 
-    return this.login(email);
+    return this.login(email, password);
+  }
+
+  /**
+   * Authenticate a candidate via email + password (local identity).
+   * Validates against `candidate-local` AuthIdentity using scrypt hash.
+   */
+  async candidateLogin(email: string, password: string): Promise<LoginResult & { candidateToken?: string }> {
+    const identity = await prisma.authIdentity.findUnique({
+      where: { provider_subject: { provider: 'candidate-local', subject: email } },
+      include: { user: true },
+    });
+
+    if (!identity?.passwordHash) {
+      throw new UnauthorizedException('invalid_credentials');
+    }
+
+    const valid = await AuthService.verifyPassword(password, identity.passwordHash);
+    if (!valid) {
+      throw new UnauthorizedException('invalid_credentials');
+    }
+
+    // Find the candidate record linked to this user
+    const candidate = await prisma.candidate.findFirst({
+      where: { userId: identity.userId },
+    });
+
+    const loginResult = await this.login(email, password);
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: loginResult.user.id,
+        action: 'auth.candidate_login',
+        entityType: 'user-session',
+        entityId: loginResult.token,
+        metadata: { provider: 'candidate-local', candidateId: candidate?.id } as never,
+      },
+    });
+
+    return { ...loginResult, candidateToken: candidate?.token ?? undefined };
+  }
+
+  /** Hash a password using scrypt (64-byte key, 16-byte hex salt) */
+  private static async hashPassword(password: string): Promise<string> {
+    const { scrypt, randomBytes } = await import('node:crypto');
+    const { promisify } = await import('node:util');
+    const scryptAsync = promisify(scrypt);
+    const salt = randomBytes(16).toString('hex');
+    const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${salt}:${hash.toString('hex')}`;
+  }
+
+  /** Verify a password against a stored scrypt hash */
+  private static async verifyPassword(password: string, storedHash: string): Promise<boolean> {
+    const { scrypt, timingSafeEqual } = await import('node:crypto');
+    const { promisify } = await import('node:util');
+    const scryptAsync = promisify(scrypt);
+    const [salt, hash] = storedHash.split(':');
+    if (!salt || !hash) return false;
+    const derived = (await scryptAsync(password, salt, 64)) as Buffer;
+    return timingSafeEqual(Buffer.from(hash, 'hex'), derived);
   }
 
   /**

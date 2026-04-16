@@ -159,7 +159,7 @@ export class AiGateway {
     return { provider, ...result };
   }
 
-  async generateCandidateInsights(input: { candidateId: string; vacancyId: string; matching: unknown }) {
+  async generateCandidateInsights(input: { candidateId: string; vacancyId: string; matching: unknown; candidateContext?: unknown }) {
     const mockResult = () => ({
       summary: `Insights assistivos para candidato ${input.candidateId} na vaga ${input.vacancyId}.`,
       strengths: ['aprendizado rápido', 'boa comunicação com stakeholders'],

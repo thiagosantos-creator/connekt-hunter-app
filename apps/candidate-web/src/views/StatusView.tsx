@@ -287,6 +287,8 @@ export function StatusView() {
   // Upgrade form
   const [email, setEmail] = useState(info.email ?? '');
   const [fullName, setFullName] = useState(info.profile?.fullName ?? '');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [upgradeMsg, setUpgradeMsg] = useState('');
   const [upgrading, setUpgrading] = useState(false);
 
@@ -313,11 +315,19 @@ export function StatusView() {
 
   const upgradeAccount = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password && password !== confirmPassword) {
+      setUpgradeMsg('Falha no upgrade: As senhas não coincidem.');
+      return;
+    }
+    if (password && password.length < 8) {
+      setUpgradeMsg('Falha no upgrade: A senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
     setUpgrading(true);
     setUpgradeMsg('');
     try {
-      await apiPost('/auth/guest-upgrade', { token: getToken(), email, fullName });
-      setUpgradeMsg('Conta criada com sucesso. Você poderá usar login completo em breve.');
+      await apiPost('/auth/guest-upgrade', { token: getToken(), email, fullName, password: password || undefined });
+      setUpgradeMsg(password ? 'Conta criada com sucesso! Você pode acessar usando e-mail e senha.' : 'Conta criada com sucesso. Você poderá usar login completo em breve.');
     } catch (err) {
       setUpgradeMsg(`Falha no upgrade: ${String(err)}`);
     } finally {
@@ -506,6 +516,55 @@ export function StatusView() {
               </div>
             </div>
           </CardContent>
+        </Card>
+      )}
+
+      {/* ── Intro video player ─────────────────────────────────────────── */}
+      {introVideoComplete && candidateStatus?.introVideo && (
+        <Card>
+          <CardHeader style={{ paddingBottom: spacing.sm }}>
+            <SectionHeader id="intro-video" icon="🎬" title="Vídeo de apresentação" badge={candidateStatus.introVideo.analysisStatus === 'completed' ? 'Analisado' : 'Processando...'} />
+          </CardHeader>
+          {expandedSection === 'intro-video' && (
+            <CardContent>
+              {candidateStatus.introVideo.playbackUrl && (
+                <div style={{ marginBottom: spacing.md }}>
+                  <video
+                    controls
+                    playsInline
+                    style={{ width: '100%', maxHeight: 320, borderRadius: radius.lg, background: colors.primary, objectFit: 'cover' }}
+                    src={candidateStatus.introVideo.playbackUrl as string}
+                  />
+                </div>
+              )}
+
+              {candidateStatus.introVideo.summary && (
+                <div style={{ padding: spacing.md, background: colors.surfaceAlt, borderRadius: radius.lg, marginBottom: spacing.md, border: `1px solid ${colors.borderLight}` }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.xs }}>Resumo da IA</div>
+                  <p style={{ margin: 0, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 1.7 }}>{candidateStatus.introVideo.summary}</p>
+                </div>
+              )}
+
+              {Array.isArray(candidateStatus.introVideo.tags) && candidateStatus.introVideo.tags.length > 0 && (
+                <div style={{ marginBottom: spacing.md }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>Tags identificadas</div>
+                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                    {candidateStatus.introVideo.tags.map((tag, i) => (
+                      <span key={i} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.infoLight, color: colors.infoDark, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
+                        {String(tag)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ borderTop: `1px solid ${colors.borderLight}`, paddingTop: spacing.md }}>
+                <a href="/onboarding/intro-video" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: `${spacing.xs}px ${spacing.sm}px`, background: colors.surface, borderRadius: radius.md, border: `1px solid ${colors.border}`, textDecoration: 'none', color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
+                  🔄 Regravar vídeo
+                </a>
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -702,6 +761,10 @@ export function StatusView() {
             <form onSubmit={(e) => { void upgradeAccount(e); }} style={{ display: 'grid', gap: spacing.sm }}>
               <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               <Input label="Nome completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+              <Input label="Senha (opcional)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" />
+              {password && (
+                <Input label="Confirmar senha" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+              )}
               {upgradeMsg && (
                 <InlineMessage variant={upgradeMsg.startsWith('Falha') ? 'error' : 'success'}>
                   {upgradeMsg}

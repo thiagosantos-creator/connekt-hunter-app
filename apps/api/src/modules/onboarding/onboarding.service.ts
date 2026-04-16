@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@connekt/db';
 import { StorageGateway } from '../integrations/storage.gateway.js';
 import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
@@ -156,6 +157,9 @@ export class OnboardingService {
       data: { resumeCompleted: true, status: 'pending' },
     });
 
+    // Sync parsed CV data to structured profile models
+    await this.syncParsedResumeToProfile(candidate.id, parsed);
+
     await prisma.auditEvent.create({
       data: {
         actorId: candidate.id,
@@ -254,10 +258,10 @@ export class OnboardingService {
         introVideoTranscript: null,
         introVideoTranscriptLanguage: null,
         introVideoSummary: null,
-        introVideoTags: null,
-        introVideoSentimentJson: null,
-        introVideoEntitiesJson: null,
-        introVideoKeyPhrasesJson: null,
+        introVideoTags: Prisma.JsonNull,
+        introVideoSentimentJson: Prisma.JsonNull,
+        introVideoEntitiesJson: Prisma.JsonNull,
+        introVideoKeyPhrasesJson: Prisma.JsonNull,
         introVideoAnalyzedAt: null,
       },
       create: {
@@ -405,10 +409,153 @@ export class OnboardingService {
         entities: candidate.profile.introVideoEntitiesJson ?? null,
         keyPhrases: candidate.profile.introVideoKeyPhrasesJson ?? null,
         analyzedAt: candidate.profile.introVideoAnalyzedAt ?? null,
+        playbackUrl: await this.getPresignedPlaybackUrl(candidate.profile.introVideoKey),
       } : null,
       interview: interview ? { id: interview.id, status: interview.status } : null,
-      decision: latestDecision ? { decision: latestDecision.decision, at: latestDecision.createdAt } : null,
+      // Decision details (approve/reject/hold) are internal and MUST NOT be exposed to candidates.
+      // Candidates see only a generic "em análise" status via the onboarding steps.
+      decision: null,
     };
+  }
+
+  async getIntroVideoPlaybackUrl(token: string) {
+    const candidate = await prisma.candidate.findUnique({
+      where: { token },
+      include: { profile: { select: { introVideoKey: true } } },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+    if (!candidate.profile?.introVideoKey) throw new NotFoundException('intro_video_not_found');
+    const url = await this.getPresignedPlaybackUrl(candidate.profile.introVideoKey);
+    return { url };
+  }
+
+  private async getPresignedPlaybackUrl(objectKey: string): Promise<string> {
+    return this.storageGateway.createPresignedDownload(objectKey);
+  }
+
+  /**
+   * Syncs parsed resume data (experience, education, skills, languages)
+   * into structured CandidateProfile relations so that downstream AI services
+   * can access normalized candidate data.
+   */
+  async syncParsedResumeToProfile(candidateId: string, parsed: unknown) {
+    const data = parsed as {
+      summary?: string;
+      experience?: Array<{ company?: string; role?: string; period?: string; description?: string }>;
+      education?: Array<{ institution?: string; degree?: string; field?: string; period?: string }>;
+      skills?: Array<string | { name?: string; level?: string }>;
+      languages?: Array<string | { name?: string; level?: string }>;
+      location?: { city?: string; state?: string; country?: string };
+    } | null;
+
+    if (!data) return;
+
+    const profile = await prisma.candidateProfile.findUnique({ where: { candidateId } });
+    if (!profile) return;
+
+    // Update profile summary and location fields (only if currently empty)
+    const profileUpdates: Record<string, string> = {};
+    if (data.summary && !profile.resumeSummary) profileUpdates.resumeSummary = data.summary;
+    if (data.location?.city && !profile.locationCity) profileUpdates.locationCity = data.location.city;
+    if (data.location?.state && !profile.locationState) profileUpdates.locationState = data.location.state;
+    if (data.location?.country && !profile.locationCountry) profileUpdates.locationCountry = data.location.country;
+
+    if (Object.keys(profileUpdates).length > 0) {
+      await prisma.candidateProfile.update({
+        where: { candidateId },
+        data: profileUpdates,
+      });
+    }
+
+    // Clear existing cv-parse sourced records before re-syncing
+    await Promise.all([
+      prisma.candidateExperience.deleteMany({ where: { profileId: profile.id, source: 'cv-parse' } }),
+      prisma.candidateEducation.deleteMany({ where: { profileId: profile.id, source: 'cv-parse' } }),
+      prisma.candidateSkill.deleteMany({ where: { profileId: profile.id, source: 'cv-parse' } }),
+      prisma.candidateLanguage.deleteMany({ where: { profileId: profile.id, source: 'cv-parse' } }),
+    ]);
+
+    // Sync experiences
+    if (Array.isArray(data.experience) && data.experience.length > 0) {
+      await prisma.candidateExperience.createMany({
+        data: data.experience
+          .filter((exp) => exp.company || exp.role)
+          .map((exp) => ({
+            profileId: profile.id,
+            company: exp.company ?? 'Não informado',
+            role: exp.role ?? 'Não informado',
+            period: exp.period ?? null,
+            description: exp.description ?? null,
+            source: 'cv-parse',
+          })),
+      });
+    }
+
+    // Sync education
+    if (Array.isArray(data.education) && data.education.length > 0) {
+      await prisma.candidateEducation.createMany({
+        data: data.education
+          .filter((edu) => edu.institution || edu.degree)
+          .map((edu) => ({
+            profileId: profile.id,
+            institution: edu.institution ?? 'Não informado',
+            degree: edu.degree ?? 'Não informado',
+            field: edu.field ?? null,
+            period: edu.period ?? null,
+            source: 'cv-parse',
+          })),
+      });
+    }
+
+    // Sync skills (deduplicated)
+    if (Array.isArray(data.skills) && data.skills.length > 0) {
+      const seen = new Set<string>();
+      const skillRecords = data.skills
+        .map((skill) => {
+          const name = (typeof skill === 'string' ? skill : skill?.name ?? '').trim();
+          const level = typeof skill === 'object' ? skill?.level ?? null : null;
+          return { name, level };
+        })
+        .filter((s) => s.name && !seen.has(s.name.toLowerCase()) && (seen.add(s.name.toLowerCase()), true));
+
+      if (skillRecords.length > 0) {
+        await prisma.candidateSkill.createMany({
+          data: skillRecords.map((s) => ({
+            profileId: profile.id,
+            name: s.name,
+            level: s.level,
+            source: 'cv-parse',
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    // Sync languages (deduplicated)
+    if (Array.isArray(data.languages) && data.languages.length > 0) {
+      const seen = new Set<string>();
+      const langRecords = data.languages
+        .map((lang) => {
+          const name = (typeof lang === 'string' ? lang : lang?.name ?? '').trim();
+          const level = typeof lang === 'object' ? lang?.level ?? null : null;
+          return { name, level };
+        })
+        .filter((l) => l.name && !seen.has(l.name.toLowerCase()) && (seen.add(l.name.toLowerCase()), true));
+
+      if (langRecords.length > 0) {
+        await prisma.candidateLanguage.createMany({
+          data: langRecords.map((l) => ({
+            profileId: profile.id,
+            name: l.name,
+            level: l.level,
+            source: 'cv-parse',
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    this.logger.log(JSON.stringify({ event: 'resume_profile_synced', candidateId, profileId: profile.id }));
   }
 
   private async notifyInviter(organizationId: string, invitedByUserId: string | null, candidateId: string, step: string) {

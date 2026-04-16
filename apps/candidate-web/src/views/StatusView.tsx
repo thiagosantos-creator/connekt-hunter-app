@@ -36,7 +36,15 @@ interface CandidateStatus {
   onboardingStatus: string;
   steps: StatusStep[];
   interview: { id: string; status: string } | null;
-  decision: { decision: string; at: string } | null;
+  introVideo?: {
+    uploadedAt: string | null;
+    durationSec: number | null;
+    analysisStatus: string;
+    summary: string | null;
+    transcript: string | null;
+    tags: string[];
+    sentiment: unknown;
+  } | null;
 }
 
 interface ParsedResumeData {
@@ -49,14 +57,6 @@ interface ParsedResumeData {
     languages?: Array<{ name?: string; level?: string } | string>;
   } | null;
 }
-
-/* ── Decision labels ─────────────────────────────────────────────────── */
-const decisionMeta: Record<string, { label: string; variant: 'success' | 'error' | 'info' | 'warning'; icon: string }> = {
-  approve:   { label: 'Aprovado',                     variant: 'success', icon: '✅' },
-  reject:    { label: 'Não selecionado',               variant: 'error',   icon: '❌' },
-  interview: { label: 'Convidado para entrevista',     variant: 'info',    icon: '📋' },
-  hold:      { label: 'Em espera',                     variant: 'warning', icon: '⏳' },
-};
 
 /* ── Re-upload component ─────────────────────────────────────────────── */
 const MAX_FILE_SIZE_MB = 10;
@@ -332,8 +332,6 @@ export function StatusView() {
   };
 
   const name = candidateStatus?.fullName ?? info.profile?.fullName ?? info.email ?? 'Candidato';
-  const decision = candidateStatus?.decision;
-  const dm = decision ? (decisionMeta[decision.decision] ?? null) : null;
   const completedSteps = candidateStatus?.steps.filter((s) => s.completed).length ?? 0;
   const totalSteps = candidateStatus?.steps.length ?? 0;
   const progressPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
@@ -397,24 +395,9 @@ export function StatusView() {
             </div>
           )}
 
-          {/* Decision badge */}
-          {dm && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: spacing.xs,
-              padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.full,
-              background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)',
-              fontSize: fontSize.sm, fontWeight: fontWeight.semibold, marginBottom: spacing.md,
-            }}>
-              {dm.icon} {dm.label}
-              <span style={{ opacity: 0.6, fontSize: fontSize.xs }}>
-                · {new Date(decision!.at).toLocaleDateString('pt-BR')}
-              </span>
-            </div>
-          )}
-
           {/* Progress bar */}
           {totalSteps > 0 && (
-            <div style={{ marginTop: dm ? 0 : spacing.md }}>
+            <div style={{ marginTop: spacing.md }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: fontSize.xs, opacity: 0.8 }}>
                 <span>Progresso da candidatura</span>
                 <span>{progressPct}%</span>

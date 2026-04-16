@@ -378,6 +378,10 @@ model CandidateProfile {
   photoProvider         String?
   socialName            String?
   socialEmail           String?
+  locationCity          String?
+  locationState         String?
+  locationCountry       String?
+  resumeSummary         String?
   introVideoKey         String?
   introVideoProvider    String?
   introVideoDurationSec Int?
@@ -392,6 +396,66 @@ model CandidateProfile {
   introVideoKeyPhrasesJson Json?
   introVideoAnalyzedAt     DateTime?
   candidate             Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  experiences           CandidateExperience[]
+  educations            CandidateEducation[]
+  skills                CandidateSkill[]
+  languages             CandidateLanguage[]
+}
+
+model CandidateExperience {
+  id          String           @id @default(cuid())
+  profileId   String
+  company     String
+  role        String
+  period      String?
+  description String?
+  source      String           @default("cv-parse")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  profile     CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model CandidateEducation {
+  id          String           @id @default(cuid())
+  profileId   String
+  institution String
+  degree      String
+  field       String?
+  period      String?
+  source      String           @default("cv-parse")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  profile     CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+}
+
+model CandidateSkill {
+  id        String           @id @default(cuid())
+  profileId String
+  name      String
+  level     String?
+  source    String           @default("cv-parse")
+  createdAt DateTime         @default(now())
+  profile   CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, name])
+  @@index([profileId])
+}
+
+model CandidateLanguage {
+  id        String           @id @default(cuid())
+  profileId String
+  name      String
+  level     String?
+  source    String           @default("cv-parse")
+  createdAt DateTime         @default(now())
+  profile   CandidateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, name])
+  @@index([profileId])
 }
 
 model Application {

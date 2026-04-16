@@ -156,6 +156,17 @@ export class StorageGateway {
     return Buffer.from(bytes);
   }
 
+  /** Generate a presigned GET URL for downloading/streaming an object (15 min TTL) */
+  async createPresignedDownload(objectKey: string, expiresIn = 900): Promise<string> {
+    await this.ensureBucket();
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+    });
+    const internalUrl = await getSignedUrl(this.s3, command, { expiresIn });
+    return this.toPublicUrl(internalUrl);
+  }
+
   async recordAsset(input: { tenantId: string; objectKey: string; category: string; provider?: string; metadata?: Record<string, unknown> }) {
     return prisma.storageAssetMetadata.create({
       data: {

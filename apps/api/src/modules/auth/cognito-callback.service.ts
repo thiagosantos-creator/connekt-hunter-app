@@ -34,7 +34,12 @@ interface CognitoClaims {
 export class CognitoCallbackService {
   private readonly logger = new Logger(CognitoCallbackService.name);
 
-  /** Resolve the Cognito client secret from environment — never accept from caller */
+  /**
+   * Reads the Cognito client secret from environment variables.
+   * Checks COGNITO_CANDIDATE_CLIENT_SECRET first (candidate-specific pool),
+   * falls back to COGNITO_CLIENT_SECRET (shared/legacy). Returns undefined
+   * if neither is set (client secret not required for all Cognito app configs).
+   */
   private getClientSecret(): string | undefined {
     return process.env.COGNITO_CANDIDATE_CLIENT_SECRET ?? process.env.COGNITO_CLIENT_SECRET ?? undefined;
   }

@@ -20,7 +20,7 @@ export class CandidateRankingService {
       candidates: scores.map((score) => ({ candidateId: score.candidateId, score: score.score })),
     });
 
-    const created = await prisma.candidateRankingSnapshot.createMany({
+    const result = await prisma.candidateRankingSnapshot.createMany({
       data: scores.map((item, idx) => ({
         vacancyId,
         candidateId: item.candidateId,
@@ -41,7 +41,7 @@ export class CandidateRankingService {
         action: 'ranking.generated',
         entityType: 'Vacancy',
         entityId: vacancyId,
-        metadata: { count: created.count } as never,
+        metadata: { count: result.count } as never,
       },
     });
 

@@ -56,10 +56,12 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
       const res = await fetch(url, { ...init, signal: controller.signal });
       clearTimeout(timeoutId);
 
-      // Handle rate limiting with retry-after
+      // Handle rate limiting — prefer server Retry-After, else exponential backoff
       if (res.status === 429 && attempt < MAX_RETRIES) {
-        const retryAfter = Number(res.headers.get('Retry-After') || '1');
-        const delay = Math.max(retryAfter * 1000, INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt));
+        const retryAfterHeader = res.headers.get('Retry-After');
+        const delay = retryAfterHeader
+          ? Number(retryAfterHeader) * 1000
+          : INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }

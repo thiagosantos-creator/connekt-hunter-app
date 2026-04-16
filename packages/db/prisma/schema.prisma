@@ -78,6 +78,10 @@ model Vacancy {
   publicationType String       @default("draft")
   status         String        @default("active")
   publishedAt    DateTime?
+  closedAt       DateTime?
+  closedBy       String?
+  filledAt       DateTime?
+  guaranteeEndDate DateTime?
   department     String?
   requiredSkills Json?
   desiredSkills  Json?

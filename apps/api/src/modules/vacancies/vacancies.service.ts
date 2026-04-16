@@ -17,6 +17,11 @@ type VacancyRecord = {
   employmentType: string | null;
   publicationType: string;
   status: string;
+  publishedAt: Date | null;
+  closedAt: Date | null;
+  closedBy: string | null;
+  filledAt: Date | null;
+  guaranteeEndDate: Date | null;
   department: string | null;
   requiredSkills: unknown;
   desiredSkills: unknown;
@@ -152,19 +157,50 @@ export class VacanciesService {
     if (shouldPublish) {
       (updateData as Record<string, unknown>).publishedAt = new Date();
     }
+
+    /* ── Lifecycle: auto-close / reopen logic ──────────────────── */
+    const closingStatuses = ['disabled', 'expired'];
+    const newStatus = data.status ?? existing.status;
+    const wasOpen = !closingStatuses.includes(existing.status);
+    const isClosed = closingStatuses.includes(newStatus);
+    const wasClosedBefore = closingStatuses.includes(existing.status);
+    const isReopened = wasClosedBefore && newStatus === 'active';
+
+    if (wasOpen && isClosed && !existing.closedAt) {
+      const closedAt = new Date();
+      (updateData as Record<string, unknown>).closedAt = closedAt;
+      (updateData as Record<string, unknown>).closedBy = actorId;
+      (updateData as Record<string, unknown>).guaranteeEndDate = new Date(closedAt.getTime() + 90 * 24 * 60 * 60 * 1000);
+    }
+
+    if (isReopened) {
+      (updateData as Record<string, unknown>).closedAt = null;
+      (updateData as Record<string, unknown>).closedBy = null;
+      (updateData as Record<string, unknown>).guaranteeEndDate = null;
+      (updateData as Record<string, unknown>).filledAt = null;
+    }
+
     const updated = await prisma.vacancy.update({
       where: { id: vacancyId },
       data: updateData,
       include: { organization: true },
     });
 
+    const auditAction = isReopened
+      ? 'vacancy.reopened'
+      : (wasOpen && isClosed)
+        ? 'vacancy.closed'
+        : shouldPublish
+          ? 'vacancy.published'
+          : 'vacancy.updated';
+
     await prisma.auditEvent.create({
       data: {
         actorId,
-        action: shouldPublish ? 'vacancy.published' : 'vacancy.updated',
+        action: auditAction,
         entityType: 'Vacancy',
         entityId: vacancyId,
-        metadata: { changes: Object.keys(data), publicationType } as never,
+        metadata: { changes: Object.keys(data), publicationType, status: newStatus } as never,
       },
     });
 

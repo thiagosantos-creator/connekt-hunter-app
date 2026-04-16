@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiPost, getToken } from '../services/api.js';
+import { extractErrorMessage } from '../services/error-messages.js';
 import { StepIndicator } from '../components/layout/StepIndicator.js';
 import { Button, Input, Card, CardContent, InlineMessage, colors, spacing } from '@connekt/ui';
 
@@ -9,6 +10,7 @@ export function Step1BasicView() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const validatePhone = (value: string): boolean => {
@@ -17,11 +19,19 @@ export function Step1BasicView() {
     return digits.length >= 10 && digits.length <= 13;
   };
 
+  const handlePhoneBlur = () => {
+    if (phone.trim() && !validatePhone(phone)) {
+      setPhoneError('Telefone inválido. Use o formato (XX) XXXXX-XXXX.');
+    } else {
+      setPhoneError('');
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) { setError('Nome completo é obrigatório.'); return; }
     if (phone.trim() && !validatePhone(phone)) {
-      setError('Telefone inválido. Use o formato (XX) XXXXX-XXXX.');
+      setPhoneError('Telefone inválido. Use o formato (XX) XXXXX-XXXX.');
       return;
     }
     setLoading(true);
@@ -30,7 +40,7 @@ export function Step1BasicView() {
       await apiPost('/candidate/onboarding/basic', { token: getToken(), fullName, phone });
       navigate('/onboarding/consent');
     } catch (err) {
-      setError(String(err));
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -44,7 +54,15 @@ export function Step1BasicView() {
           <h2 style={{ margin: `0 0 ${spacing.lg}px`, color: colors.text }}>Passo 1 — Dados Básicos</h2>
           <form onSubmit={(e) => { void submit(e); }}>
             <Input label="Nome Completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            <Input label="Telefone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(XX) XXXXX-XXXX" />
+            <Input
+              label="Telefone"
+              value={phone}
+              onChange={(e) => { setPhone(e.target.value); if (phoneError) setPhoneError(''); }}
+              onBlur={handlePhoneBlur}
+              placeholder="(XX) XXXXX-XXXX"
+              hint="Opcional. Ajuda a acelerar o contato do recrutamento."
+              error={phoneError || undefined}
+            />
             {error && <InlineMessage variant="error">{error}</InlineMessage>}
             <Button type="submit" loading={loading} style={{ marginTop: spacing.sm }}>
               {loading ? 'Salvando…' : 'Próximo →'}

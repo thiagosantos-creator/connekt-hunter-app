@@ -73,7 +73,7 @@ export function LoginView() {
     >
       <Card variant="elevated" style={{ maxWidth: 420, width: '100%' }}>
         <CardHeader>
-          <CardTitle>Connekt Hunter</CardTitle>
+          <CardTitle level={1}>Connekt Hunter</CardTitle>
           <CardDescription>
             Modo desenvolvimento — utilize um e-mail de demonstração.
           </CardDescription>

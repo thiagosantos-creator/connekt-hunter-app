@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AiTag,
   Badge,
@@ -143,6 +143,8 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
   const [feedbackSaveDefault, setFeedbackSaveDefault] = useState(false);
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackStatus, setFeedbackStatus] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -150,6 +152,41 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
+
+  /* Focus trap — store previous focus, trap Tab inside modal, restore on close */
+  useEffect(() => {
+    if (!open) {
+      previousFocusRef.current?.focus();
+      return;
+    }
+    previousFocusRef.current = document.activeElement as HTMLElement;
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const getFocusable = () => Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+
+    // Set initial focus on the close button
+    const closeBtn = modal.querySelector<HTMLButtonElement>('button[data-close-modal]');
+    if (closeBtn) closeBtn.focus();
+    else getFocusable()[0]?.focus();
+
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
+
+    document.addEventListener('keydown', trapFocus);
+    return () => document.removeEventListener('keydown', trapFocus);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !applicationId) return;
@@ -251,7 +288,14 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, padding: spacing.lg, background: 'rgba(15,23,42,0.58)', backdropFilter: 'blur(8px)' }}>
-      <div onClick={(event) => event.stopPropagation()} style={{ width: 'min(1240px, 100%)', maxHeight: '92vh', overflowY: 'auto', margin: '0 auto', background: colors.surface, borderRadius: radius.xl, boxShadow: '0 30px 90px rgba(15,23,42,0.28)' }}>
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Perfil do candidato"
+        onClick={(event) => event.stopPropagation()}
+        style={{ width: 'min(1240px, 100%)', maxHeight: '92vh', overflowY: 'auto', margin: '0 auto', background: colors.surface, borderRadius: radius.xl, boxShadow: '0 30px 90px rgba(15,23,42,0.28)' }}
+      >
         <div style={{ position: 'sticky', top: 0, zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `${spacing.md}px ${spacing.lg}px`, background: 'rgba(255,255,255,0.92)', borderBottom: `1px solid ${colors.border}`, backdropFilter: 'blur(12px)' }}>
           <div>
             <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Perfil do candidato</div>
@@ -263,7 +307,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
                 📧 Enviar Feedback
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
+            <Button variant="ghost" size="sm" data-close-modal onClick={onClose}>Fechar</Button>
           </div>
         </div>
 
@@ -604,7 +648,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               borderRadius: radius.md,
               background: colors.infoLight,
               fontSize: fontSize.xs,
-              color: colors.info,
+              color: colors.infoDark,
               lineHeight: 1.6,
             }}>
               💡 O feedback será enviado por email para o candidato. Se marcado como padrão, a mensagem ficará disponível para uso futuro.
@@ -642,7 +686,7 @@ function TagBlock({ title, tags, tone, emptyLabel }: { title: string; tags: stri
   const toneMap = {
     success: { bg: colors.successLight, fg: colors.success, border: 'transparent' },
     warning: { bg: colors.warningLight, fg: colors.warning, border: 'transparent' },
-    info: { bg: colors.infoLight, fg: colors.info, border: 'transparent' },
+    info: { bg: colors.infoLight, fg: colors.infoDark, border: 'transparent' },
     neutral: { bg: colors.surfaceAlt, fg: colors.textSecondary, border: colors.border },
   } as const;
   const palette = toneMap[tone];

@@ -19,7 +19,7 @@ describe('AuthService', () => {
     );
   }
 
-  it('reports Cognito candidate client secret configuration without exposing the secret value', () => {
+  it('returns Cognito candidate config without exposing the client secret value', () => {
     vi.stubEnv('COGNITO_CANDIDATE_POOL_ID', 'candidate-pool');
     vi.stubEnv('COGNITO_CANDIDATE_CLIENT_ID', 'candidate-client');
     vi.stubEnv('COGNITO_CANDIDATE_CLIENT_SECRET', 'super-secret-value');
@@ -28,13 +28,15 @@ describe('AuthService', () => {
     const service = createService();
     const config = service.getCandidateAuthConfig();
 
-    expect(config.clientSecretConfigured).toBe(true);
-    expect(config.usesClientSecret).toBe(true);
     expect(config.hostedUiUrl).toContain('candidate-domain.auth.us-east-1.amazoncognito.com');
+    // Secret must never appear in the public config response
     expect(Object.values(config as Record<string, unknown>)).not.toContain('super-secret-value');
+    // Fields that previously leaked secret status must no longer exist
+    expect(config).not.toHaveProperty('clientSecretConfigured');
+    expect(config).not.toHaveProperty('usesClientSecret');
   });
 
-  it('falls back to workforce Cognito domain and secret when candidate-specific values are absent', () => {
+  it('falls back to workforce Cognito domain when candidate-specific values are absent', () => {
     vi.stubEnv('COGNITO_USER_POOL_ID', 'workforce-pool');
     vi.stubEnv('COGNITO_CLIENT_ID', 'workforce-client');
     vi.stubEnv('COGNITO_CLIENT_SECRET', 'workforce-secret');
@@ -45,8 +47,8 @@ describe('AuthService', () => {
 
     expect(config.poolId).toBe('workforce-pool');
     expect(config.clientId).toBe('workforce-client');
-    expect(config.clientSecretConfigured).toBe(true);
     expect(config.hostedUiUrl).toContain('company-domain.auth.us-east-1.amazoncognito.com');
     expect(config.tokenEndpoint).toBe('https://company-domain.auth.us-east-1.amazoncognito.com/oauth2/token');
+    expect(config).not.toHaveProperty('clientSecretConfigured');
   });
 });

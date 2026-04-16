@@ -21,7 +21,8 @@ export class OpenAiProvider {
       if (!apiKey || apiKey === '__REPLACE_ME__') {
         throw new Error('AI_PROVIDER_API_KEY or OPENAI_API_KEY is required for real AI provider');
       }
-      this.client = new OpenAI({ apiKey });
+      const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS ?? 30_000);
+      this.client = new OpenAI({ apiKey, timeout: timeoutMs, maxRetries: 1 });
     }
     return this.client;
   }

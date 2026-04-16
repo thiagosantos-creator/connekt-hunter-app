@@ -59,7 +59,7 @@ interface ParsedResumeData {
   } | null;
 }
 
-/* ── Re-upload component ─────────────────────────────────────────────── */
+const MIN_PASSWORD_LENGTH = 8;
 const MAX_FILE_SIZE_MB = 10;
 const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx'];
 
@@ -320,8 +320,8 @@ export function StatusView() {
       setUpgradeMsg('Falha no upgrade: As senhas não coincidem.');
       return;
     }
-    if (password && password.length < 8) {
-      setUpgradeMsg('Falha no upgrade: A senha deve ter pelo menos 8 caracteres.');
+    if (password && password.length < MIN_PASSWORD_LENGTH) {
+      setUpgradeMsg(`Falha no upgrade: A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`);
       return;
     }
     setUpgrading(true);

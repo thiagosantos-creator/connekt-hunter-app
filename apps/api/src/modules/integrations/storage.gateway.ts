@@ -156,8 +156,11 @@ export class StorageGateway {
     return Buffer.from(bytes);
   }
 
-  /** Generate a presigned GET URL for downloading/streaming an object (15 min TTL) */
-  async createPresignedDownload(objectKey: string, expiresIn = 900): Promise<string> {
+  /** Default presigned download URL expiry in seconds (15 minutes) */
+  private static readonly DEFAULT_DOWNLOAD_EXPIRY_SEC = 900;
+
+  /** Generate a presigned GET URL for downloading/streaming an object */
+  async createPresignedDownload(objectKey: string, expiresIn = StorageGateway.DEFAULT_DOWNLOAD_EXPIRY_SEC): Promise<string> {
     await this.ensureBucket();
     const command = new GetObjectCommand({
       Bucket: this.bucket,

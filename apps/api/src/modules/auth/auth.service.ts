@@ -165,13 +165,15 @@ export class AuthService {
     return { ...loginResult, candidateToken: candidate?.token ?? undefined };
   }
 
-  /** Hash a password using scrypt (64-byte key, 16-byte hex salt) */
+  private static readonly SCRYPT_KEY_LENGTH = 64;
+
+  /** Hash a password using scrypt */
   private static async hashPassword(password: string): Promise<string> {
     const { scrypt, randomBytes } = await import('node:crypto');
     const { promisify } = await import('node:util');
     const scryptAsync = promisify(scrypt);
     const salt = randomBytes(16).toString('hex');
-    const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+    const hash = (await scryptAsync(password, salt, AuthService.SCRYPT_KEY_LENGTH)) as Buffer;
     return `${salt}:${hash.toString('hex')}`;
   }
 
@@ -182,7 +184,7 @@ export class AuthService {
     const scryptAsync = promisify(scrypt);
     const [salt, hash] = storedHash.split(':');
     if (!salt || !hash) return false;
-    const derived = (await scryptAsync(password, salt, 64)) as Buffer;
+    const derived = (await scryptAsync(password, salt, AuthService.SCRYPT_KEY_LENGTH)) as Buffer;
     return timingSafeEqual(Buffer.from(hash, 'hex'), derived);
   }
 

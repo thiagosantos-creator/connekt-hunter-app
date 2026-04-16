@@ -59,6 +59,7 @@ type TemplateForm = {
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
 const MS_PER_DAY = 86_400_000;
+const AUTO_SUGGEST_DEBOUNCE_MS = 2000;
 
 const emptyVacancyForm = (): VacancyForm => ({
   title: '',
@@ -261,7 +262,7 @@ export function VacanciesView() {
     if (autoSuggestTimerRef.current) clearTimeout(autoSuggestTimerRef.current);
     autoSuggestTimerRef.current = setTimeout(() => {
       void triggerAutoSuggest();
-    }, 2000);
+    }, AUTO_SUGGEST_DEBOUNCE_MS);
 
     return () => {
       if (autoSuggestTimerRef.current) clearTimeout(autoSuggestTimerRef.current);

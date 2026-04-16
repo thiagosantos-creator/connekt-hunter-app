@@ -5,6 +5,9 @@ import { CvParserGateway } from '../integrations/cv-parser.gateway.js';
 import { NotificationDispatchService } from '../notification-preferences/notification-dispatch.service.js';
 import { extractResumeTextFromBuffer } from './resume-text-extractor.js';
 
+/** Fallback label used when structured resume fields are missing */
+const NOT_INFORMED = 'Não informado';
+
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
@@ -481,8 +484,8 @@ export class OnboardingService {
           .filter((exp) => exp.company || exp.role)
           .map((exp) => ({
             profileId: profile.id,
-            company: exp.company ?? 'Não informado',
-            role: exp.role ?? 'Não informado',
+            company: exp.company ?? NOT_INFORMED,
+            role: exp.role ?? NOT_INFORMED,
             period: exp.period ?? null,
             description: exp.description ?? null,
             source: 'cv-parse',
@@ -497,8 +500,8 @@ export class OnboardingService {
           .filter((edu) => edu.institution || edu.degree)
           .map((edu) => ({
             profileId: profile.id,
-            institution: edu.institution ?? 'Não informado',
-            degree: edu.degree ?? 'Não informado',
+            institution: edu.institution ?? NOT_INFORMED,
+            degree: edu.degree ?? NOT_INFORMED,
             field: edu.field ?? null,
             period: edu.period ?? null,
             source: 'cv-parse',

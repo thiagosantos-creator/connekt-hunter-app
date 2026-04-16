@@ -142,8 +142,6 @@ export class AuthService {
       region,
       redirectUri,
       logoutUri,
-      clientSecretConfigured: Boolean(clientSecret),
-      usesClientSecret: Boolean(clientSecret),
       socialProviders: ['Google', 'LinkedIn'] as const,
       hostedUiUrl: domain
         ? `https://${domain}/oauth2/authorize?client_id=${clientId}&response_type=code&scope=openid+email+profile&redirect_uri=${encodeURIComponent(redirectUri)}`

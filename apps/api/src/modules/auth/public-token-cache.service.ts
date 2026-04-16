@@ -14,6 +14,21 @@ export class PublicTokenCacheService {
   private readonly localFallback = new Map<string, { value: CachedPublicToken; expiresAtMs: number }>();
   private readonly ttlSeconds = Number(process.env.PUBLIC_TOKEN_CACHE_TTL_SEC ?? 30);
 
+  constructor() {
+    // Periodic cleanup of expired local cache entries to prevent memory leaks
+    const cleanupInterval = setInterval(() => this.cleanupExpired(), 60_000);
+    cleanupInterval.unref(); // don't keep process alive
+  }
+
+  private cleanupExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.localFallback) {
+      if (now > entry.expiresAtMs) {
+        this.localFallback.delete(key);
+      }
+    }
+  }
+
   private key(token: string): string {
     const digest = createHash('sha256').update(token).digest('hex');
     return `public-token:v1:${digest}`;

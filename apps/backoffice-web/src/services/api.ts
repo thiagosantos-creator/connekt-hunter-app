@@ -19,6 +19,9 @@ function handleSessionExpired(): never {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (res.status === 401) handleSessionExpired();
+  if (res.status === 429) {
+    throw new Error('Muitas requisições. Aguarde um momento e tente novamente.');
+  }
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `Erro ${res.status}`);
@@ -40,6 +43,17 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     try {
       const res = await fetch(url, { ...init, signal: controller.signal });
       clearTimeout(timeoutId);
+
+      // Handle rate limiting — prefer server Retry-After, else exponential backoff
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfterHeader = res.headers.get('Retry-After');
+        const delay = retryAfterHeader
+          ? Number(retryAfterHeader) * 1000
+          : INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
       return res;
     } catch (error) {
       clearTimeout(timeoutId);

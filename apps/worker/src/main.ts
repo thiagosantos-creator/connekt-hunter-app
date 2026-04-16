@@ -1082,5 +1082,19 @@ async function run() {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  void run();
+  // Catch unhandled rejections so the worker never dies silently
+  process.on('unhandledRejection', (reason) => {
+    console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'unhandled_rejection', error: String(reason) }));
+    process.exitCode = 1;
+  });
+
+  process.on('uncaughtException', (err) => {
+    console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'uncaught_exception', error: String(err), stack: err.stack }));
+    process.exitCode = 1;
+  });
+
+  run().catch((err) => {
+    console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'run_fatal', error: String(err) }));
+    process.exitCode = 1;
+  });
 }

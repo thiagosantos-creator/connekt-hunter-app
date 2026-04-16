@@ -4,7 +4,7 @@ vi.mock('@connekt/db', () => ({
   prisma: {
     $transaction: vi.fn(),
     matchingScore: { findMany: vi.fn() },
-    candidateRankingSnapshot: { deleteMany: vi.fn(), create: vi.fn(), findMany: vi.fn() },
+    candidateRankingSnapshot: { deleteMany: vi.fn(), create: vi.fn(), createMany: vi.fn(), findMany: vi.fn() },
     auditEvent: { create: vi.fn() },
   },
 }));
@@ -28,12 +28,16 @@ describe('CandidateRankingService', () => {
       { candidateId: 'c2', score: 80 },
     ] as never);
     vi.mocked(aiGateway.generateRankingRationale).mockResolvedValue({ c1: 'top', c2: 'second' });
-    vi.mocked(prisma.candidateRankingSnapshot.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.candidateRankingSnapshot.createMany).mockResolvedValue({ count: 2 } as never);
+    vi.mocked(prisma.candidateRankingSnapshot.findMany).mockResolvedValue([
+      { candidateId: 'c1', rank: 1 },
+      { candidateId: 'c2', rank: 2 },
+    ] as never);
     vi.mocked(prisma.auditEvent.create).mockResolvedValue({} as never);
 
     await service.generate('v1', 'u1');
 
-    expect(prisma.candidateRankingSnapshot.create).toHaveBeenCalledTimes(2);
+    expect(prisma.candidateRankingSnapshot.createMany).toHaveBeenCalledOnce();
     expect(prisma.auditEvent.create).toHaveBeenCalledOnce();
   });
 

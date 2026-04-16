@@ -22,6 +22,7 @@
     "@nestjs/common": "^11.0.20",
     "@nestjs/core": "^11.0.20",
     "@nestjs/platform-express": "^11.0.20",
+    "helmet": "^8.1.0",
     "jose": "^5.9.6",
     "mammoth": "^1.12.0",
     "openai": "^4.104.0",

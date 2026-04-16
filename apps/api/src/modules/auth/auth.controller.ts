@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Inject, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { CognitoCallbackService } from './cognito-callback.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
@@ -17,8 +17,15 @@ export class AuthController {
     return this.authService.login(body.email, body.password);
   }
 
+  /**
+   * Development-only login endpoint. Disabled unless APP_ENV=local.
+   */
   @Post('dev-login')
   devLogin(@Body() body: { email: string }) {
+    const env = process.env.APP_ENV ?? 'local';
+    if (env !== 'local' && env !== 'development' && env !== 'test') {
+      throw new ForbiddenException('dev_login_disabled');
+    }
     return this.authService.devLogin(body.email);
   }
 
@@ -41,6 +48,7 @@ export class AuthController {
    * Handles the OAuth2 authorization_code callback from Cognito Hosted UI.
    * Exchanges the code for tokens, verifies the id_token, and creates a local session.
    * The optional `inviteToken` links the social identity to an existing candidate.
+   * The client secret is read inside CognitoCallbackService — never passed from the controller.
    */
   @Post('cognito-callback')
   async cognitoCallback(
@@ -61,7 +69,6 @@ export class AuthController {
       state: body.state,
       poolId: cfg.poolId,
       clientId: cfg.clientId,
-      clientSecret: process.env.COGNITO_CANDIDATE_CLIENT_SECRET,
       domain: cfg.domain,
       redirectUri: cfg.redirectUri,
       region: cfg.region,

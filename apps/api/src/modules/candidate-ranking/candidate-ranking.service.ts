@@ -20,20 +20,20 @@ export class CandidateRankingService {
       candidates: scores.map((score) => ({ candidateId: score.candidateId, score: score.score })),
     });
 
-    const created = [];
-    for (const [idx, item] of scores.entries()) {
-      created.push(
-        await prisma.candidateRankingSnapshot.create({
-          data: {
-            vacancyId,
-            candidateId: item.candidateId,
-            rank: idx + 1,
-            score: item.score,
-            rationale: rationale[item.candidateId] ?? 'Ranking assistido por matching score e sinais qualitativos.',
-          },
-        }),
-      );
-    }
+    const result = await prisma.candidateRankingSnapshot.createMany({
+      data: scores.map((item, idx) => ({
+        vacancyId,
+        candidateId: item.candidateId,
+        rank: idx + 1,
+        score: item.score,
+        rationale: rationale[item.candidateId] ?? 'Ranking assistido por matching score e sinais qualitativos.',
+      })),
+    });
+
+    const snapshots = await prisma.candidateRankingSnapshot.findMany({
+      where: { vacancyId },
+      orderBy: { rank: 'asc' },
+    });
 
     await prisma.auditEvent.create({
       data: {
@@ -41,11 +41,11 @@ export class CandidateRankingService {
         action: 'ranking.generated',
         entityType: 'Vacancy',
         entityId: vacancyId,
-        metadata: { count: created.length } as never,
+        metadata: { count: result.count } as never,
       },
     });
 
-    return created;
+    return snapshots;
   }
 
   async list(vacancyId: string) {

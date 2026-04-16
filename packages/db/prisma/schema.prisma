@@ -57,8 +57,8 @@ model Membership {
   organizationId String
   userId         String
   role           String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, userId])
 }
@@ -89,8 +89,8 @@ model Vacancy {
   salaryMax      Int?
   createdBy      String
   createdAt      DateTime      @default(now())
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  creator        User          @relation("VacancyCreator", fields: [createdBy], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator        User          @relation("VacancyCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   applications   Application[]
   shortlist      Shortlist?
   smartInterviewTemplates SmartInterviewTemplate[]
@@ -117,7 +117,7 @@ model Candidate {
   invitedByUserId String?
   userId         String?
   guestUpgradeAt DateTime?
-  organization   Organization                @relation(fields: [organizationId], references: [id])
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   profile        CandidateProfile?
   applications   Application[]
   onboarding     CandidateOnboardingSession?
@@ -136,11 +136,13 @@ model Candidate {
   automationExecutions AutomationExecution[]
   riskSignals     RiskSignal[]
   riskEvaluations RiskEvaluation[]
-  invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id])
-  user           User?                       @relation("CandidateUser", fields: [userId], references: [id])
+  invitedBy      User?                       @relation("CandidateInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  user           User?                       @relation("CandidateUser", fields: [userId], references: [id], onDelete: SetNull)
   guestSession   GuestSession?
   invites        CandidateInvite[]
   preferences    CandidatePreferences?
+
+  @@index([organizationId])
 }
 
 model TenantPolicy {
@@ -152,7 +154,7 @@ model TenantPolicy {
   canAdministrateTenant Boolean      @default(true)
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
-  organization          Organization @relation(fields: [organizationId], references: [id])
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model TenantSettings {
@@ -183,7 +185,7 @@ model TenantSettings {
   recommendationBoostWeight Float  @default(3)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-  organization            Organization @relation(fields: [organizationId], references: [id])
+  organization            Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   policyVersions          TenantPolicyVersion[]
 }
 
@@ -196,8 +198,8 @@ model TenantPolicyVersion {
   previousPolicyJson Json?
   changedBy          String
   createdAt          DateTime @default(now())
-  organization       Organization @relation(fields: [organizationId], references: [id])
-  tenantSettings     TenantSettings? @relation(fields: [tenantSettingsId], references: [id])
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tenantSettings     TenantSettings? @relation(fields: [tenantSettingsId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, version])
 }
@@ -212,7 +214,7 @@ model RolePolicy {
   allowed        Boolean  @default(true)
   updatedBy      String
   updatedAt      DateTime @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, roleKey, resource, action, scope])
 }
@@ -227,7 +229,7 @@ model PermissionGrant {
   scope          String
   expiresAt      DateTime
   createdAt      DateTime @default(now())
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, userId, expiresAt])
 }
@@ -242,7 +244,7 @@ model CommunicationTemplate {
   createdBy      String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   versions       CommunicationTemplateVersion[]
   dispatchAudits CommunicationDispatchAudit[]
 }
@@ -255,7 +257,7 @@ model CommunicationTemplateVersion {
   content     String
   createdBy   String
   createdAt   DateTime @default(now())
-  template    CommunicationTemplate @relation(fields: [templateId], references: [id])
+  template    CommunicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   dispatchAudits CommunicationDispatchAudit[]
 
   @@unique([templateId, version])
@@ -276,8 +278,8 @@ model CommunicationDispatchAudit {
   requestedBy       String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  template          CommunicationTemplate @relation(fields: [templateId], references: [id])
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template          CommunicationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   templateVersion   CommunicationTemplateVersion @relation(fields: [templateVersionId], references: [id])
 }
 
@@ -298,7 +300,7 @@ model TenantKpiSnapshot {
   slaMet         Int      @default(0)
   slaBreached    Int      @default(0)
   metadata       Json?
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, period, capturedAt])
 }
@@ -318,7 +320,7 @@ model UserNotificationPreference {
   frequency             String   @default("immediate")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  user                  User     @relation(fields: [userId], references: [id])
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CandidateInvite {
@@ -336,9 +338,9 @@ model CandidateInvite {
   sentAt         DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  vacancy        Vacancy      @relation(fields: [vacancyId], references: [id])
-  candidate      Candidate    @relation(fields: [candidateId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vacancy        Vacancy      @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  candidate      Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   invitedBy      User         @relation("CandidateInviteActor", fields: [invitedByUserId], references: [id])
 
   @@index([organizationId, createdAt])
@@ -359,8 +361,8 @@ model NotificationDispatch {
   metadata       Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([organizationId, eventKey, createdAt])
@@ -379,7 +381,7 @@ model CandidateProfile {
   introVideoProvider    String?
   introVideoDurationSec Int?
   introVideoUploadedAt  DateTime?
-  candidate             Candidate @relation(fields: [candidateId], references: [id])
+  candidate             Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
 
 model Application {
@@ -388,13 +390,14 @@ model Application {
   vacancyId   String
   status      String       @default("submitted")
   createdAt   DateTime     @default(now())
-  candidate   Candidate    @relation(fields: [candidateId], references: [id])
-  vacancy     Vacancy      @relation(fields: [vacancyId], references: [id])
+  candidate   Candidate    @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy     Vacancy      @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   evaluations Evaluation[]
   shortlistItems ShortlistItem[]
   smartInterviewSessions SmartInterviewSession[]
 
   @@unique([candidateId, vacancyId])
+  @@index([vacancyId, status])
 }
 
 model CandidateOnboardingSession {
@@ -406,7 +409,7 @@ model CandidateOnboardingSession {
   preferencesCompleted  Boolean             @default(false)
   introVideoCompleted   Boolean             @default(false)
   status                String              @default("pending")
-  candidate             Candidate           @relation(fields: [candidateId], references: [id])
+  candidate             Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   consents              CandidateConsent[]
   resumes               CandidateResume[]
 }
@@ -417,7 +420,7 @@ model CandidateConsent {
   type          String
   accepted      Boolean
   acceptedAt    DateTime                    @default(now())
-  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
+  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model CandidatePreferences {
@@ -429,7 +432,7 @@ model CandidatePreferences {
   languages   String[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
 
 model CandidateResume {
@@ -439,7 +442,7 @@ model CandidateResume {
   provider      String
   status        String                      @default("uploaded")
   uploadedAt    DateTime                    @default(now())
-  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id])
+  session       CandidateOnboardingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   parseResult   ResumeParseResult?
   parseMetadata ResumeParseMetadata?
 }
@@ -450,14 +453,14 @@ model ResumeParseResult {
   status      String
   parsedJson  Json
   createdAt   DateTime        @default(now())
-  resume      CandidateResume @relation(fields: [resumeId], references: [id])
+  resume      CandidateResume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 }
 
 model Shortlist {
   id          String          @id @default(cuid())
   vacancyId   String          @unique
   createdAt   DateTime        @default(now())
-  vacancy     Vacancy         @relation(fields: [vacancyId], references: [id])
+  vacancy     Vacancy         @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   items       ShortlistItem[]
 }
 
@@ -466,8 +469,8 @@ model ShortlistItem {
   shortlistId   String
   applicationId String
   createdAt     DateTime     @default(now())
-  shortlist     Shortlist    @relation(fields: [shortlistId], references: [id])
-  application   Application  @relation(fields: [applicationId], references: [id])
+  shortlist     Shortlist    @relation(fields: [shortlistId], references: [id], onDelete: Cascade)
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   decisions     ClientDecision[]
 
   @@unique([shortlistId, applicationId])
@@ -484,7 +487,7 @@ model Evaluation {
   ratingAi            Int?
   overallRating       Float?
   createdAt           DateTime     @default(now())
-  application         Application  @relation(fields: [applicationId], references: [id])
+  application         Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   evaluator           User         @relation(fields: [evaluatorId], references: [id])
 }
 
@@ -494,7 +497,7 @@ model ClientDecision {
   reviewerId     String
   decision       String
   createdAt      DateTime      @default(now())
-  shortlistItem  ShortlistItem @relation(fields: [shortlistItemId], references: [id])
+  shortlistItem  ShortlistItem @relation(fields: [shortlistItemId], references: [id], onDelete: Cascade)
   reviewer       User          @relation("ClientReviewer", fields: [reviewerId], references: [id])
 }
 
@@ -506,6 +509,9 @@ model AuditEvent {
   entityId    String
   metadata    Json
   createdAt   DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
 }
 
 model MessageDispatch {
@@ -524,6 +530,8 @@ model OutboxEvent {
   payload     Json
   processed   Boolean  @default(false)
   createdAt   DateTime @default(now())
+
+  @@index([topic, processed, createdAt])
 }
 
 model VacancyTemplate {
@@ -541,7 +549,7 @@ model VacancyTemplate {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   vacancyId      String?
-  vacancy        Vacancy? @relation(fields: [vacancyId], references: [id])
+  vacancy        Vacancy? @relation(fields: [vacancyId], references: [id], onDelete: SetNull)
   versions       VacancyTemplateVersion[]
 
   @@index([organizationId, status])
@@ -555,7 +563,7 @@ model VacancyTemplateVersion {
   fields      Json
   createdBy   String
   createdAt   DateTime @default(now())
-  template    VacancyTemplate @relation(fields: [templateId], references: [id])
+  template    VacancyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   @@unique([templateId, version])
 }
@@ -588,7 +596,7 @@ model InviteFollowUpAttempt {
   sentAt      DateTime?
   metadata    Json
   createdAt   DateTime @default(now())
-  cadence     InviteFollowUpCadence @relation(fields: [cadenceId], references: [id])
+  cadence     InviteFollowUpCadence @relation(fields: [cadenceId], references: [id], onDelete: Cascade)
 
   @@unique([cadenceId, stepKey])
   @@index([status, scheduledAt])
@@ -601,7 +609,7 @@ model AuthIdentity {
   email       String?
   userId      String
   createdAt   DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, subject])
 }
@@ -615,7 +623,7 @@ model UserSession {
   revokedAt  DateTime?
   metadata   Json
   createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GuestSession {
@@ -625,7 +633,7 @@ model GuestSession {
   expiresAt  DateTime
   upgradedAt DateTime?
   createdAt  DateTime  @default(now())
-  candidate  Candidate @relation(fields: [candidateId], references: [id])
+  candidate  Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
 
 model MfaPreference {
@@ -635,7 +643,7 @@ model MfaPreference {
   preferredMethod String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id])
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 
@@ -647,7 +655,7 @@ model SmartInterviewTemplate {
   createdBy      String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  vacancy        Vacancy  @relation(fields: [vacancyId], references: [id])
+  vacancy        Vacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   questions      SmartInterviewQuestion[]
   sessions       SmartInterviewSession[]
 }
@@ -660,7 +668,7 @@ model SmartInterviewQuestion {
   maxDuration Int      @default(120)
   source      String   @default("manual")
   createdAt   DateTime @default(now())
-  template    SmartInterviewTemplate @relation(fields: [templateId], references: [id])
+  template    SmartInterviewTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   answers     SmartInterviewAnswer[]
 
   @@unique([templateId, orderIndex])
@@ -677,8 +685,8 @@ model SmartInterviewSession {
   reviewedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  application   Application @relation(fields: [applicationId], references: [id])
-  template      SmartInterviewTemplate @relation(fields: [templateId], references: [id])
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  template      SmartInterviewTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   answers       SmartInterviewAnswer[]
   aiAnalysis    SmartInterviewAiAnalysis?
   humanReview   SmartInterviewHumanReview?
@@ -695,9 +703,9 @@ model SmartInterviewAnswer {
   status        String   @default("uploaded")
   uploadedAt    DateTime @default(now())
   processedAt   DateTime?
-  session       SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  session       SmartInterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question      SmartInterviewQuestion @relation(fields: [questionId], references: [id])
-  candidate     Candidate @relation(fields: [candidateId], references: [id])
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   transcript    SmartInterviewTranscript?
   transcriptMeta TranscriptMetadata?
 
@@ -712,7 +720,7 @@ model SmartInterviewTranscript {
   language    String   @default("pt-BR")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id])
+  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
 }
 
 model SmartInterviewAiAnalysis {
@@ -730,7 +738,7 @@ model SmartInterviewAiAnalysis {
   modelVersion   String   @default("mock-v1")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  session        SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  session        SmartInterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model SmartInterviewHumanReview {
@@ -740,7 +748,7 @@ model SmartInterviewHumanReview {
   decision    String
   notes       String
   createdAt   DateTime @default(now())
-  session     SmartInterviewSession @relation(fields: [sessionId], references: [id])
+  session     SmartInterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   reviewer    User     @relation("SmartInterviewReviewer", fields: [reviewerId], references: [id])
 }
 
@@ -822,7 +830,7 @@ model TranscriptMetadata {
   processedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id])
+  answer      SmartInterviewAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
 }
 
 model ResumeParseMetadata {
@@ -834,7 +842,7 @@ model ResumeParseMetadata {
   mergedAt        DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  resume          CandidateResume @relation(fields: [resumeId], references: [id])
+  resume          CandidateResume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 }
 
 model MessageEvent {
@@ -845,7 +853,7 @@ model MessageEvent {
   providerMessageId String
   metadata          Json
   createdAt         DateTime @default(now())
-  dispatch          MessageDispatch @relation(fields: [dispatchId], references: [id])
+  dispatch          MessageDispatch @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
 
   @@index([provider, providerMessageId])
 }
@@ -858,7 +866,7 @@ model CandidateEmbedding {
   metadata    Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([candidateId, source])
 }
@@ -871,7 +879,7 @@ model VacancyEmbedding {
   metadata    Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id])
+  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@unique([vacancyId, source])
 }
@@ -884,8 +892,8 @@ model MatchingScore {
   modelVersion  String
   status        String   @default("completed")
   computedAt    DateTime @default(now())
-  candidate     Candidate @relation(fields: [candidateId], references: [id])
-  vacancy       Vacancy  @relation(fields: [vacancyId], references: [id])
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy       Vacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   breakdowns    MatchingBreakdown[]
   evidences     AiEvidence[]
   explanations  AiExplanation[]
@@ -901,7 +909,7 @@ model MatchingBreakdown {
   weight         Float
   reasoning      String
   createdAt      DateTime @default(now())
-  matchingScore  MatchingScore @relation(fields: [matchingScoreId], references: [id])
+  matchingScore  MatchingScore @relation(fields: [matchingScoreId], references: [id], onDelete: Cascade)
 
   @@unique([matchingScoreId, dimension])
 }
@@ -917,7 +925,7 @@ model CandidateInsight {
   source      String   @default("ai-assisted")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([candidateId, vacancyId])
 }
@@ -946,8 +954,8 @@ model CandidateRankingSnapshot {
   manualOverride Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id])
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  vacancy     Vacancy  @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@unique([vacancyId, candidateId])
   @@unique([vacancyId, rank])
@@ -963,8 +971,8 @@ model AiEvidence {
   confidence     Float
   metadata       Json
   createdAt      DateTime @default(now())
-  candidate      Candidate @relation(fields: [candidateId], references: [id])
-  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id])
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id], onDelete: SetNull)
 }
 
 model AiExplanation {
@@ -975,8 +983,8 @@ model AiExplanation {
   explanation    String
   generatedBy    String
   createdAt      DateTime @default(now())
-  candidate      Candidate @relation(fields: [candidateId], references: [id])
-  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id])
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  matchingScore  MatchingScore? @relation(fields: [matchingScoreId], references: [id], onDelete: SetNull)
 }
 
 model StorageAssetMetadata {
@@ -1002,8 +1010,8 @@ model CandidateRecommendation {
   source            String   @default("ai-assisted")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  candidate         Candidate @relation(fields: [candidateId], references: [id])
-  vacancy           Vacancy   @relation(fields: [vacancyId], references: [id])
+  candidate         Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy           Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@index([vacancyId, status])
   @@index([candidateId, vacancyId])
@@ -1020,8 +1028,8 @@ model CandidatePriorityScore {
   manualOverride Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  candidate      Candidate @relation(fields: [candidateId], references: [id])
-  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id])
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@unique([candidateId, vacancyId])
   @@index([vacancyId, score])
@@ -1038,8 +1046,8 @@ model WorkflowSuggestion {
   status               String   @default("pending")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  candidate            Candidate @relation(fields: [candidateId], references: [id])
-  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id])
+  candidate            Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
   automationExecutions AutomationExecution[]
 
   @@index([vacancyId, status])
@@ -1057,9 +1065,9 @@ model AutomationExecution {
   triggeredBy          String?
   executedAt           DateTime?
   createdAt            DateTime @default(now())
-  candidate            Candidate @relation(fields: [candidateId], references: [id])
-  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id])
-  suggestion           WorkflowSuggestion? @relation(fields: [workflowSuggestionId], references: [id])
+  candidate            Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy              Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  suggestion           WorkflowSuggestion? @relation(fields: [workflowSuggestionId], references: [id], onDelete: SetNull)
 
   @@index([vacancyId, status])
 }
@@ -1074,8 +1082,8 @@ model RiskSignal {
   details     Json
   status      String   @default("active")
   createdAt   DateTime @default(now())
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
-  vacancy     Vacancy   @relation(fields: [vacancyId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy     Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@index([vacancyId, severity])
   @@index([vacancyId, status])
@@ -1096,8 +1104,8 @@ model RiskEvaluation {
   reviewReason   String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  candidate      Candidate @relation(fields: [candidateId], references: [id])
-  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id])
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
 
   @@unique([candidateId, vacancyId])
 }

@@ -52,7 +52,26 @@ export interface CandidateStatus {
   email: string;
   vacancy: { id: string; title: string } | null;
   onboardingStatus: string;
+  preferences: {
+    salaryMin?: number | null;
+    salaryMax?: number | null;
+    jobTitles: string[];
+    languages: string[];
+  } | null;
   steps: StatusStep[];
+  introVideo: {
+    uploadedAt?: string | null;
+    durationSec?: number | null;
+    analysisStatus: string;
+    summary?: string | null;
+    transcript?: string | null;
+    transcriptLanguage?: string | null;
+    tags: string[];
+    sentiment?: Record<string, unknown> | null;
+    entities?: Record<string, unknown>[] | null;
+    keyPhrases?: Record<string, unknown>[] | null;
+    analyzedAt?: string | null;
+  } | null;
   interview: { id: string; status: string } | null;
   decision: { decision: string; at: string } | null;
 }

@@ -153,8 +153,7 @@ export class OnboardingService {
 
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
-      // Mark as 'completed' here since preferences and intro-video are optional
-      data: { resumeCompleted: true, status: 'completed' },
+      data: { resumeCompleted: true, status: 'pending' },
     });
 
     await prisma.auditEvent.create({
@@ -251,6 +250,15 @@ export class OnboardingService {
         introVideoProvider: provider,
         introVideoDurationSec: durationSec,
         introVideoUploadedAt: new Date(),
+        introVideoAnalysisStatus: 'queued',
+        introVideoTranscript: null,
+        introVideoTranscriptLanguage: null,
+        introVideoSummary: null,
+        introVideoTags: null,
+        introVideoSentimentJson: null,
+        introVideoEntitiesJson: null,
+        introVideoKeyPhrasesJson: null,
+        introVideoAnalyzedAt: null,
       },
       create: {
         candidateId: candidate.id,
@@ -258,12 +266,28 @@ export class OnboardingService {
         introVideoProvider: provider,
         introVideoDurationSec: durationSec,
         introVideoUploadedAt: new Date(),
+        introVideoAnalysisStatus: 'queued',
       },
+    });
+
+    await this.storageGateway.recordAsset({
+      tenantId: candidate.organizationId,
+      objectKey,
+      category: 'candidate-intro-video',
+      provider,
+      metadata: { candidateId: candidate.id, durationSec, source: 'candidate-onboarding' },
     });
 
     await prisma.candidateOnboardingSession.update({
       where: { candidateId: candidate.id },
       data: { introVideoCompleted: true, status: 'completed' },
+    });
+
+    await prisma.outboxEvent.create({
+      data: {
+        topic: 'candidate.intro-video-uploaded',
+        payload: { candidateId: candidate.id, organizationId: candidate.organizationId, objectKey, provider } as never,
+      },
     });
 
     await prisma.auditEvent.create({
@@ -319,6 +343,7 @@ export class OnboardingService {
       include: {
         profile: true,
         onboarding: true,
+        preferences: true,
         applications: {
           include: {
             vacancy: { select: { id: true, title: true } },
@@ -361,7 +386,26 @@ export class OnboardingService {
       email: candidate.email,
       vacancy: app ? { id: app.vacancy.id, title: app.vacancy.title } : null,
       onboardingStatus: onboarding?.status ?? 'not_started',
+      preferences: candidate.preferences ? {
+        salaryMin: candidate.preferences.salaryMin,
+        salaryMax: candidate.preferences.salaryMax,
+        jobTitles: candidate.preferences.jobTitles,
+        languages: candidate.preferences.languages,
+      } : null,
       steps,
+      introVideo: candidate.profile?.introVideoKey ? {
+        uploadedAt: candidate.profile.introVideoUploadedAt ?? null,
+        durationSec: candidate.profile.introVideoDurationSec ?? null,
+        analysisStatus: candidate.profile.introVideoAnalysisStatus ?? 'queued',
+        summary: candidate.profile.introVideoSummary ?? null,
+        transcript: candidate.profile.introVideoTranscript ?? null,
+        transcriptLanguage: candidate.profile.introVideoTranscriptLanguage ?? null,
+        tags: Array.isArray(candidate.profile.introVideoTags) ? candidate.profile.introVideoTags : [],
+        sentiment: candidate.profile.introVideoSentimentJson ?? null,
+        entities: candidate.profile.introVideoEntitiesJson ?? null,
+        keyPhrases: candidate.profile.introVideoKeyPhrasesJson ?? null,
+        analyzedAt: candidate.profile.introVideoAnalyzedAt ?? null,
+      } : null,
       interview: interview ? { id: interview.id, status: interview.status } : null,
       decision: latestDecision ? { decision: latestDecision.decision, at: latestDecision.createdAt } : null,
     };

@@ -95,7 +95,7 @@ export function Step3ResumeView() {
         filename: file.name,
       });
 
-      navigate('/onboarding/media-check');
+      navigate('/onboarding/preferences');
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('storage_object_empty')) {
@@ -153,7 +153,7 @@ export function Step3ResumeView() {
                 ← Voltar
               </Button>
               <Button type="submit" loading={loading} disabled={!file}>
-                {loading ? 'Enviando…' : 'Enviar Candidatura →'}
+                {loading ? 'Enviando…' : 'Analisar currículo e continuar →'}
               </Button>
             </div>
           </form>

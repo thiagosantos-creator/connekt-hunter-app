@@ -65,6 +65,68 @@ function detectMediaFormat(objectKey: string): MediaFormat {
   return 'webm';
 }
 
+function safeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object' && 'name' in item) {
+        const name = (item as { name?: unknown }).name;
+        return typeof name === 'string' ? name.trim() : '';
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
+function normalizeTag(tag: string): string {
+  return tag.trim().replace(/\s+/g, ' ');
+}
+
+function uniqueTags(tags: string[], limit = 8): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const raw of tags) {
+    const tag = normalizeTag(raw);
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(tag);
+    if (normalized.length >= limit) break;
+  }
+  return normalized;
+}
+
+function buildMockIntroTranscript(input: {
+  candidateName?: string | null;
+  vacancyTitle?: string | null;
+  resumeSummary?: string | null;
+  roles?: string[];
+  skills?: string[];
+}): string {
+  const roles = input.roles?.slice(0, 2).join(' e ');
+  const skills = input.skills?.slice(0, 4).join(', ');
+  return [
+    `Meu nome é ${input.candidateName || 'candidato'}.`,
+    roles ? `Tenho experiência como ${roles}.` : 'Tenho experiência profissional consolidada e foco em gerar impacto no negócio.',
+    skills ? `Ao longo da minha trajetória desenvolvi competências em ${skills}.` : 'Ao longo da minha trajetória desenvolvi competências relevantes para a vaga.',
+    input.resumeSummary || 'Gosto de ambientes colaborativos, aprendizado contínuo e entregas com qualidade.',
+    input.vacancyTitle ? `Vejo sinergia com a oportunidade de ${input.vacancyTitle} e acredito que posso contribuir rapidamente.` : 'Acredito que posso contribuir com resultados consistentes no próximo desafio.',
+  ].join(' ');
+}
+
+function buildMockIntroSummary(input: { candidateName?: string | null; vacancyTitle?: string | null; transcript: string; tags: string[] }): string {
+  const focus = input.tags.slice(0, 3).join(', ');
+  if (input.vacancyTitle && focus) {
+    return `${input.candidateName || 'O candidato'} apresentou boa clareza ao relacionar sua experiência com a vaga de ${input.vacancyTitle}, destacando ${focus}.`;
+  }
+  if (focus) {
+    return `${input.candidateName || 'O candidato'} apresentou uma narrativa objetiva sobre sua trajetória, com destaque para ${focus}.`;
+  }
+  return `${input.candidateName || 'O candidato'} apresentou seu histórico profissional com boa clareza e motivação para a oportunidade.`;
+}
+
 // --- Circuit Breaker ---
 interface CircuitBreakerState {
   failures: number;
@@ -285,6 +347,272 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
         where: { resumeId: payload.resumeId },
         update: { provider, status: 'parsed', confidenceJson: parsedJson as never },
         create: { resumeId: payload.resumeId, provider, status: 'parsed', confidenceJson: parsedJson as never },
+      });
+
+      await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
+    });
+    if (ok) processed++;
+  }
+
+  return processed;
+}
+
+export async function processCandidateIntroVideoJobs(): Promise<number> {
+  const events = await prisma.outboxEvent.findMany({
+    where: { topic: 'candidate.intro-video-uploaded', processed: false },
+    take: 20,
+  });
+
+  let processed = 0;
+  for (const evt of events) {
+    const payload = evt.payload as { candidateId: string; organizationId: string; objectKey: string; provider: string };
+    const ok = await safeProcess('candidate.intro-video-uploaded', evt.id, async () => {
+      const candidate = await prisma.candidate.findUnique({
+        where: { id: payload.candidateId },
+        include: {
+          profile: true,
+          applications: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            include: {
+              vacancy: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+          onboarding: {
+            include: {
+              resumes: {
+                orderBy: { uploadedAt: 'desc' },
+                take: 1,
+                include: { parseResult: true },
+              },
+            },
+          },
+        },
+      });
+      if (!candidate?.profile?.introVideoKey) {
+        throw new Error(`[candidate.intro-video-uploaded] intro video not found for candidateId=${payload.candidateId} eventId=${evt.id}`);
+      }
+
+      const latestApplication = candidate.applications[0];
+      const resumeParsed = candidate.onboarding?.resumes[0]?.parseResult?.parsedJson as
+        | { summary?: string; experience?: Array<{ role?: string }>; skills?: Array<string | { name?: string }> }
+        | undefined;
+      const roles = (resumeParsed?.experience ?? [])
+        .map((item) => item?.role?.trim())
+        .filter((item): item is string => Boolean(item));
+      const skills = safeStringArray(resumeParsed?.skills);
+
+      let transcriptContent = buildMockIntroTranscript({
+        candidateName: candidate.profile.fullName ?? candidate.email,
+        vacancyTitle: latestApplication?.vacancy.title ?? null,
+        resumeSummary: resumeParsed?.summary ?? null,
+        roles,
+        skills,
+      });
+      let transcriptLanguage = 'pt-BR';
+      let transcriptProvider = 'transcription-mock';
+
+      if (isTranscriptionReal()) {
+        try {
+          const bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
+          const region = process.env.AWS_TRANSCRIBE_REGION ?? process.env.S3_REGION ?? 'us-east-1';
+          const mediaUri = `s3://${bucket}/${candidate.profile.introVideoKey}`;
+          const jobName = `intro-video-${payload.candidateId}-${Date.now()}`;
+          const mediaFormat = detectMediaFormat(candidate.profile.introVideoKey);
+          const transcribeClient = new TranscribeClient({ region });
+
+          await transcribeClient.send(new StartTranscriptionJobCommand({
+            TranscriptionJobName: jobName,
+            LanguageCode: 'pt-BR' as TranscribeLanguageCode,
+            MediaFormat: mediaFormat,
+            Media: { MediaFileUri: mediaUri },
+            OutputBucketName: bucket,
+            OutputKey: `transcriptions/${jobName}.json`,
+          }));
+
+          let jobStatus = 'IN_PROGRESS';
+          let transcriptUri = '';
+          for (let i = 0; i < 60; i++) {
+            await new Promise((r) => setTimeout(r, 5000));
+            const result = await transcribeClient.send(new GetTranscriptionJobCommand({ TranscriptionJobName: jobName }));
+            const job = result.TranscriptionJob;
+            jobStatus = job?.TranscriptionJobStatus ?? 'FAILED';
+            if (jobStatus === 'COMPLETED') {
+              transcriptUri = job?.Transcript?.TranscriptFileUri ?? '';
+              transcriptLanguage = job?.LanguageCode ?? 'pt-BR';
+              break;
+            }
+            if (jobStatus === 'FAILED') {
+              throw new Error(`Transcribe job failed: ${job?.FailureReason ?? 'unknown'}`);
+            }
+          }
+
+          if (jobStatus !== 'COMPLETED') {
+            throw new Error('Transcribe job timed out after 60 polling attempts');
+          }
+
+          if (transcriptUri) {
+            const response = await fetch(transcriptUri);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch transcript: HTTP ${response.status}`);
+            }
+            const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
+            transcriptContent = data.results?.transcripts?.map((item) => item.transcript).join(' ') ?? transcriptContent;
+            transcriptProvider = 'aws-transcribe';
+          }
+        } catch (err) {
+          console.error(JSON.stringify({ source: 'worker', event: 'candidate_intro_video_transcription_failed', candidateId: payload.candidateId, error: String(err) }));
+          if (!shouldFallbackToMock('transcription')) throw err;
+        }
+      }
+
+      let sentimentJson: Record<string, unknown> = {
+        sentiment: 'POSITIVE',
+        scores: { positive: 0.82, negative: 0.04, neutral: 0.12, mixed: 0.02 },
+      };
+      let keyPhrasesJson: Array<Record<string, unknown>> = uniqueTags([
+        ...roles,
+        ...skills,
+        latestApplication?.vacancy.title ?? '',
+      ]).map((text, index) => ({
+        text,
+        score: Math.max(0.55, 0.9 - (index * 0.08)),
+        beginOffset: 0,
+        endOffset: text.length,
+      }));
+      let entitiesJson: Array<Record<string, unknown>> = uniqueTags([
+        latestApplication?.vacancy.title ?? '',
+        ...roles,
+      ], 4).map((text, index) => ({
+        text,
+        type: index === 0 ? 'TITLE' : 'OTHER',
+        score: Math.max(0.5, 0.85 - (index * 0.1)),
+        beginOffset: 0,
+        endOffset: text.length,
+      }));
+      let analysisSummary = buildMockIntroSummary({
+        candidateName: candidate.profile.fullName ?? candidate.email,
+        vacancyTitle: latestApplication?.vacancy.title ?? null,
+        transcript: transcriptContent,
+        tags: keyPhrasesJson.map((item) => String(item.text ?? '')),
+      });
+      let introTags = uniqueTags([
+        ...keyPhrasesJson.map((item) => String(item.text ?? '')),
+        ...entitiesJson.map((item) => String(item.text ?? '')),
+      ]);
+      let analysisProvider = 'intro-video-mock';
+      let modelVersion = 'mock-v1';
+
+      if (isAiReal()) {
+        try {
+          const comprehendRegion = process.env.AWS_COMPREHEND_REGION ?? process.env.S3_REGION ?? 'us-east-1';
+          const comprehendClient = new ComprehendClient({ region: comprehendRegion });
+          const truncated = transcriptContent.slice(0, 5000);
+          const [sentimentResult, keyPhrasesResult, entitiesResult] = await Promise.all([
+            comprehendClient.send(new DetectSentimentCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectKeyPhrasesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectEntitiesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+          ]);
+
+          sentimentJson = {
+            sentiment: sentimentResult.Sentiment ?? 'NEUTRAL',
+            scores: {
+              positive: sentimentResult.SentimentScore?.Positive ?? 0,
+              negative: sentimentResult.SentimentScore?.Negative ?? 0,
+              neutral: sentimentResult.SentimentScore?.Neutral ?? 0,
+              mixed: sentimentResult.SentimentScore?.Mixed ?? 0,
+            },
+          };
+          keyPhrasesJson = (keyPhrasesResult.KeyPhrases ?? []).map((item) => ({
+            text: item.Text ?? '',
+            score: item.Score ?? 0,
+            beginOffset: item.BeginOffset ?? 0,
+            endOffset: item.EndOffset ?? 0,
+          }));
+          entitiesJson = (entitiesResult.Entities ?? []).map((item) => ({
+            text: item.Text ?? '',
+            type: item.Type ?? 'OTHER',
+            score: item.Score ?? 0,
+            beginOffset: item.BeginOffset ?? 0,
+            endOffset: item.EndOffset ?? 0,
+          }));
+
+          const openai = getOpenAiClient();
+          if (openai) {
+            const response = await openai.chat.completions.create({
+              model: getModelVersion(),
+              temperature: 0.2,
+              response_format: { type: 'json_object' },
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você analisa vídeos de apresentação de candidatos. Retorne EXCLUSIVAMENTE um JSON:
+{
+  "summary": "resumo objetivo em 2 frases",
+  "tags": ["tag1", "tag2", "tag3"]
+}
+As tags devem refletir experiência, competências, contexto profissional e sinais de comunicação úteis para recrutamento.`,
+                },
+                {
+                  role: 'user',
+                  content: `Contexto da vaga: ${latestApplication?.vacancy.title ?? 'não informado'}\n\nTranscrição do vídeo:\n${transcriptContent}`,
+                },
+              ],
+            });
+
+            const parsed = safeJsonParse<{ summary?: string; tags?: string[] }>(
+              response.choices[0]?.message?.content ?? '{}',
+              {},
+              'candidate_intro_video_analysis',
+            );
+            analysisSummary = parsed.summary ?? analysisSummary;
+            introTags = uniqueTags(parsed.tags ?? introTags);
+            analysisProvider = 'aws-comprehend+openai';
+            modelVersion = getModelVersion();
+          } else {
+            analysisProvider = 'aws-comprehend';
+            modelVersion = 'comprehend-only';
+            introTags = uniqueTags([
+              ...introTags,
+              ...keyPhrasesJson.map((item) => String(item.text ?? '')),
+            ]);
+          }
+        } catch (err) {
+          console.error(JSON.stringify({ source: 'worker', event: 'candidate_intro_video_analysis_failed', candidateId: payload.candidateId, error: String(err) }));
+          if (!shouldFallbackToMock('ai')) throw err;
+        }
+      }
+
+      await prisma.candidateProfile.update({
+        where: { candidateId: payload.candidateId },
+        data: {
+          introVideoAnalysisStatus: 'completed',
+          introVideoTranscript: transcriptContent,
+          introVideoTranscriptLanguage: transcriptLanguage,
+          introVideoSummary: analysisSummary,
+          introVideoTags: introTags as never,
+          introVideoSentimentJson: sentimentJson as never,
+          introVideoEntitiesJson: entitiesJson as never,
+          introVideoKeyPhrasesJson: keyPhrasesJson as never,
+          introVideoAnalyzedAt: new Date(),
+        },
+      });
+
+      await prisma.providerExecutionLog.create({
+        data: {
+          integration: 'candidate-intro-video',
+          provider: analysisProvider,
+          operation: 'analyze',
+          status: 'success',
+          idempotencyKey: payload.objectKey,
+          requestJson: { candidateId: payload.candidateId, objectKey: payload.objectKey, transcriptProvider } as never,
+          responseJson: { summary: analysisSummary, tags: introTags, modelVersion } as never,
+        },
       });
 
       await prisma.outboxEvent.update({ where: { id: evt.id }, data: { processed: true } });
@@ -1063,6 +1391,7 @@ async function run() {
 
   try {
     const processedResume = await processResumeUploads();
+    const processedCandidateIntroVideo = await processCandidateIntroVideoJobs();
     const processedVideo = await processSmartInterviewVideoJobs();
     const processedAnalysis = await processSmartInterviewAnalysisJobs();
     const processedMatching = await processMatchingComputeJobs();
@@ -1072,7 +1401,7 @@ async function run() {
     const processedRisk = await processRiskAnalyzeJobs();
     const processedAutomation = await processAutomationTriggerJobs();
     const processedInviteFollowup = await processInviteFollowupJobs();
-    console.log(`[worker] resume=${processedResume} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation} inviteFollowup=${processedInviteFollowup}`);
+    console.log(`[worker] resume=${processedResume} candidateIntroVideo=${processedCandidateIntroVideo} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation} inviteFollowup=${processedInviteFollowup}`);
   } catch (err) {
     console.error('[worker] error', err);
     process.exitCode = 1;

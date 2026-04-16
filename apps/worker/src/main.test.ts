@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 
 describe('worker queues', () => {
   it('defines smart interview processing topics', () => {
-    const topics = ['smart-interview.video-uploaded', 'smart-interview.transcribed'];
+    const topics = ['candidate.intro-video-uploaded', 'smart-interview.video-uploaded', 'smart-interview.transcribed'];
+    expect(topics).toContain('candidate.intro-video-uploaded');
     expect(topics).toContain('smart-interview.video-uploaded');
     expect(topics).toContain('smart-interview.transcribed');
   });

@@ -382,6 +382,15 @@ model CandidateProfile {
   introVideoProvider    String?
   introVideoDurationSec Int?
   introVideoUploadedAt  DateTime?
+  introVideoAnalysisStatus String?
+  introVideoTranscript     String?
+  introVideoTranscriptLanguage String?
+  introVideoSummary        String?
+  introVideoTags           Json?
+  introVideoSentimentJson  Json?
+  introVideoEntitiesJson   Json?
+  introVideoKeyPhrasesJson Json?
+  introVideoAnalyzedAt     DateTime?
   candidate             Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 }
 

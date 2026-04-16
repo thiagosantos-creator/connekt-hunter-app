@@ -128,7 +128,10 @@ services:
     command: >
       sh -c "corepack enable &&
       pnpm config set store-dir /pnpm/store &&
-      pnpm exec tsx --tsconfig apps/worker/tsconfig.json apps/worker/src/main.ts"
+      while true; do
+        pnpm exec tsx --tsconfig apps/worker/tsconfig.json apps/worker/src/main.ts;
+        sleep ${WORKER_POLL_INTERVAL_SEC:-5};
+      done"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connekt
       REDIS_ENABLED: "true"

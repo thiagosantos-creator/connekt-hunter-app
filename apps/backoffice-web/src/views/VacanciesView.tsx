@@ -19,11 +19,15 @@ import {
   PageContent,
   PageHeader,
   Select,
+  StatBox,
   Textarea,
   colors,
   fontSize,
+  fontWeight,
   radius,
+  shadows,
   spacing,
+  zIndex,
 } from '@connekt/ui';
 
 type VacancyForm = {
@@ -54,6 +58,7 @@ type TemplateForm = {
 };
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+const MS_PER_DAY = 86_400_000;
 
 const emptyVacancyForm = (): VacancyForm => ({
   title: '',
@@ -223,6 +228,8 @@ export function VacanciesView() {
   const [templateForm, setTemplateForm] = useState<TemplateForm>(emptyTemplateForm);
   const [requiredSkillInput, setRequiredSkillInput] = useState('');
   const [desiredSkillInput, setDesiredSkillInput] = useState('');
+  const [editingVacancyId, setEditingVacancyId] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ vacancyId: string; action: string; label: string } | null>(null);
 
   const orgOptions = useMemo(() => {
     if (organizations.length > 0) {
@@ -248,6 +255,26 @@ export function VacanciesView() {
     () => vacancies.filter((item) => item.publicationType === 'draft'),
     [vacancies],
   );
+
+  const closedVacancies = useMemo(
+    () => vacancies.filter((item) => item.status === 'disabled' || item.status === 'expired'),
+    [vacancies],
+  );
+
+  const guaranteeVacancies = useMemo(
+    () => vacancies.filter((item) => item.guaranteeEndDate && new Date(item.guaranteeEndDate) > new Date()),
+    [vacancies],
+  );
+
+  const avgClosingDays = useMemo(() => {
+    const closed = vacancies.filter((v) => v.closedAt && v.publishedAt);
+    if (closed.length === 0) return 0;
+    const totalDays = closed.reduce((sum, v) => {
+      const diff = new Date(v.closedAt!).getTime() - new Date(v.publishedAt!).getTime();
+      return sum + diff / MS_PER_DAY;
+    }, 0);
+    return Math.round(totalDays / closed.length);
+  }, [vacancies]);
 
   const load = async () => {
     try {
@@ -461,6 +488,110 @@ export function VacanciesView() {
     }
   };
 
+  const startEditVacancy = (vacancy: Vacancy) => {
+    setEditingVacancyId(vacancy.id);
+    setForm({
+      title: vacancy.title ?? '',
+      description: vacancy.description ?? '',
+      location: vacancy.location ?? '',
+      workModel: vacancy.workModel ?? 'remote',
+      seniority: vacancy.seniority ?? 'pleno',
+      sector: vacancy.sector ?? '',
+      experienceYearsMin: vacancy.experienceYearsMin != null ? String(vacancy.experienceYearsMin) : '',
+      experienceYearsMax: vacancy.experienceYearsMax != null ? String(vacancy.experienceYearsMax) : '',
+      employmentType: vacancy.employmentType ?? 'clt',
+      publicationType: vacancy.publicationType ?? 'draft',
+      status: vacancy.status ?? 'active',
+      department: vacancy.department ?? '',
+      requiredSkills: Array.isArray(vacancy.requiredSkills) ? vacancy.requiredSkills : [],
+      desiredSkills: Array.isArray(vacancy.desiredSkills) ? vacancy.desiredSkills : [],
+      salaryMin: vacancy.salaryMin != null ? String(vacancy.salaryMin) : '',
+      salaryMax: vacancy.salaryMax != null ? String(vacancy.salaryMax) : '',
+    });
+    if (vacancy.organizationId) setOrgId(vacancy.organizationId);
+    setShowCreateForm(true);
+    setRequiredSkillInput('');
+    setDesiredSkillInput('');
+    setSuggestion(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingVacancyId('');
+    setForm(emptyVacancyForm());
+    setRequiredSkillInput('');
+    setDesiredSkillInput('');
+    setSuggestion(null);
+  };
+
+  const saveVacancy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingVacancyId) {
+      setLoading(true);
+      try {
+        await apiPatch(`/vacancies/${editingVacancyId}`, buildVacancyPayload(orgId, form));
+        cancelEdit();
+        setMsg('Vaga atualizada com sucesso.');
+        setMsgVariant('success');
+        await load();
+      } catch (err) {
+        setMsg(String(err));
+        setMsgVariant('error');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      await createVacancy(e);
+    }
+  };
+
+  const executeStatusAction = async (vacancyId: string, action: string) => {
+    try {
+      const patchData: Record<string, unknown> = {};
+      if (action === 'unpublish') {
+        patchData.publicationType = 'draft';
+      } else if (action === 'close') {
+        patchData.status = 'disabled';
+      } else if (action === 'freeze') {
+        patchData.status = 'frozen';
+      } else if (action === 'reopen') {
+        patchData.status = 'active';
+      }
+      await apiPatch(`/vacancies/${vacancyId}`, patchData);
+      const labels: Record<string, string> = {
+        unpublish: 'Vaga despublicada.',
+        close: 'Vaga fechada com sucesso.',
+        freeze: 'Vaga congelada.',
+        reopen: 'Vaga reaberta com sucesso.',
+      };
+      setMsg(labels[action] ?? 'Status atualizado.');
+      setMsgVariant('success');
+      setConfirmAction(null);
+      await load();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : 'Erro ao atualizar status.');
+      setMsgVariant('error');
+      setConfirmAction(null);
+    }
+  };
+
+  const formatDate = (iso?: string) => {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleDateString('pt-BR');
+  };
+
+  const guaranteeDaysLeft = (iso?: string) => {
+    if (!iso) return null;
+    const diff = new Date(iso).getTime() - Date.now();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / MS_PER_DAY);
+  };
+
+  const closingTimeDays = (publishedAt?: string, closedAt?: string) => {
+    if (!publishedAt || !closedAt) return null;
+    const diff = new Date(closedAt).getTime() - new Date(publishedAt).getTime();
+    return Math.round(diff / MS_PER_DAY);
+  };
+
   return (
     <PageContent>
       <PageHeader title="Vagas" description="Gerencie e publique vagas. Use o formulário abaixo para criar novas vagas com apoio de IA." />
@@ -468,21 +599,13 @@ export function VacanciesView() {
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
       {/* ── Stats summary ─────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: spacing.lg }}>
-        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Total de vagas</div>
-          <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{vacancies.length}</div>
-        </div>
-        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Publicadas</div>
-          <div style={{ fontSize: fontSize.xl, fontWeight: 700, color: colors.success }}>{publishedVacancies.length}</div>
-          <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Ativas e prontas para compartilhar</div>
-        </div>
-        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-          <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: spacing.xs }}>Rascunhos</div>
-          <div style={{ fontSize: fontSize.xl, fontWeight: 700 }}>{draftVacancies.length}</div>
-          <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Pendentes de revisão</div>
-        </div>
+      <div style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', marginBottom: spacing.lg }}>
+        <StatBox label="Total de vagas" value={vacancies.length} />
+        <StatBox label="Publicadas" value={publishedVacancies.length} subtext="Ativas e prontas" />
+        <StatBox label="Rascunhos" value={draftVacancies.length} subtext="Pendentes de revisão" />
+        <StatBox label="Fechadas" value={closedVacancies.length} subtext="Desativadas ou expiradas" />
+        <StatBox label="Em Garantia" value={guaranteeVacancies.length} subtext="Dentro dos 90 dias" />
+        <StatBox label="Tempo médio" value={`${avgClosingDays}d`} subtext="Dias para fechamento" />
       </div>
 
       {/* ── All vacancies table (primary view) ────────────────────── */}
@@ -503,15 +626,30 @@ export function VacanciesView() {
                 { key: 'title', header: 'Título', render: (row) => row.title },
                 { key: 'organizationId', header: 'Empresa', render: (row) => row.organization?.name ?? row.organizationId },
                 { key: 'sector', header: 'Setor', render: (row) => row.sector ?? row.department ?? '-' },
-                { key: 'workModel', header: 'Modalidade', render: (row) => row.workModel ?? '-' },
+                { key: 'status', header: 'Status', render: (row) => {
+                  const statusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
+                    active: { label: 'Ativa', variant: 'success' },
+                    frozen: { label: 'Congelada', variant: 'warning' },
+                    disabled: { label: 'Fechada', variant: 'danger' },
+                    expired: { label: 'Expirada', variant: 'danger' },
+                  };
+                  const statusConfig = statusLabels[row.status ?? 'active'] ?? { label: row.status ?? '-', variant: 'info' as const };
+                  return <Badge variant={statusConfig.variant} size="sm">{statusConfig.label}</Badge>;
+                }},
                 { key: 'publicationType', header: 'Publicação', render: (row) => row.publicationType ?? '-' },
-                {
-                  key: 'ready',
-                  header: 'Pronta?',
-                  render: (row) => row.publicationReady
-                    ? 'Sim'
-                    : `Não (${(row.publicationMissingFields ?? []).map(missingFieldLabel).join(', ') || '-'})`,
-                },
+                { key: 'publishedAt', header: 'Aberta em', render: (row) => formatDate(row.publishedAt) },
+                { key: 'closedAt', header: 'Fechada em', render: (row) => formatDate(row.closedAt) },
+                { key: 'guarantee', header: 'Garantia', render: (row) => {
+                  const days = guaranteeDaysLeft(row.guaranteeEndDate);
+                  if (days === null) return '-';
+                  if (days <= 0) return <Badge variant="danger" size="sm">Expirada</Badge>;
+                  return <Badge variant={days <= 15 ? 'warning' : 'success'} size="sm">{days}d restantes</Badge>;
+                }},
+                { key: 'closingTime', header: 'Tempo fech.', render: (row) => {
+                  const days = closingTimeDays(row.publishedAt, row.closedAt);
+                  if (days === null) return '-';
+                  return `${days}d`;
+                }},
                 {
                   key: 'publicUrl',
                   header: 'Link',
@@ -535,8 +673,15 @@ export function VacanciesView() {
                   render: (row: Vacancy) => {
                     const isDraft = row.publicationType === 'draft';
                     const isReady = row.publicationReady;
+                    const isActive = row.status === 'active';
+                    const isPublished = !isDraft && isActive;
+                    const isClosed = row.status === 'disabled' || row.status === 'expired';
+                    const isFrozen = row.status === 'frozen';
                     return (
                       <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                        <Button size="sm" variant="outline" onClick={() => startEditVacancy(row)}>
+                          ✏️ Editar
+                        </Button>
                         {isDraft && isReady && (
                           <Button
                             size="sm"
@@ -553,8 +698,23 @@ export function VacanciesView() {
                         {isDraft && !isReady && (
                           <Badge variant="warning" size="sm">Campos faltando</Badge>
                         )}
-                        {!isDraft && row.status === 'active' && (
-                          <Badge variant="success" size="sm">Publicada</Badge>
+                        {isPublished && (
+                          <>
+                            <Button size="sm" variant="secondary" onClick={() => setConfirmAction({ vacancyId: row.id, action: 'unpublish', label: `Despublicar "${row.title}"` })}>
+                              Despublicar
+                            </Button>
+                            <Button size="sm" variant="danger" onClick={() => setConfirmAction({ vacancyId: row.id, action: 'close', label: `Fechar "${row.title}"` })}>
+                              Fechar
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={() => setConfirmAction({ vacancyId: row.id, action: 'freeze', label: `Congelar "${row.title}"` })}>
+                              Congelar
+                            </Button>
+                          </>
+                        )}
+                        {(isClosed || isFrozen) && (
+                          <Button size="sm" variant="success" onClick={() => setConfirmAction({ vacancyId: row.id, action: 'reopen', label: `Reabrir "${row.title}"` })}>
+                            Reabrir
+                          </Button>
                         )}
                       </div>
                     );
@@ -572,26 +732,33 @@ export function VacanciesView() {
         </CardContent>
       </Card>
 
-      {/* ── Create vacancy (collapsible) ─────────────────────────── */}
+      {/* ── Create/Edit vacancy (collapsible) ─────────────────────── */}
       {canWrite && (
         <Card style={{ marginBottom: spacing.lg }}>
           <CardHeader>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, flexWrap: 'wrap' }}>
               <div>
-                <CardTitle>Nova vaga</CardTitle>
-                <CardDescription>Crie uma nova vaga com preenchimento manual ou assistido por IA.</CardDescription>
+                <CardTitle>{editingVacancyId ? '✏️ Editar vaga' : 'Nova vaga'}</CardTitle>
+                <CardDescription>{editingVacancyId ? 'Altere os dados da vaga e salve as mudanças.' : 'Crie uma nova vaga com preenchimento manual ou assistido por IA.'}</CardDescription>
               </div>
-              <Button
-                type="button"
-                variant={showCreateForm ? 'outline' : 'secondary'}
-                onClick={() => setShowCreateForm((v) => !v)}
-              >
-                {showCreateForm ? '▲ Fechar formulário' : '✚ Criar nova vaga'}
-              </Button>
+              <div style={{ display: 'flex', gap: spacing.sm }}>
+                {editingVacancyId && (
+                  <Button type="button" variant="ghost" onClick={cancelEdit}>
+                    Cancelar edição
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant={showCreateForm ? 'outline' : 'secondary'}
+                  onClick={() => { if (editingVacancyId) cancelEdit(); setShowCreateForm((v) => !v); }}
+                >
+                  {showCreateForm ? '▲ Fechar formulário' : '✚ Criar nova vaga'}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           {showCreateForm && (
-            <form onSubmit={(e) => { void createVacancy(e); }}>
+            <form onSubmit={(e) => { void saveVacancy(e); }}>
               <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
                 {orgOptions.length > 0 ? (
                   <Select
@@ -708,8 +875,13 @@ export function VacanciesView() {
               </CardContent>
               <CardFooter>
                 <Button type="submit" loading={loading} disabled={!orgId}>
-                  {loading ? 'Criando vaga...' : 'Criar vaga'}
+                  {loading ? (editingVacancyId ? 'Salvando...' : 'Criando vaga...') : (editingVacancyId ? 'Salvar alterações' : 'Criar vaga')}
                 </Button>
+                {editingVacancyId && (
+                  <Button type="button" variant="ghost" onClick={cancelEdit} style={{ marginLeft: spacing.sm }}>
+                    Cancelar
+                  </Button>
+                )}
               </CardFooter>
             </form>
           )}
@@ -756,6 +928,58 @@ export function VacanciesView() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Status action confirmation dialog ─────────────────────── */}
+      {confirmAction && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirmAction(null)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setConfirmAction(null); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: zIndex.modal,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: colors.surface,
+              padding: spacing.xl,
+              borderRadius: radius.xl,
+              width: '100%',
+              maxWidth: 440,
+              boxShadow: shadows.lg,
+              display: 'grid',
+              gap: spacing.md,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
+              Confirmar ação
+            </h3>
+            <p style={{ margin: 0, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.6 }}>
+              {confirmAction.label}?
+              {confirmAction.action === 'close' && ' A garantia de 90 dias será calculada automaticamente.'}
+              {confirmAction.action === 'reopen' && ' Os dados de fechamento e garantia serão limpos.'}
+            </p>
+            <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
+              <Button variant="ghost" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+              <Button
+                variant={confirmAction.action === 'close' ? 'danger' : confirmAction.action === 'reopen' ? 'success' : 'secondary'}
+                onClick={() => { void executeStatusAction(confirmAction.vacancyId, confirmAction.action); }}
+              >
+                Confirmar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </PageContent>
   );
 }

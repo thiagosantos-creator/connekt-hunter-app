@@ -642,4 +642,13 @@ Seja preciso com os dados extra√≠dos. Atribua confidence menor quando a informa√
       summary: parsed.summary ?? '',
     };
   }
+
+  async generateEmbedding(text: string): Promise<number[]> {
+    const model = process.env.EMBEDDING_MODEL ?? 'text-embedding-3-small';
+    const response = await this.getClient().embeddings.create({
+      model,
+      input: text.slice(0, 8191),
+    });
+    return response.data[0].embedding;
+  }
 }

@@ -34,6 +34,10 @@ export interface Vacancy {
   publicationType?: string;
   status?: string;
   publishedAt?: string;
+  closedAt?: string;
+  closedBy?: string;
+  filledAt?: string;
+  guaranteeEndDate?: string;
   department?: string;
   requiredSkills?: string[];
   desiredSkills?: string[];

@@ -6,7 +6,11 @@ vi.mock('@connekt/db', () => ({
     candidate: { findUnique: vi.fn() },
     vacancy: { findUnique: vi.fn() },
     membership: { findUnique: vi.fn() },
-    workflowSuggestion: { deleteMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
+    workflowSuggestion: { updateMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    matchingScore: { findUnique: vi.fn().mockResolvedValue(null) },
+    riskEvaluation: { findUnique: vi.fn().mockResolvedValue(null) },
+    application: { findFirst: vi.fn().mockResolvedValue(null) },
     auditEvent: { create: vi.fn() },
     automationExecution: { create: vi.fn() },
   },
@@ -49,5 +53,52 @@ describe('WorkflowAutomationService', () => {
     vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
 
     await expect(service.execute('ws_1', 'user_2')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('suggests schedule-interview when match score >= 60 and no interview exists', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    vi.mocked(prisma.matchingScore.findUnique).mockResolvedValue({ score: 70 } as never);
+    vi.mocked(prisma.riskEvaluation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.application.findFirst).mockResolvedValue({ status: 'applied', smartInterviewSessions: [] } as never);
+    vi.mocked(prisma.workflowSuggestion.create).mockResolvedValue({ id: 'ws1', suggestionType: 'schedule-interview' } as never);
+
+    const result = await service.suggest('c1', 'v1', 'u1');
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(prisma.workflowSuggestion.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ suggestionType: 'schedule-interview' }) }),
+    );
+  });
+
+  it('supersedes previous suggestions instead of deleting', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    vi.mocked(prisma.matchingScore.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.application.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.workflowSuggestion.create).mockResolvedValue({ id: 'ws1' } as never);
+
+    await service.suggest('c1', 'v1', 'u1');
+    expect(prisma.workflowSuggestion.updateMany).toHaveBeenCalledWith({
+      where: { candidateId: 'c1', vacancyId: 'v1', status: 'pending' },
+      data: { status: 'superseded' },
+    });
+  });
+
+  it('suggests advance-to-shortlist when high match, low risk, and has interview', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    vi.mocked(prisma.matchingScore.findUnique).mockResolvedValue({ score: 85 } as never);
+    vi.mocked(prisma.riskEvaluation.findUnique).mockResolvedValue({ riskScore: 0.1, requiresReview: false } as never);
+    vi.mocked(prisma.application.findFirst).mockResolvedValue({ status: 'interview', smartInterviewSessions: [{ id: 'si1' }] } as never);
+    vi.mocked(prisma.workflowSuggestion.create).mockResolvedValue({ id: 'ws1', suggestionType: 'advance-to-shortlist' } as never);
+
+    const result = await service.suggest('c1', 'v1', 'u1');
+    const types = result.map(() => 'advance-to-shortlist');
+    expect(prisma.workflowSuggestion.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ suggestionType: 'advance-to-shortlist' }) }),
+    );
   });
 });

@@ -78,6 +78,10 @@ model Vacancy {
   publicationType String       @default("draft")
   status         String        @default("active")
   publishedAt    DateTime?
+  closedAt       DateTime?
+  closedBy       String?
+  filledAt       DateTime?
+  guaranteeEndDate DateTime?
   department     String?
   requiredSkills Json?
   desiredSkills  Json?
@@ -167,6 +171,7 @@ model TenantSettings {
   publicName              String?
   communicationDomain     String?
   contactEmail            String?
+  defaultFeedbackMessage  String?
   dataRetentionDays       Int      @default(365)
   auditRetentionDays      Int      @default(365)
   mfaRequiredRoles        String[]
@@ -174,6 +179,8 @@ model TenantSettings {
   communicationWindowStart String @default("08:00")
   communicationWindowEnd   String @default("20:00")
   frequencyLimitPerDay    Int      @default(5)
+  riskPenaltyWeight       Float    @default(25)
+  recommendationBoostWeight Float  @default(3)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   organization            Organization @relation(fields: [organizationId], references: [id])
@@ -264,6 +271,7 @@ model CommunicationDispatchAudit {
   channel           String
   status            String
   failureReason     String?
+  renderedContent   String?
   idempotencyKey    String   @unique
   requestedBy       String
   createdAt         DateTime @default(now())
@@ -1064,24 +1072,30 @@ model RiskSignal {
   severity    String
   score       Float
   details     Json
+  status      String   @default("active")
   createdAt   DateTime @default(now())
   candidate   Candidate @relation(fields: [candidateId], references: [id])
   vacancy     Vacancy   @relation(fields: [vacancyId], references: [id])
 
   @@index([vacancyId, severity])
+  @@index([vacancyId, status])
 }
 
 model RiskEvaluation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   candidateId    String
   vacancyId      String
   overallRisk    String
   riskScore      Float
   findings       Json
   explanation    String
-  requiresReview Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  requiresReview Boolean   @default(true)
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  reviewAction   String?
+  reviewReason   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   candidate      Candidate @relation(fields: [candidateId], references: [id])
   vacancy        Vacancy   @relation(fields: [vacancyId], references: [id])
 

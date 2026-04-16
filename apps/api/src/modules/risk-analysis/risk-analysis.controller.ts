@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { RiskAnalysisService } from './risk-analysis.service.js';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
@@ -14,6 +14,16 @@ export class RiskAnalysisController {
   @RequirePermissions('applications:read')
   analyze(@Body() body: { candidateId: string; vacancyId: string }, @CurrentUser() user: { id: string }) {
     return this.service.analyze(body.candidateId, body.vacancyId, user.id);
+  }
+
+  @Patch(':evaluationId/review')
+  @RequirePermissions('applications:read')
+  review(
+    @Param('evaluationId') evaluationId: string,
+    @Body() body: { action: string; reason?: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.service.review(evaluationId, user.id, body.action, body.reason);
   }
 
   @Get()

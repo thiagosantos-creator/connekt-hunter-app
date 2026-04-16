@@ -11,14 +11,8 @@ export class CandidateMatchingService {
     await assertOrganizationAccess(organizationId, actorId);
   }
 
-  private toEmbedding(text: string): number[] {
-    const base = text.length || 1;
-    return [
-      Number(((base % 97) / 100).toFixed(3)),
-      Number(((base % 53) / 100).toFixed(3)),
-      Number(((base % 31) / 100).toFixed(3)),
-      Number(((base % 17) / 100).toFixed(3)),
-    ];
+  private async toEmbedding(text: string): Promise<number[]> {
+    return this.aiGateway.generateEmbedding(text);
   }
 
   async computeMatching(applicationId: string, actorId?: string) {
@@ -44,8 +38,8 @@ export class CandidateMatchingService {
     const candidateText = `${application.candidate.email} ${application.candidate.profile?.fullName ?? ''} ${resumeText}`;
     const vacancyText = `${application.vacancy.title} ${application.vacancy.description}`;
 
-    const candidateVector = this.toEmbedding(candidateText);
-    const vacancyVector = this.toEmbedding(vacancyText);
+    const candidateVector = await this.toEmbedding(candidateText);
+    const vacancyVector = await this.toEmbedding(vacancyText);
 
     await prisma.candidateEmbedding.upsert({
       where: { candidateId_source: { candidateId: application.candidateId, source: 'resume+interview' } },

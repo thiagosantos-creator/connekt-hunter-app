@@ -11,6 +11,9 @@ vi.mock('@connekt/db', () => ({
     user: {
       findUnique: vi.fn(),
     },
+    tenantSettings: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     matchingScore: {
       findMany: vi.fn().mockResolvedValue([]),
     },

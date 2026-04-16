@@ -1,4 +1,4 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import { AiGateway } from '../integrations/ai.gateway.js';
 import { assertOrganizationAccess } from '../auth/organization-access.util.js';
@@ -25,7 +25,10 @@ export class RiskAnalysisService {
 
     const result = await this.aiGateway.analyzeRiskPatterns({ candidateId, vacancyId });
 
-    await prisma.riskSignal.deleteMany({ where: { candidateId, vacancyId } });
+    await prisma.riskSignal.updateMany({
+      where: { candidateId, vacancyId, status: 'active' },
+      data: { status: 'superseded' },
+    });
     for (const finding of result.findings) {
       await prisma.riskSignal.create({
         data: { candidateId, vacancyId, signalType: finding.type, severity: finding.severity, score: finding.score, details: { detail: finding.detail } as never },
@@ -41,6 +44,52 @@ export class RiskAnalysisService {
     await prisma.auditEvent.create({ data: { actorId, action: 'risk.analyzed', entityType: 'Candidate', entityId: candidateId, metadata: { vacancyId, riskScore: result.riskScore } as never } });
 
     return evaluation;
+  }
+
+  private static readonly VALID_REVIEW_ACTIONS = ['dismiss', 'accept', 'escalate'] as const;
+
+  async review(
+    evaluationId: string,
+    actorId: string,
+    action: string,
+    reason?: string,
+  ) {
+    if (!RiskAnalysisService.VALID_REVIEW_ACTIONS.includes(action as never)) {
+      throw new BadRequestException(
+        `invalid_review_action: must be one of ${RiskAnalysisService.VALID_REVIEW_ACTIONS.join(', ')}`,
+      );
+    }
+
+    const evaluation = await prisma.riskEvaluation.findUnique({
+      where: { id: evaluationId },
+      include: { vacancy: true },
+    });
+    if (!evaluation) throw new NotFoundException('risk_evaluation_not_found');
+
+    await this.assertTenantAccess(evaluation.vacancy.organizationId, actorId);
+
+    const updated = await prisma.riskEvaluation.update({
+      where: { id: evaluationId },
+      data: {
+        requiresReview: action === 'escalate',
+        reviewedAt: new Date(),
+        reviewedBy: actorId,
+        reviewAction: action,
+        reviewReason: reason ?? null,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId,
+        action: 'risk.reviewed',
+        entityType: 'RiskEvaluation',
+        entityId: evaluationId,
+        metadata: { reviewAction: action, reason } as never,
+      },
+    });
+
+    return updated;
   }
 
   async get(candidateId: string, vacancyId: string) {

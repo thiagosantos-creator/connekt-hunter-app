@@ -664,6 +664,83 @@ export class CandidatesService {
     return 'manual';
   }
 
+  async sendFeedback(input: {
+    candidateId: string;
+    vacancyId?: string;
+    message: string;
+    saveAsDefault: boolean;
+    actorUserId: string;
+    actorRole: string;
+    organizationIds: string[];
+  }) {
+    if (!input.message.trim()) throw new BadRequestException('feedback_message_required');
+
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: input.candidateId },
+      include: { profile: true, organization: { include: { tenantSettings: true } } },
+    });
+    if (!candidate) throw new NotFoundException('candidate_not_found');
+
+    if (input.actorRole !== 'admin' && !input.organizationIds.includes(candidate.organizationId)) {
+      throw new ForbiddenException('user_not_member_of_org');
+    }
+
+    const actor = await prisma.user.findUnique({ where: { id: input.actorUserId } });
+    const senderName = actor?.name ?? 'Equipe Connekt Hunter';
+
+    let vacancyTitle = 'processo seletivo';
+    if (input.vacancyId) {
+      const vacancy = await prisma.vacancy.findUnique({ where: { id: input.vacancyId }, select: { title: true } });
+      if (vacancy) vacancyTitle = vacancy.title;
+    }
+
+    const result = await this.emailGateway.sendTemplated({
+      tenantId: candidate.organizationId,
+      to: candidate.email,
+      templateKey: 'candidate-feedback',
+      templateVersion: 'v1',
+      payload: {
+        candidateName: candidate.profile?.fullName ?? candidate.email,
+        vacancyTitle,
+        feedbackMessage: input.message,
+        senderName,
+      },
+    });
+
+    if (input.saveAsDefault && candidate.organization.tenantSettings) {
+      await prisma.tenantSettings.update({
+        where: { id: candidate.organization.tenantSettings.id },
+        data: { defaultFeedbackMessage: input.message },
+      });
+    }
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: input.actorUserId,
+        action: 'candidate.feedback_sent',
+        entityType: 'Candidate',
+        entityId: input.candidateId,
+        metadata: { vacancyId: input.vacancyId, dispatchId: result.dispatchId } as never,
+      },
+    });
+
+    this.logger.log(JSON.stringify({ event: 'candidate_feedback_sent', candidateId: input.candidateId, dispatchId: result.dispatchId }));
+
+    return { success: true, dispatchId: result.dispatchId };
+  }
+
+  async getDefaultFeedbackMessage(organizationId: string, actorUserId: string, actorRole: string) {
+    if (actorRole !== 'admin') {
+      const membership = await prisma.membership.findUnique({
+        where: { organizationId_userId: { organizationId, userId: actorUserId } },
+      });
+      if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    }
+
+    const settings = await prisma.tenantSettings.findUnique({ where: { organizationId } });
+    return { defaultFeedbackMessage: settings?.defaultFeedbackMessage ?? '' };
+  }
+
   private isValidEmail(email: string) {
     if (!email || email.length > 254 || /\s/.test(email)) return false;
     const parts = email.split('@');

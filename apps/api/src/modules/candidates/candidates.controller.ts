@@ -84,6 +84,32 @@ export class CandidatesController {
   byToken(@Param('token') token: string) {
     return this.candidatesService.byToken(token);
   }
+
+  @Post('candidates/:candidateId/feedback')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('candidates:invite')
+  sendFeedback(
+    @Param('candidateId') candidateId: string,
+    @Body() body: { vacancyId?: string; message: string; saveAsDefault?: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.candidatesService.sendFeedback({
+      candidateId,
+      vacancyId: body.vacancyId,
+      message: body.message,
+      saveAsDefault: body.saveAsDefault ?? false,
+      actorUserId: user.id,
+      actorRole: user.role,
+      organizationIds: user.organizationIds ?? [],
+    });
+  }
+
+  @Get('candidates/default-feedback-message')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('candidates:invite')
+  getDefaultFeedbackMessage(@Query('organizationId') organizationId: string, @CurrentUser() user: AuthUser) {
+    return this.candidatesService.getDefaultFeedbackMessage(organizationId, user.id, user.role);
+  }
 }
 
 function sanitizeDestination(channel: 'email' | 'phone', value: string): string {

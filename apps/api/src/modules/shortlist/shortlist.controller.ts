@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { PermissionsGuard } from '../auth/rbac/permissions.guard.js';
 import { RequirePermissions } from '../auth/rbac/permissions.decorator.js';
@@ -21,5 +21,11 @@ export class ShortlistController {
   @RequirePermissions('shortlist:read')
   getItems(@CurrentUser() user: AuthUser) {
     return this.shortlistService.findShortlistedApplications(user.organizationIds, user.role);
+  }
+
+  @Delete('items/:itemId')
+  @RequirePermissions('shortlist:write')
+  remove(@Param('itemId') itemId: string, @CurrentUser() user: AuthUser) {
+    return this.shortlistService.removeFromShortlist(itemId, user.id);
   }
 }

@@ -65,11 +65,82 @@ function detectMediaFormat(objectKey: string): MediaFormat {
   return 'webm';
 }
 
+// --- Circuit Breaker ---
+interface CircuitBreakerState {
+  failures: number;
+  state: 'closed' | 'open' | 'half-open';
+  lastFailure: number;
+}
+
+const circuitBreakers = new Map<string, CircuitBreakerState>();
+const CB_FAILURE_THRESHOLD = 5;
+const CB_RESET_TIMEOUT_MS = 60_000;
+const INITIAL_RETRY_DELAY_MS = 1_000;
+const MAX_RETRY_DELAY_MS = 30_000;
+
+function getCircuitBreaker(provider: string): CircuitBreakerState {
+  if (!circuitBreakers.has(provider)) {
+    circuitBreakers.set(provider, { failures: 0, state: 'closed', lastFailure: 0 });
+  }
+  return circuitBreakers.get(provider)!;
+}
+
+function isCircuitOpen(provider: string): boolean {
+  const cb = getCircuitBreaker(provider);
+  if (cb.state === 'open') {
+    if (Date.now() - cb.lastFailure > CB_RESET_TIMEOUT_MS) {
+      cb.state = 'half-open';
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+function recordCircuitSuccess(provider: string): void {
+  const cb = getCircuitBreaker(provider);
+  cb.failures = 0;
+  cb.state = 'closed';
+}
+
+function recordCircuitFailure(provider: string): void {
+  const cb = getCircuitBreaker(provider);
+  cb.failures++;
+  cb.lastFailure = Date.now();
+  if (cb.failures >= CB_FAILURE_THRESHOLD) {
+    cb.state = 'open';
+    console.warn(JSON.stringify({ level: 'warn', source: 'worker', event: 'circuit_breaker_opened', provider, failures: cb.failures }));
+  }
+}
+
+async function withRetry<T>(label: string, fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MS);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      console.warn(JSON.stringify({ level: 'warn', source: 'worker', event: 'retry_attempt', label, attempt, maxRetries, error: String(err) }));
+    }
+  }
+  throw lastErr;
+}
+
 async function safeProcess(label: string, eventId: string, fn: () => Promise<void>): Promise<boolean> {
+  if (isCircuitOpen(label)) {
+    console.warn(JSON.stringify({ level: 'warn', source: 'worker', event: 'circuit_breaker_skip', topic: label, eventId }));
+    return false;
+  }
   try {
-    await withWorkerSpan('worker.process_event', { topic: label, eventId }, fn);
+    await withWorkerSpan('worker.process_event', { topic: label, eventId }, () => withRetry(label, fn));
+    recordCircuitSuccess(label);
     return true;
   } catch (err) {
+    recordCircuitFailure(label);
     console.error(JSON.stringify({ level: 'error', source: 'worker', event: 'process_event_failed', topic: label, eventId, error: String(err) }));
     return false;
   }

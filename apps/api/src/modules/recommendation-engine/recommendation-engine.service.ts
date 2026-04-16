@@ -28,7 +28,10 @@ export class RecommendationEngineService {
 
     const ai = await this.aiGateway.generateRecommendations({ candidateId, vacancyId, matchingScore: matching?.score, riskScore: risk?.riskScore });
 
-    await prisma.candidateRecommendation.deleteMany({ where: { candidateId, vacancyId } });
+    await prisma.candidateRecommendation.updateMany({
+      where: { candidateId, vacancyId, status: 'active' },
+      data: { status: 'superseded' },
+    });
 
     const created = [];
     for (const item of ai.recommendations) {
@@ -54,6 +57,6 @@ export class RecommendationEngineService {
     const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
     if (!vacancy) throw new NotFoundException('vacancy_not_found');
     await this.assertTenantAccess(vacancy.organizationId, actorId);
-    return prisma.candidateRecommendation.findMany({ where: { vacancyId }, orderBy: { createdAt: 'desc' } });
+    return prisma.candidateRecommendation.findMany({ where: { vacancyId, status: 'active' }, orderBy: { createdAt: 'desc' } });
   }
 }

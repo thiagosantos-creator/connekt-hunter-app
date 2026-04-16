@@ -9,14 +9,17 @@ import {
   CardTitle,
   EmptyState,
   InlineMessage,
+  Input,
   RiskBadge,
   ScoreBar,
+  Textarea,
   colors,
   fontSize,
   fontWeight,
   radius,
   shadows,
   spacing,
+  zIndex,
 } from '@connekt/ui';
 import { apiGet, apiPost } from '../../services/api.js';
 import type {
@@ -30,6 +33,7 @@ import type {
 } from '../../services/types.js';
 
 const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+const FEEDBACK_SUCCESS_DISPLAY_MS = 2000;
 
 interface Props {
   applicationId: string | null;
@@ -134,6 +138,11 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
   const [intelligence, setIntelligence] = useState<IntelligenceBundle>({ recommendations: [], workflowSuggestions: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackSaveDefault, setFeedbackSaveDefault] = useState(false);
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackStatus, setFeedbackStatus] = useState('');
 
   useEffect(() => {
     if (!open) return undefined;
@@ -207,6 +216,37 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
     { label: 'Consistência', value: clamp(Math.round((smartCards[0].value + smartCards[2].value) / 2)) },
   ];
 
+  const openFeedbackModal = async () => {
+    setFeedbackOpen(true);
+    setFeedbackStatus('');
+    if (detail?.vacancy.organizationId) {
+      try {
+        const res = await apiGet<{ defaultFeedbackMessage: string }>(`/candidates/default-feedback-message?organizationId=${encodeURIComponent(detail.vacancy.organizationId)}`);
+        if (res.defaultFeedbackMessage) setFeedbackMessage(res.defaultFeedbackMessage);
+      } catch { /* no default message available */ }
+    }
+  };
+
+  const sendFeedback = async () => {
+    if (!detail || !feedbackMessage.trim()) return;
+    setFeedbackSending(true);
+    try {
+      await apiPost(`/candidates/${detail.candidate.id}/feedback`, {
+        vacancyId: detail.vacancy.id,
+        message: feedbackMessage,
+        saveAsDefault: feedbackSaveDefault,
+      });
+      setFeedbackStatus('Feedback enviado com sucesso!');
+      setFeedbackMessage('');
+      setFeedbackSaveDefault(false);
+      setTimeout(() => { setFeedbackOpen(false); setFeedbackStatus(''); }, FEEDBACK_SUCCESS_DISPLAY_MS);
+    } catch (err) {
+      setFeedbackStatus(err instanceof Error ? err.message : 'Erro ao enviar feedback.');
+    } finally {
+      setFeedbackSending(false);
+    }
+  };
+
   if (!open || !applicationId) return null;
 
   return (
@@ -217,7 +257,14 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
             <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Perfil do candidato</div>
             <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold }}>{name}</div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
+          <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+            {viewerRole !== 'client' && (
+              <Button variant="secondary" size="sm" onClick={() => { void openFeedbackModal(); }}>
+                📧 Enviar Feedback
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
+          </div>
         </div>
 
         {error && <div style={{ padding: `${spacing.md}px ${spacing.lg}px 0` }}><InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage></div>}
@@ -489,6 +536,95 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
           <div style={{ padding: spacing.xl }}><EmptyState title="Perfil indisponível" description="Não foi possível montar a apresentação do candidato." /></div>
         )}
       </div>
+
+      {/* ── Feedback modal ────────────────────────────────────── */}
+      {feedbackOpen && detail && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !feedbackSending && setFeedbackOpen(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape' && !feedbackSending) setFeedbackOpen(false); }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: zIndex.modal + 10,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: colors.surface,
+              padding: spacing.xl,
+              borderRadius: radius.xl,
+              width: '100%',
+              maxWidth: 540,
+              boxShadow: shadows.lg,
+              display: 'grid',
+              gap: spacing.md,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
+              📧 Enviar Feedback ao Candidato
+            </h3>
+            <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>
+              <strong>Para:</strong> {detail.candidate.email}<br />
+              <strong>Vaga:</strong> {detail.vacancy.title}
+            </div>
+
+            {feedbackStatus && (
+              <InlineMessage variant={feedbackStatus.includes('sucesso') ? 'success' : 'error'} onDismiss={() => setFeedbackStatus('')}>
+                {feedbackStatus}
+              </InlineMessage>
+            )}
+
+            <Textarea
+              label="Mensagem de feedback"
+              value={feedbackMessage}
+              onChange={(e) => setFeedbackMessage(e.target.value)}
+              placeholder="Escreva o feedback para o candidato..."
+              rows={6}
+            />
+
+            <label style={{ display: 'flex', gap: spacing.sm, alignItems: 'center', fontSize: fontSize.sm, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={feedbackSaveDefault}
+                onChange={(e) => setFeedbackSaveDefault(e.target.checked)}
+              />
+              Salvar como mensagem padrão da organização
+            </label>
+
+            <div style={{
+              padding: spacing.sm,
+              borderRadius: radius.md,
+              background: colors.infoLight,
+              fontSize: fontSize.xs,
+              color: colors.info,
+              lineHeight: 1.6,
+            }}>
+              💡 O feedback será enviado por email para o candidato. Se marcado como padrão, a mensagem ficará disponível para uso futuro.
+            </div>
+
+            <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
+              <Button variant="ghost" onClick={() => setFeedbackOpen(false)} disabled={feedbackSending}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => { void sendFeedback(); }}
+                loading={feedbackSending}
+                disabled={!feedbackMessage.trim()}
+              >
+                Enviar Feedback
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

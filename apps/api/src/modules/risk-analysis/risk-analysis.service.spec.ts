@@ -11,13 +11,17 @@ vi.mock('@connekt/db', () => ({
     membership: {
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     riskSignal: {
-      deleteMany: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({}),
       create: vi.fn().mockResolvedValue({}),
     },
     riskEvaluation: {
       upsert: vi.fn().mockResolvedValue({ id: 're1', overallRisk: 'medium', riskScore: 0.5 }),
       findUnique: vi.fn().mockResolvedValue({ id: 're1' }),
+      update: vi.fn().mockResolvedValue({ id: 're1', requiresReview: false, reviewAction: 'dismiss' }),
     },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
@@ -75,6 +79,38 @@ describe('RiskAnalysisService', () => {
     expect(result.overallRisk).toBe('medium');
     expect(prisma.auditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ action: 'risk.analyzed' }) }),
+    );
+  });
+
+  it('should reject invalid review action', async () => {
+    await expect(service.review('re1', 'u1', 'invalid-action')).rejects.toThrow('invalid_review_action');
+  });
+
+  it('should throw NotFoundException when reviewing non-existent evaluation', async () => {
+    vi.mocked(prisma.riskEvaluation.findUnique).mockResolvedValue(null);
+    await expect(service.review('re-missing', 'u1', 'dismiss')).rejects.toThrow('risk_evaluation_not_found');
+  });
+
+  it('should review risk evaluation and create audit event', async () => {
+    vi.mocked(prisma.riskEvaluation.findUnique).mockResolvedValue({
+      id: 're1',
+      vacancy: { organizationId: 'org1' },
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+
+    const result = await service.review('re1', 'u1', 'dismiss', 'False positive');
+    expect(result).toBeDefined();
+    expect(prisma.riskEvaluation.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          requiresReview: false,
+          reviewAction: 'dismiss',
+          reviewReason: 'False positive',
+        }),
+      }),
+    );
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'risk.reviewed' }) }),
     );
   });
 });

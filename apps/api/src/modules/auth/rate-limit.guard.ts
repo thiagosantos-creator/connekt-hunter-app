@@ -13,7 +13,20 @@ export class RateLimitGuard implements CanActivate {
   };
   private readonly fallbackStore = new Map<string, { count: number; resetAt: number }>();
 
-  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {
+    // Periodic cleanup of expired entries to prevent memory leaks
+    const cleanupInterval = setInterval(() => this.cleanupExpired(), 60_000);
+    cleanupInterval.unref(); // don't keep process alive
+  }
+
+  private cleanupExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.fallbackStore) {
+      if (now > entry.resetAt) {
+        this.fallbackStore.delete(key);
+      }
+    }
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<{ ip?: string; headers: Record<string, string | string[]>; route?: { path?: string } }>();

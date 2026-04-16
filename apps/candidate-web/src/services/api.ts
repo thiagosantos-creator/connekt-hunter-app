@@ -1,6 +1,10 @@
-/** Candidate-web API client */
+/** Candidate-web API client — typed fetch wrapper with retry, timeout, and rate-limit handling */
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 500;
 
 export function getToken(): string {
   return localStorage.getItem('invite_token') ?? '';
@@ -37,38 +41,72 @@ function handleTokenExpiration(text: string): never {
   throw new Error(text || 'Erro na requisição');
 }
 
+function isRetryable(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (error instanceof TypeError) return true; // network failure
+  return false;
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      // Handle rate limiting with retry-after
+      if (res.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = Number(res.headers.get('Retry-After') || '1');
+        const delay = Math.max(retryAfter * 1000, INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt));
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+
+      return res;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      if (attempt < MAX_RETRIES && isRetryable(error)) {
+        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+}
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    handleTokenExpiration(await res.text());
+  }
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<T>;
+}
+
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetchWithRetry(`${API}${path}`, {
     method: 'POST',
     headers: buildHeaders(),
     body: JSON.stringify(body),
   });
-  if (res.status === 401) {
-    handleTokenExpiration(await res.text());
-  }
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  return handleResponse<T>(res);
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${API}${path}`, { headers: buildHeaders() });
-  if (res.status === 401) {
-    handleTokenExpiration(await res.text());
-  }
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  const res = await fetchWithRetry(`${API}${path}`, { headers: buildHeaders() });
+  return handleResponse<T>(res);
 }
 
 export async function apiPut<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetchWithRetry(`${API}${path}`, {
     method: 'PUT',
     headers: buildHeaders(),
     body: JSON.stringify(body),
   });
-  if (res.status === 401) {
-    handleTokenExpiration(await res.text());
-  }
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  return handleResponse<T>(res);
 }
 

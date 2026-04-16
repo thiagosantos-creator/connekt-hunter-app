@@ -141,6 +141,8 @@ model Candidate {
   guestSession   GuestSession?
   invites        CandidateInvite[]
   preferences    CandidatePreferences?
+
+  @@index([organizationId])
 }
 
 model TenantPolicy {
@@ -395,6 +397,7 @@ model Application {
   smartInterviewSessions SmartInterviewSession[]
 
   @@unique([candidateId, vacancyId])
+  @@index([vacancyId, status])
 }
 
 model CandidateOnboardingSession {
@@ -506,6 +509,9 @@ model AuditEvent {
   entityId    String
   metadata    Json
   createdAt   DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
 }
 
 model MessageDispatch {
@@ -524,6 +530,8 @@ model OutboxEvent {
   payload     Json
   processed   Boolean  @default(false)
   createdAt   DateTime @default(now())
+
+  @@index([topic, processed, createdAt])
 }
 
 model VacancyTemplate {

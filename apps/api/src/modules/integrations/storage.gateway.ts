@@ -65,13 +65,32 @@ export class StorageGateway {
     }
   }
 
+  private static readonly MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+  private static readonly ALLOWED_EXTENSIONS = new Set([
+    '.pdf', '.doc', '.docx', '.txt',
+    '.jpg', '.jpeg', '.png', '.webp', '.gif',
+    '.mp4', '.webm', '.ogg', '.mp3', '.wav',
+  ]);
+
   async createPresignedUpload(input: {
     tenantId: string;
     namespace: string;
     filename: string;
     contentType?: string;
+    contentLength?: number;
     metadata?: Record<string, unknown>;
   }): Promise<PresignedUpload> {
+    // Validate file size
+    if (input.contentLength && input.contentLength > StorageGateway.MAX_UPLOAD_BYTES) {
+      throw new Error(`upload_too_large: max ${StorageGateway.MAX_UPLOAD_BYTES} bytes`);
+    }
+
+    // Validate file extension
+    const ext = extname(input.filename).toLowerCase();
+    if (ext && !StorageGateway.ALLOWED_EXTENSIONS.has(ext)) {
+      throw new Error(`upload_extension_not_allowed: ${ext}`);
+    }
+
     const provider = this.config.isIntegrationEnabled('storage') ? 'aws-s3' : 'minio';
     const safeFilename = this.sanitizeFilename(input.filename);
     const objectKey = `${input.tenantId}/${input.namespace}/${randomUUID()}-${safeFilename}`;

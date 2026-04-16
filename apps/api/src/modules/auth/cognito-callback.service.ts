@@ -34,12 +34,16 @@ interface CognitoClaims {
 export class CognitoCallbackService {
   private readonly logger = new Logger(CognitoCallbackService.name);
 
+  /** Resolve the Cognito client secret from environment — never accept from caller */
+  private getClientSecret(): string | undefined {
+    return process.env.COGNITO_CANDIDATE_CLIENT_SECRET ?? process.env.COGNITO_CLIENT_SECRET ?? undefined;
+  }
+
   /** Exchange authorization code for tokens and persist social profile */
   async handleCallback(input: {
     code: string;
     poolId: string;
     clientId: string;
-    clientSecret: string | undefined;
     domain: string;
     redirectUri: string;
     region: string;
@@ -47,7 +51,8 @@ export class CognitoCallbackService {
     state?: string;
   }): Promise<CognitoCallbackResult> {
     // 1. Exchange authorization code → tokens
-    const tokenSet = await this.exchangeCode(input);
+    const clientSecret = this.getClientSecret();
+    const tokenSet = await this.exchangeCode({ ...input, clientSecret });
 
     // 2. Verify & decode id_token
     const claims = await this.verifyIdToken(tokenSet.id_token, {

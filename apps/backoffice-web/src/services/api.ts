@@ -39,8 +39,10 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timeoutId);
       return res;
     } catch (error) {
+      clearTimeout(timeoutId);
       lastError = error;
       if (attempt < MAX_RETRIES && isRetryable(error)) {
         const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
@@ -48,8 +50,6 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
         continue;
       }
       throw error;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
   throw lastError;

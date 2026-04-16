@@ -81,7 +81,8 @@ export class CommunicationCenterService {
     let renderedContent = published.content;
     if (payload.variables) {
       for (const [key, value] of Object.entries(payload.variables)) {
-        renderedContent = renderedContent.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+        const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        renderedContent = renderedContent.replace(new RegExp(`\\{${escaped}\\}`, 'g'), value);
       }
     }
 

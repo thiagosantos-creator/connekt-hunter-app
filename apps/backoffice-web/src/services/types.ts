@@ -514,3 +514,36 @@ export interface CandidateInvite {
     title: string;
   };
 }
+
+export interface ReviewLinkResult {
+  url: string;
+  expiresAt: string;
+}
+
+export interface PublicReviewShortlistItem {
+  id: string;
+  applicationId: string;
+  createdAt: string;
+  currentDecision: string | null;
+  candidate: {
+    id: string;
+    fullName: string | null;
+    photoUrl: string | null;
+  };
+  vacancy: {
+    id: string;
+    title: string;
+    location: string | null;
+    seniority: string | null;
+    requiredSkills: string[];
+    organization: {
+      name: string | null;
+      tenantSettings: {
+        logoUrl: string | null;
+        primaryColor: string | null;
+        secondaryColor: string | null;
+        publicName: string | null;
+      } | null;
+    };
+  };
+}

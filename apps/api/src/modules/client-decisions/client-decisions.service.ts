@@ -61,4 +61,45 @@ export class ClientDecisionsService {
     });
     return result;
   }
+
+  async createPublic(shortlistItemId: string, token: string, decision: string) {
+    if (!ClientDecisionsService.VALID_DECISIONS.includes(decision as never)) {
+      throw new BadRequestException(
+        `invalid_decision: must be one of ${ClientDecisionsService.VALID_DECISIONS.join(', ')}`,
+      );
+    }
+
+    // Verify the token is a valid, non-expired ClientReviewSession and scopes to this item's vacancy
+    const session = await prisma.clientReviewSession.findUnique({ where: { token } });
+    if (!session || new Date(session.expiresAt) < new Date()) {
+      throw new ForbiddenException('token_invalid_or_expired');
+    }
+
+    const shortlistItem = await prisma.shortlistItem.findUnique({
+      where: { id: shortlistItemId },
+      include: { shortlist: { include: { vacancy: true } } },
+    });
+    if (!shortlistItem) throw new NotFoundException('shortlist_item_not_found');
+
+    // Ensure the item belongs to the vacancy scoped by the token
+    if (shortlistItem.shortlist.vacancy.id !== session.vacancyId) {
+      throw new ForbiddenException('item_not_in_review_scope');
+    }
+
+    const result = await prisma.clientDecision.create({
+      data: { shortlistItemId, reviewerId: null, decision },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: null,
+        action: 'client.public_review.decision',
+        entityType: 'ShortlistItem',
+        entityId: shortlistItemId,
+        metadata: { decision, clientDecisionId: result.id, tokenId: session.id, vacancyId: session.vacancyId } as never,
+      },
+    });
+
+    return result;
+  }
 }

@@ -1,5 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { randomBytes } from 'node:crypto';
+
+const REVIEW_LINK_TTL_HOURS = 72;
+const REVIEW_LINK_ORIGIN_ENV = process.env.BACKOFFICE_ORIGIN ?? 'http://localhost:5173';
 
 @Injectable()
 export class ShortlistService {
@@ -79,10 +83,119 @@ export class ShortlistService {
       where,
       include: {
         application: {
-          include: { candidate: true, vacancy: true },
+          include: {
+            candidate: { include: { profile: true } },
+            vacancy: {
+              include: {
+                organization: { include: { tenantSettings: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async createReviewLink(vacancyId: string, actorId: string) {
+    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId: vacancy.organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + REVIEW_LINK_TTL_HOURS * 60 * 60 * 1000);
+
+    await prisma.clientReviewSession.create({
+      data: {
+        token,
+        vacancyId,
+        organizationId: vacancy.organizationId,
+        createdByUserId: actorId,
+        expiresAt,
+      },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId,
+        action: 'shortlist.review_link_created',
+        entityType: 'Vacancy',
+        entityId: vacancyId,
+        metadata: { vacancyId, expiresAt: expiresAt.toISOString() } as never,
+      },
+    });
+
+    const url = `${REVIEW_LINK_ORIGIN_ENV}/review/${token}`;
+    return { url, expiresAt: expiresAt.toISOString() };
+  }
+
+  async findPublicShortlist(token: string) {
+    const session = await prisma.clientReviewSession.findUnique({ where: { token } });
+    if (!session) throw new UnauthorizedException('token_not_found');
+    if (new Date(session.expiresAt) < new Date()) throw new UnauthorizedException('token_expired');
+
+    const items = await prisma.shortlistItem.findMany({
+      where: { shortlist: { vacancyId: session.vacancyId } },
+      include: {
+        application: {
+          include: {
+            candidate: { include: { profile: true } },
+            vacancy: {
+              include: { organization: { include: { tenantSettings: true } } },
+            },
+          },
+        },
+        decisions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: null,
+        action: 'client.public_review.access',
+        entityType: 'ClientReviewSession',
+        entityId: session.id,
+        metadata: { tokenId: session.id, vacancyId: session.vacancyId } as never,
+      },
+    });
+
+    // Return only data safe for unauthenticated clients
+    return items.map((item) => ({
+      id: item.id,
+      applicationId: item.applicationId,
+      createdAt: item.createdAt,
+      currentDecision: item.decisions[0]?.decision ?? null,
+      candidate: {
+        id: item.application.candidate.id,
+        fullName: item.application.candidate.profile?.fullName ?? null,
+        photoUrl: item.application.candidate.profile?.photoUrl ?? null,
+      },
+      vacancy: {
+        id: item.application.vacancy.id,
+        title: item.application.vacancy.title,
+        location: item.application.vacancy.location ?? null,
+        seniority: item.application.vacancy.seniority ?? null,
+        requiredSkills: (item.application.vacancy.requiredSkills as string[] | null) ?? [],
+        organization: {
+          name: item.application.vacancy.organization?.name ?? null,
+          tenantSettings: item.application.vacancy.organization?.tenantSettings
+            ? {
+                logoUrl: item.application.vacancy.organization.tenantSettings.logoUrl ?? null,
+                primaryColor: item.application.vacancy.organization.tenantSettings.primaryColor ?? null,
+                secondaryColor: item.application.vacancy.organization.tenantSettings.secondaryColor ?? null,
+                publicName: item.application.vacancy.organization.tenantSettings.publicName ?? null,
+              }
+            : null,
+        },
+      },
+    }));
   }
 }

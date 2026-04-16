@@ -9,12 +9,14 @@ import {
   CardTitle,
   EmptyState,
   InlineMessage,
+  Input,
   PageContent,
   PageHeader,
   ScoreGauge,
   Select,
   StatBox,
   StatusPill,
+  TableSkeleton,
   Tabs,
   Textarea,
   colors,
@@ -256,15 +258,9 @@ export function ClientReviewView() {
       {loading ? (
         <div style={{ display: 'grid', gap: spacing.lg }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md }}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} style={{ height: 88, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.borderLight}` }} />
-            ))}
+            <TableSkeleton rows={1} columns={5} />
           </div>
-          <div style={{ display: 'grid', gap: spacing.md }}>
-            {[1, 2, 3].map((i) => (
-              <div key={i} style={{ height: 140, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.borderLight}` }} />
-            ))}
-          </div>
+          <TableSkeleton rows={3} columns={4} />
         </div>
       ) : items.length === 0 ? (
         <EmptyState
@@ -353,23 +349,12 @@ export function ClientReviewView() {
           {/* Filters bar */}
           <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: spacing.md }}>
             <div style={{ flex: '1 1 280px', minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Buscar candidato</label>
-              <input
+              <Input
+                label="Buscar candidato"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Nome, e-mail ou vaga..."
-                style={{
-                  width: '100%',
-                  padding: `${spacing.sm}px ${spacing.md}px`,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: radius.md,
-                  fontSize: fontSize.md,
-                  outline: 'none',
-                  background: colors.surface,
-                  color: colors.text,
-                  boxSizing: 'border-box',
-                }}
               />
             </div>
             {vacancies.length > 1 && (

@@ -135,7 +135,7 @@ export function CandidateDossierView() {
   const { applicationId } = useParams<{ applicationId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const viewerRole = (user?.role as 'admin' | 'headhunter' | 'client') ?? 'headhunter';
+  const viewerRole = (user?.role as 'admin' | 'headhunter' | 'client') ?? 'client';
 
   const [detail, setDetail] = useState<ApplicationDetail | null>(null);
   const [intelligence, setIntelligence] = useState<IntelligenceBundle>({ recommendations: [], workflowSuggestions: [] });
@@ -251,7 +251,7 @@ export function CandidateDossierView() {
       ) : (
         <div>
           {/* ── Hero banner ─────────────────────────────────────────── */}
-          <section style={{ marginBottom: spacing.lg, padding: spacing.xl, borderRadius: radius.xl, color: colors.textInverse, background: `linear-gradient(135deg, ${detail.vacancy.organization?.tenantSettings?.primaryColor || colors.primary} 0%, ${detail.vacancy.organization?.tenantSettings?.secondaryColor || colors.info} 58%, #dbeafe 100%)`, overflow: 'hidden' }}>
+          <section style={{ marginBottom: spacing.lg, padding: spacing.xl, borderRadius: radius.xl, color: colors.textInverse, background: `linear-gradient(135deg, ${detail.vacancy.organization?.tenantSettings?.primaryColor || colors.primary} 0%, ${detail.vacancy.organization?.tenantSettings?.secondaryColor || colors.primaryLight} 100%)`, overflow: 'hidden' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg }}>
               <div>
                 <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', marginBottom: spacing.lg }}>
@@ -507,7 +507,7 @@ export function CandidateDossierView() {
                   );
                 }) : <EmptyState title="Sem avaliações humanas" description="Os pareceres do time aparecerão aqui quando forem registrados." />}
                 {detail.shortlistItems?.[0]?.decisions?.[0] && (
-                  <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.successLight, color: colors.success }}>
+                  <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.successLight, color: colors.successDark }}>
                     <div style={{ fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Última decisão do cliente</div>
                     <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginTop: spacing.xs }}>{sentence(detail.shortlistItems[0].decisions[0].decision)}</div>
                     {detail.shortlistItems[0].decisions[0].reviewer && (
@@ -529,7 +529,7 @@ export function CandidateDossierView() {
                     </div>
                     <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>{item.explanation}</div>
                     {item.actionableInsights && (
-                      <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, color: colors.info }}>
+                      <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, color: colors.infoDark }}>
                         {(typeof item.actionableInsights === 'string' ? [item.actionableInsights] : item.actionableInsights).map((insight, idx) => (
                           <div key={idx} style={{ display: 'flex', gap: spacing.xs, marginBottom: 2 }}>
                             <span>💡</span>
@@ -563,9 +563,9 @@ function MiniInfo({ label, value }: { label: string; value: string }) {
 
 function TagBlock({ title, tags, tone, emptyLabel }: { title: string; tags: string[]; tone: 'success' | 'warning' | 'info' | 'neutral'; emptyLabel: string }) {
   const toneMap = {
-    success: { bg: colors.successLight, fg: colors.success, border: 'transparent' },
-    warning: { bg: colors.warningLight, fg: colors.warning, border: 'transparent' },
-    info: { bg: colors.infoLight, fg: colors.info, border: 'transparent' },
+    success: { bg: colors.successLight, fg: colors.successDark, border: 'transparent' },
+    warning: { bg: colors.warningLight, fg: colors.warningDark, border: 'transparent' },
+    info: { bg: colors.infoLight, fg: colors.infoDark, border: 'transparent' },
     neutral: { bg: colors.surfaceAlt, fg: colors.textSecondary, border: colors.border },
   } as const;
   const palette = toneMap[tone];

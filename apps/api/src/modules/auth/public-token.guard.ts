@@ -31,10 +31,11 @@ export class PublicTokenGuard implements CanActivate {
       return true;
     }
 
-    const [guestSession, smartInterviewSession, candidate] = await Promise.all([
+    const [guestSession, smartInterviewSession, candidate, clientReviewSession] = await Promise.all([
       prisma.guestSession.findUnique({ where: { token } }),
       prisma.smartInterviewSession.findUnique({ where: { publicToken: token } }),
       prisma.candidate.findUnique({ where: { token } }),
+      prisma.clientReviewSession.findUnique({ where: { token } }),
     ]);
 
     if (guestSession) {
@@ -63,6 +64,27 @@ export class PublicTokenGuard implements CanActivate {
       await this.tokenCache.set(token, {
         tokenType: 'candidate',
         subjectId: candidate.id,
+      });
+      return true;
+    }
+
+    if (clientReviewSession) {
+      if (new Date(clientReviewSession.expiresAt) < new Date()) {
+        this.logger.warn(JSON.stringify({ event: 'public_token_expired', tokenType: 'client-review-session', tokenPrefix: token.slice(0, 8) }));
+        await this.tokenCache.invalidate(token);
+        throw new UnauthorizedException('token_expired');
+      }
+      await this.tokenCache.set(token, {
+        tokenType: 'client-review-session',
+        subjectId: clientReviewSession.vacancyId,
+        expiresAt: clientReviewSession.expiresAt.toISOString(),
+      });
+      // Update accessedAt in background (fire-and-forget)
+      void prisma.clientReviewSession.update({
+        where: { id: clientReviewSession.id },
+        data: { accessedAt: new Date() },
+      }).catch((err: unknown) => {
+        this.logger.warn(JSON.stringify({ event: 'client_review_session_access_update_failed', sessionId: clientReviewSession.id, error: String(err) }));
       });
       return true;
     }

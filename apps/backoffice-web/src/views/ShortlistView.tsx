@@ -6,6 +6,7 @@ import type {
   ShortlistItem,
   EvalRecord,
   PriorityScore,
+  ReviewLinkResult,
   Vacancy,
 } from '../services/types.js';
 import {
@@ -131,6 +132,10 @@ export function ShortlistView() {
   const [priorityVacancyId, setPriorityVacancyId] = useState('');
   const [priorityLoading, setPriorityLoading] = useState(false);
 
+  /* review link */
+  const [reviewLinkLoading, setReviewLinkLoading] = useState(false);
+  const [reviewLink, setReviewLink] = useState<ReviewLinkResult | null>(null);
+
   useEffect(() => {
     void Promise.all([
       apiGet<Application[]>('/applications').then(setApps),
@@ -234,6 +239,24 @@ export function ShortlistView() {
     }
   }, [priorityVacancyId]);
 
+  const generateReviewLink = useCallback(async () => {
+    if (!priorityVacancyId) return;
+    setReviewLinkLoading(true);
+    setReviewLink(null);
+    try {
+      const result = await apiPost<ReviewLinkResult>('/shortlist/review-link', { vacancyId: priorityVacancyId });
+      setReviewLink(result);
+      await navigator.clipboard.writeText(result.url).catch(() => undefined);
+      setMsg(`Link de revisão gerado e copiado! Válido até ${new Date(result.expiresAt).toLocaleString('pt-BR')}.`);
+      setMsgVariant('success');
+    } catch (err) {
+      setMsg(String(err));
+      setMsgVariant('error');
+    } finally {
+      setReviewLinkLoading(false);
+    }
+  }, [priorityVacancyId]);
+
   const tabs = [
     { key: 'all', label: 'Todas', badge: stats.total },
     { key: 'pending', label: 'Pendentes', badge: stats.pending },
@@ -295,18 +318,24 @@ export function ShortlistView() {
                   </Badge>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: spacing.sm, flexWrap: 'wrap' }}>
                 <Button
                   variant="outline"
-                  onClick={() => { 
-                    navigator.clipboard.writeText(`${window.location.origin}/client-review?vacancyId=${priorityVacancyId}`);
-                    setMsg('Link de acesso seguro copiado para a área de transferência.');
-                    setMsgVariant('success');
-                  }}
+                  onClick={() => { void generateReviewLink(); }}
                   disabled={!priorityVacancyId}
+                  loading={reviewLinkLoading}
                 >
-                  🔗 Copiar Link para Gestor
+                  🔗 Gerar Link para Gestor
                 </Button>
+                {reviewLink && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { void navigator.clipboard.writeText(reviewLink.url).catch(() => undefined); }}
+                  >
+                    📋 Copiar link
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

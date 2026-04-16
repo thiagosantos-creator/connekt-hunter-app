@@ -105,6 +105,7 @@ model Vacancy {
   riskEvaluations RiskEvaluation[]
   templates       VacancyTemplate[]
   candidateInvites CandidateInvite[]
+  clientReviewSessions ClientReviewSession[]
 }
 
 model Candidate {
@@ -494,11 +495,26 @@ model Evaluation {
 model ClientDecision {
   id             String        @id @default(cuid())
   shortlistItemId String
-  reviewerId     String
+  reviewerId     String?
   decision       String
   createdAt      DateTime      @default(now())
   shortlistItem  ShortlistItem @relation(fields: [shortlistItemId], references: [id], onDelete: Cascade)
-  reviewer       User          @relation("ClientReviewer", fields: [reviewerId], references: [id])
+  reviewer       User?         @relation("ClientReviewer", fields: [reviewerId], references: [id])
+}
+
+model ClientReviewSession {
+  id             String    @id @default(cuid())
+  token          String    @unique
+  vacancyId      String
+  organizationId String
+  createdByUserId String
+  expiresAt      DateTime
+  accessedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  vacancy        Vacancy   @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([vacancyId])
 }
 
 model AuditEvent {

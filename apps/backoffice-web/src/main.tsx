@@ -21,6 +21,7 @@ import { NotificationPreferencesView } from './views/NotificationPreferencesView
 import { InboxView } from './views/InboxView.js';
 import { EnterpriseGovernanceView } from './views/EnterpriseGovernanceView.js';
 import { CandidateDossierView } from './views/CandidateDossierView.js';
+import { PublicClientReviewView } from './views/PublicClientReviewView.js';
 
 function App() {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ function App() {
         <Route path="/applications" element={<ProtectedRoute><ApplicationsView /></ProtectedRoute>} />
         <Route path="/applications/:applicationId/dossier" element={<ProtectedRoute><CandidateDossierView /></ProtectedRoute>} />
         <Route path="/shortlist" element={<PermissionRoute permission="shortlist:write"><ShortlistView /></PermissionRoute>} />
-        <Route path="/client-review" element={<ProtectedRoute><ClientReviewView /></ProtectedRoute>} />
+        <Route path="/client-review" element={<PermissionRoute permission="decision:read"><ClientReviewView /></PermissionRoute>} />
         <Route path="/smart-interview" element={<ProtectedRoute><SmartInterviewView /></ProtectedRoute>} />
         <Route path="/product-intelligence" element={<PermissionRoute permission="smart-interview:configure"><ProductIntelligenceView /></PermissionRoute>} />
         <Route path="/account" element={<ProtectedRoute><AccountView /></ProtectedRoute>} />
@@ -53,6 +54,7 @@ function App() {
         <Route path="/inbox" element={<PermissionRoute permission="applications:read"><InboxView /></PermissionRoute>} />
         <Route path="/audit" element={<PermissionRoute permission="audit:read"><AuditTrailView /></PermissionRoute>} />
         <Route path="/enterprise-governance" element={<PermissionRoute permission="executive-dashboard:read"><EnterpriseGovernanceView /></PermissionRoute>} />
+        <Route path="/review/:token" element={<PublicClientReviewView />} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </BrowserRouter>

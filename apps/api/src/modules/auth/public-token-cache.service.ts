@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { redisDel, redisGet, redisSetEx } from '../infra/redis.client.js';
 
 export type CachedPublicToken = {
-  tokenType: 'guest-session' | 'smart-interview-session' | 'candidate';
+  tokenType: 'guest-session' | 'smart-interview-session' | 'candidate' | 'client-review-session';
   subjectId: string;
   expiresAt?: string;
 };

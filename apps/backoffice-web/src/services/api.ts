@@ -110,3 +110,17 @@ export async function apiDelete<T>(path: string): Promise<T> {
   });
   return handleResponse<T>(res);
 }
+
+export async function apiPublicGet<T>(path: string): Promise<T> {
+  const res = await fetchWithRetry(`${API}${path}`, {});
+  return handleResponse<T>(res);
+}
+
+export async function apiPublicPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetchWithRetry(`${API}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(res);
+}

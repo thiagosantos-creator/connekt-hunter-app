@@ -6,6 +6,7 @@ vi.mock('@connekt/db', () => ({
     candidate: { findUnique: vi.fn() },
     vacancy: { findUnique: vi.fn() },
     membership: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
     workflowSuggestion: { deleteMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
     auditEvent: { create: vi.fn() },
     automationExecution: { create: vi.fn() },

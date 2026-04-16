@@ -14,6 +14,9 @@ vi.mock('@connekt/db', () => ({
     membership: {
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     candidateEmbedding: {
       upsert: vi.fn().mockResolvedValue({}),
     },

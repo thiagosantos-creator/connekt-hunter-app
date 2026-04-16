@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 
 @Injectable()
@@ -22,7 +22,15 @@ export class ClientDecisionsService {
     });
   }
 
+  private static readonly VALID_DECISIONS = ['approve', 'reject', 'interview', 'hold'] as const;
+
   async create(shortlistItemId: string, reviewerId: string, decision: string) {
+    if (!ClientDecisionsService.VALID_DECISIONS.includes(decision as never)) {
+      throw new BadRequestException(
+        `invalid_decision: must be one of ${ClientDecisionsService.VALID_DECISIONS.join(', ')}`,
+      );
+    }
+
     const shortlistItem = await prisma.shortlistItem.findUnique({
       where: { id: shortlistItemId },
       include: { shortlist: { include: { vacancy: true } } },

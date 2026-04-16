@@ -11,6 +11,9 @@ vi.mock('@connekt/db', () => ({
     membership: {
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     riskSignal: {
       deleteMany: vi.fn().mockResolvedValue({}),
       create: vi.fn().mockResolvedValue({}),

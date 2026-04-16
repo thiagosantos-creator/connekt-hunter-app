@@ -11,6 +11,9 @@ vi.mock('@connekt/db', () => ({
     membership: {
       findUnique: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
     matchingScore: {
       findUnique: vi.fn().mockResolvedValue({ id: 'ms1', score: 60 }),
     },

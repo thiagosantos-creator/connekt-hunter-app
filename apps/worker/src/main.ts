@@ -75,6 +75,8 @@ interface CircuitBreakerState {
 const circuitBreakers = new Map<string, CircuitBreakerState>();
 const CB_FAILURE_THRESHOLD = 5;
 const CB_RESET_TIMEOUT_MS = 60_000;
+const INITIAL_RETRY_DELAY_MS = 1_000;
+const MAX_RETRY_DELAY_MS = 30_000;
 
 function getCircuitBreaker(provider: string): CircuitBreakerState {
   if (!circuitBreakers.has(provider)) {
@@ -115,7 +117,7 @@ async function withRetry<T>(label: string, fn: () => Promise<T>, maxRetries = 3)
   let lastErr: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30_000);
+      const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MS);
       await new Promise((r) => setTimeout(r, delay));
     }
     try {

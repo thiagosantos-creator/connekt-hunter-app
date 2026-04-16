@@ -15,7 +15,6 @@ export class ApplicationsService {
       where.status = options.status;
     }
     if (options?.search) {
-      const searchLike = `%${options.search}%`;
       where.OR = [
         { candidate: { email: { contains: options.search, mode: 'insensitive' } } },
         { candidate: { profile: { fullName: { contains: options.search, mode: 'insensitive' } } } },

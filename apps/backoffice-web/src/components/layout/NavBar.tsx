@@ -5,6 +5,11 @@ import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';
 
+const navLinksStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', flex: 1,
+  scrollbarWidth: 'none', msOverflowStyle: 'none',
+};
+
 interface NavSection {
   group?: string;
   items: Array<{ label: string; to: string }>;
@@ -125,7 +130,7 @@ export function NavBar() {
       </div>
 
       {/* Nav links */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', flex: 1, scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}>
+      <div style={navLinksStyle}>
         {sections.map((section, sIdx) => (
           <React.Fragment key={sIdx}>
             {sIdx > 0 && (

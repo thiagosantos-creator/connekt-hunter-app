@@ -111,6 +111,13 @@ export function VacancyLandingView() {
     navigate(`/?token=${encodeURIComponent(normalized)}`);
   };
 
+  const handlePhoneBlur = useCallback(() => { validatePhone(applyPhone); }, [applyPhone]);
+
+  const handlePhoneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setApplyPhone(e.target.value);
+    setPhoneError('');
+  }, []);
+
   const validatePhone = (phone: string): boolean => {
     if (!phone.trim()) return true; // optional field
     const digits = phone.replace(/\D/g, '');
@@ -268,8 +275,8 @@ export function VacancyLandingView() {
                 <Input
                   label="Telefone"
                   value={applyPhone}
-                  onChange={(e) => { setApplyPhone(e.target.value); setPhoneError(''); }}
-                  onBlur={() => validatePhone(applyPhone)}
+                  onChange={handlePhoneChange}
+                  onBlur={handlePhoneBlur}
                   placeholder="+55 11 99999-0000"
                   hint="Opcional. Ajuda a acelerar o contato do recrutamento."
                   autoComplete="tel"

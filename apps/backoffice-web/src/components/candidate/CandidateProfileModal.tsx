@@ -133,6 +133,15 @@ function SignalRadar({ values }: { values: Array<{ label: string; value: number 
   );
 }
 
+const MODAL_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
 export function CandidateProfileModal({ applicationId, open, onClose, viewerRole }: Props) {
   const [detail, setDetail] = useState<ApplicationDetail | null>(null);
   const [intelligence, setIntelligence] = useState<IntelligenceBundle>({ recommendations: [], workflowSuggestions: [] });
@@ -163,8 +172,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
     const modal = modalRef.current;
     if (!modal) return;
 
-    const FOCUSABLE_SELECTOR = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const getFocusable = () => Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+    const getFocusable = () => Array.from(modal.querySelectorAll<HTMLElement>(MODAL_FOCUSABLE_SELECTOR));
 
     // Set initial focus on the close button
     const closeBtn = modal.querySelector<HTMLButtonElement>('button[data-close-modal]');

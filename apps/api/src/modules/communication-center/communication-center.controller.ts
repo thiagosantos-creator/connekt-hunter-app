@@ -31,7 +31,7 @@ export class CommunicationCenterController {
 
   @Post(':organizationId/dispatch')
   @RequirePermissions('communications:manage')
-  dispatch(@Param('organizationId') organizationId: string, @Body() body: { templateId: string; recipient: string; eventKey: string; idempotencyKey: string }, @CurrentUser() user: AuthUser) {
+  dispatch(@Param('organizationId') organizationId: string, @Body() body: { templateId: string; recipient: string; eventKey: string; idempotencyKey: string; variables?: Record<string, string> }, @CurrentUser() user: AuthUser) {
     return this.service.dispatchTemplate(organizationId, user.id, user.role, body);
   }
 

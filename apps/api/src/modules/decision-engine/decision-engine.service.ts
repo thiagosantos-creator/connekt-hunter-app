@@ -13,14 +13,18 @@ export class DecisionEngineService {
     if (!vacancy) throw new NotFoundException('vacancy_not_found');
     await this.assertTenantAccess(vacancy.organizationId, actorId);
 
+    const tenantSettings = await prisma.tenantSettings.findUnique({ where: { organizationId: vacancy.organizationId } });
+    const riskPenaltyWeight = tenantSettings?.riskPenaltyWeight ?? 25;
+    const recommendationBoostWeight = tenantSettings?.recommendationBoostWeight ?? 3;
+
     const scores = await prisma.matchingScore.findMany({ where: { vacancyId } });
 
     const output = [];
     for (const score of scores) {
       const risk = await prisma.riskEvaluation.findUnique({ where: { candidateId_vacancyId: { candidateId: score.candidateId, vacancyId } } });
       const recommendations = await prisma.candidateRecommendation.findMany({ where: { candidateId: score.candidateId, vacancyId } });
-      const riskPenalty = (risk?.riskScore ?? 0.2) * 25;
-      const recommendationBoost = recommendations.length * 3;
+      const riskPenalty = (risk?.riskScore ?? 0.2) * riskPenaltyWeight;
+      const recommendationBoost = recommendations.length * recommendationBoostWeight;
       const priorityScore = Math.max(0, Math.min(100, score.score - riskPenalty + recommendationBoost));
       const priorityBand = priorityScore >= 75 ? 'high' : priorityScore >= 45 ? 'medium' : 'low';
 
@@ -30,7 +34,7 @@ export class DecisionEngineService {
           score: priorityScore,
           priorityBand,
           rationale: 'Priorização dinâmica assistiva: matching, risco e recomendações. Decisão final sempre humana.',
-          factors: { matching: score.score, riskPenalty, recommendationBoost } as never,
+          factors: { matching: score.score, riskPenalty, recommendationBoost, riskPenaltyWeight, recommendationBoostWeight } as never,
         },
         create: {
           candidateId: score.candidateId,
@@ -38,7 +42,7 @@ export class DecisionEngineService {
           score: priorityScore,
           priorityBand,
           rationale: 'Priorização dinâmica assistiva: matching, risco e recomendações. Decisão final sempre humana.',
-          factors: { matching: score.score, riskPenalty, recommendationBoost } as never,
+          factors: { matching: score.score, riskPenalty, recommendationBoost, riskPenaltyWeight, recommendationBoostWeight } as never,
         },
       }));
     }

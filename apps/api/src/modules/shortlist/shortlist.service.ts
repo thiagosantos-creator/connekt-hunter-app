@@ -41,6 +41,35 @@ export class ShortlistService {
     return item;
   }
 
+  async removeFromShortlist(itemId: string, actorId?: string) {
+    const item = await prisma.shortlistItem.findUnique({
+      where: { id: itemId },
+      include: { shortlist: { include: { vacancy: true } } },
+    });
+    if (!item) throw new NotFoundException('shortlist_item_not_found');
+
+    if (actorId) {
+      const membership = await prisma.membership.findUnique({
+        where: { organizationId_userId: { organizationId: item.shortlist.vacancy.organizationId, userId: actorId } },
+      });
+      if (!membership) throw new ForbiddenException('user_not_member_of_org');
+    }
+
+    await prisma.shortlistItem.delete({ where: { id: itemId } });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId,
+        action: 'shortlist.removed',
+        entityType: 'ShortlistItem',
+        entityId: itemId,
+        metadata: { applicationId: item.applicationId, vacancyId: item.shortlist.vacancyId } as never,
+      },
+    });
+
+    return { success: true };
+  }
+
   findShortlistedApplications(organizationIds: string[], role: string) {
     const where =
       role === 'admin'

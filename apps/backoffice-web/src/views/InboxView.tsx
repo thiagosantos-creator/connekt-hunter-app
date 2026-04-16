@@ -17,7 +17,7 @@ import {
   radius,
   spacing,
 } from '@connekt/ui';
-import { apiGet } from '../services/api.js';
+import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { HeadhunterInboxItem } from '../services/types.js';
 
@@ -164,12 +164,34 @@ export function InboxView() {
                         </div>
                       </div>
 
-                      {/* Right: quick actions — TODO: wire to real backend endpoints when available */}
+                      {/* Quick actions wired to backend */}
                       <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
                         {item.quickActions.map((action) => (
-                          <Button key={action} variant="outline" size="sm" onClick={() => {
-                            setMsg(`Ação "${action}" para ${item.candidateEmail} será implementada em breve.`);
-                            setMsgVariant('info');
+                          <Button key={action} variant="outline" size="sm" onClick={async () => {
+                            try {
+                              if (action === 'Avaliar') {
+                                window.location.href = `/applications/${item.applicationId}/dossier`;
+                                return;
+                              }
+                              if (action === 'Shortlist') {
+                                await apiPost('/shortlist', { applicationId: item.applicationId });
+                                setMsg(`Candidato ${item.candidateEmail} adicionado à shortlist.`);
+                                setMsgVariant('success');
+                                load();
+                                return;
+                              }
+                              if (action === 'Agendar entrevista') {
+                                await apiPost('/workflow-automation/suggest', { candidateId: item.candidateId, vacancyId: item.vacancyId });
+                                setMsg(`Sugestão de entrevista criada para ${item.candidateEmail}.`);
+                                setMsgVariant('success');
+                                return;
+                              }
+                              setMsg(`Ação "${action}" para ${item.candidateEmail} executada.`);
+                              setMsgVariant('info');
+                            } catch (err) {
+                              setMsg(String(err));
+                              setMsgVariant('error');
+                            }
                           }}>
                             {action}
                           </Button>

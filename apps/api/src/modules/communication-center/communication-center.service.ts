@@ -68,7 +68,7 @@ export class CommunicationCenterService {
     organizationId: string,
     actorId: string,
     role: string,
-    payload: { templateId: string; recipient: string; eventKey: string; idempotencyKey: string },
+    payload: { templateId: string; recipient: string; eventKey: string; idempotencyKey: string; variables?: Record<string, string> },
   ) {
     await this.assertAccess(organizationId, actorId, role);
 
@@ -77,6 +77,13 @@ export class CommunicationCenterService {
 
     const published = await prisma.communicationTemplateVersion.findFirst({ where: { templateId: payload.templateId, status: 'published' }, orderBy: { version: 'desc' } });
     if (!published) throw new NotFoundException('published_template_not_found');
+
+    let renderedContent = published.content;
+    if (payload.variables) {
+      for (const [key, value] of Object.entries(payload.variables)) {
+        renderedContent = renderedContent.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+      }
+    }
 
     return prisma.communicationDispatchAudit.create({
       data: {
@@ -89,6 +96,7 @@ export class CommunicationCenterService {
         status: 'queued',
         idempotencyKey: payload.idempotencyKey,
         requestedBy: actorId,
+        renderedContent,
       },
     });
   }

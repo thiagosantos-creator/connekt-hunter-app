@@ -51,8 +51,23 @@ describe('WorkflowAutomationService', () => {
       vacancy: { organizationId: 'org_1' },
     } as never);
     vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'headhunter' } as never);
 
     await expect(service.execute('ws_1', 'user_2')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows global admin suggest without membership', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'admin' } as never);
+    vi.mocked(prisma.matchingScore.findUnique).mockResolvedValue({ score: 70 } as never);
+    vi.mocked(prisma.riskEvaluation.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.application.findFirst).mockResolvedValue({ status: 'applied', smartInterviewSessions: [] } as never);
+    vi.mocked(prisma.workflowSuggestion.create).mockResolvedValue({ id: 'ws1', suggestionType: 'schedule-interview' } as never);
+
+    const result = await service.suggest('c1', 'v1', 'admin-user');
+    expect(result.length).toBeGreaterThanOrEqual(1);
   });
 
   it('suggests schedule-interview when match score >= 60 and no interview exists', async () => {

@@ -34,6 +34,34 @@ services:
       timeout: 5s
       retries: 10
 
+  minio-bootstrap:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-eu", "-c"]
+    command: |
+      cat > /tmp/cors.json <<'EOF'
+      {
+        "CORSRules": [
+          {
+            "AllowedOrigins": ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],
+            "AllowedMethods": ["GET", "HEAD", "PUT", "POST"],
+            "AllowedHeaders": ["*"],
+            "ExposeHeaders": ["ETag", "x-amz-request-id", "x-amz-id-2"],
+            "MaxAgeSeconds": 3000
+          }
+        ]
+      }
+      EOF
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minio} ${MINIO_ROOT_PASSWORD:-miniopassword}
+      mc mb --ignore-existing local/${S3_BUCKET:-connekt-staging-assets}
+      mc anonymous set download local/${S3_BUCKET:-connekt-staging-assets}
+      policy=$$(mc anonymous get local/${S3_BUCKET:-connekt-staging-assets})
+      echo "$$policy"
+      echo "$$policy" | grep -q "download"
+      mc cors set local/${S3_BUCKET:-connekt-staging-assets} /tmp/cors.json
+
   workspace-bootstrap:
     image: node:22
     working_dir: /app
@@ -83,6 +111,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-bootstrap:
+        condition: service_completed_successfully
       workspace-bootstrap:
         condition: service_completed_successfully
 
@@ -112,6 +142,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-bootstrap:
+        condition: service_completed_successfully
       workspace-bootstrap:
         condition: service_completed_successfully
 

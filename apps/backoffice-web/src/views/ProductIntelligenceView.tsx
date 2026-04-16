@@ -131,10 +131,15 @@ export function ProductIntelligenceView() {
     [applications],
   );
 
-  const scopedVacancyOptions = useMemo(
-    () => vacancies.map((item) => ({ value: item.id, label: item.title })),
-    [vacancies],
-  );
+  const scopedVacancyOptions = useMemo(() => {
+    const unique = new Map<string, string>();
+    applications.forEach((item) => {
+      if (!unique.has(item.vacancy.id)) {
+        unique.set(item.vacancy.id, item.vacancy.title);
+      }
+    });
+    return [...unique.entries()].map(([value, label]) => ({ value, label }));
+  }, [applications]);
 
   const scopedCandidateOptions = useMemo(() => {
     const scopedApplications = vacancyId

@@ -95,7 +95,7 @@ export function Step3ResumeView() {
         filename: file.name,
       });
 
-      navigate('/onboarding/preferences');
+      navigate('/onboarding/media-check');
     } catch (err) {
       const message = err instanceof Error ? err.message : '';
       if (message.includes('storage_object_empty')) {

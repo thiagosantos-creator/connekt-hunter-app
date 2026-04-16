@@ -48,13 +48,7 @@ export class CandidateProfileService {
 
     // Build a stable public URL (presigned URLs expire; store the object key
     // and generate signed URL on demand, or use a CDN origin here)
-    const bucketRegion = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
-    const bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
-    // For local / minio we just store the objectKey; frontends request a fresh signed URL.
-    // For production S3 with a CDN, replace with the CDN URL pattern.
-    const photoUrl = process.env.S3_ENDPOINT
-      ? `${process.env.S3_ENDPOINT}/${bucket}/${objectKey}`
-      : `https://${bucket}.s3.${bucketRegion}.amazonaws.com/${objectKey}`;
+    const photoUrl = `${this.storageGateway.getPublicAssetBaseUrl()}/${objectKey}`;
 
     const profile = await prisma.candidateProfile.upsert({
       where: { candidateId: candidate.id },

@@ -68,7 +68,18 @@ describe('RecommendationEngineService', () => {
     vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
     vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
     vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'headhunter' } as never);
     await expect(service.generate('c1', 'v1', 'u1')).rejects.toThrow('user_not_member_of_org');
+  });
+
+  it('should allow global admins without membership', async () => {
+    vi.mocked(prisma.candidate.findUnique).mockResolvedValue({ id: 'c1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.vacancy.findUnique).mockResolvedValue({ id: 'v1', organizationId: 'org1' } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'admin' } as never);
+
+    const result = await service.generate('c1', 'v1', 'admin-user');
+    expect(result).toBeDefined();
   });
 
   it('should generate recommendations and audit event when valid', async () => {

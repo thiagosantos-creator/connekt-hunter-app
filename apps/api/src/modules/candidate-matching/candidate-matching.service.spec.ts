@@ -92,7 +92,25 @@ describe('CandidateMatchingService', () => {
       smartInterviewSessions: [],
     } as never);
     vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'headhunter' } as never);
     await expect(service.computeMatching('a1', 'u1')).rejects.toThrow('user_not_member_of_org');
+  });
+
+  it('should allow global admins without membership', async () => {
+    vi.mocked(prisma.application.findUnique).mockResolvedValue({
+      id: 'a1',
+      candidateId: 'c1',
+      vacancyId: 'v1',
+      candidate: { organizationId: 'org1', profile: { fullName: 'John' }, onboarding: null, email: 'c@c.com' },
+      vacancy: { organizationId: 'org1', title: 'Dev', description: 'desc' },
+      evaluations: [],
+      smartInterviewSessions: [],
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({ role: 'admin' } as never);
+
+    const result = await service.computeMatching('a1', 'admin-user');
+    expect(result).toBeDefined();
   });
 
   it('should compute matching and create audit event when valid', async () => {

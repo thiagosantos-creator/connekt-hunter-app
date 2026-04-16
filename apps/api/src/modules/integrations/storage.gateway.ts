@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { prisma } from '@connekt/db';
 import {
   CreateBucketCommand,
@@ -25,6 +25,7 @@ export interface PresignedUpload {
 
 @Injectable()
 export class StorageGateway {
+  private readonly logger = new Logger(StorageGateway.name);
   private readonly bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
   private readonly region = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
   private readonly endpoint = process.env.S3_ENDPOINT;
@@ -41,6 +42,8 @@ export class StorageGateway {
       region: this.region,
       endpoint: this.endpoint,
       forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true' || Boolean(this.endpoint),
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
@@ -63,6 +66,14 @@ export class StorageGateway {
       // only the browser upload may fail, which the caller handles with a user-facing error.
       return internalUrl;
     }
+  }
+
+  getPublicAssetBaseUrl() {
+    const baseEndpoint = this.publicEndpoint ?? this.endpoint;
+    if (baseEndpoint) {
+      return `${baseEndpoint}/${this.bucket}`;
+    }
+    return `https://${this.bucket}.s3.${this.region}.amazonaws.com`;
   }
 
   private static readonly MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
@@ -191,18 +202,33 @@ export class StorageGateway {
     const allowedOrigins = this.getAllowedOrigins();
     if (allowedOrigins.length === 0) return;
 
-    await this.s3.send(new PutBucketCorsCommand({
-      Bucket: this.bucket,
-      CORSConfiguration: {
-        CORSRules: [{
-          AllowedHeaders: ['*'],
-          AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST'],
-          AllowedOrigins: allowedOrigins,
-          ExposeHeaders: ['ETag', 'x-amz-request-id', 'x-amz-id-2'],
-          MaxAgeSeconds: 3000,
-        }],
-      },
-    }));
+    try {
+      await this.s3.send(new PutBucketCorsCommand({
+        Bucket: this.bucket,
+        CORSConfiguration: {
+          CORSRules: [{
+            AllowedHeaders: ['*'],
+            AllowedMethods: ['GET', 'HEAD', 'PUT', 'POST'],
+            AllowedOrigins: allowedOrigins,
+            ExposeHeaders: ['ETag', 'x-amz-request-id', 'x-amz-id-2'],
+            MaxAgeSeconds: 3000,
+          }],
+        },
+      }));
+    } catch (error) {
+      if (this.endpoint) {
+        this.logger.warn(
+          JSON.stringify({
+            event: 'storage_bucket_cors_skipped',
+            bucket: this.bucket,
+            endpoint: this.endpoint,
+            reason: error instanceof Error ? error.message : 'unknown',
+          }),
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   private getAllowedOrigins() {

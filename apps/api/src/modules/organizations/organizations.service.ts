@@ -184,11 +184,7 @@ export class OrganizationsService {
       metadata: { organizationId, type, filename, status: 'pending_upload' },
     });
 
-    const baseEndpoint = process.env.S3_ENDPOINT
-      ? `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}`
-      : `https://${process.env.S3_BUCKET}.s3.${process.env.AWS_REGION || process.env.S3_REGION}.amazonaws.com`;
-      
-    const publicUrl = `${baseEndpoint}/${upload.objectKey}`;
+    const publicUrl = `${this.storageGateway.getPublicAssetBaseUrl()}/${upload.objectKey}`;
 
     return { 
       uploadUrl: upload.url, 
@@ -208,11 +204,7 @@ export class OrganizationsService {
     await prisma.organization.findUniqueOrThrow({ where: { id: organizationId } });
     await this.storageGateway.getObjectBuffer(objectKey);
 
-    const bucket = process.env.S3_BUCKET ?? 'connekt-staging-assets';
-    const region = process.env.S3_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
-    const publicUrl = process.env.S3_ENDPOINT
-      ? `${process.env.S3_ENDPOINT}/${bucket}/${objectKey}`
-      : `https://${bucket}.s3.${region}.amazonaws.com/${objectKey}`;
+    const publicUrl = `${this.storageGateway.getPublicAssetBaseUrl()}/${objectKey}`;
 
     await prisma.tenantSettings.upsert({
       where: { organizationId },

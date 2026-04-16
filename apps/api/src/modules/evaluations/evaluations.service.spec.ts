@@ -20,6 +20,9 @@ vi.mock('@connekt/db', () => ({
         ratingAi: 4,
         overallRating: 75,
       }),
+      findMany: vi.fn().mockResolvedValue([]),
+      findUnique: vi.fn(),
+      update: vi.fn().mockResolvedValue({ id: 'e1', comment: 'updated' }),
     },
     auditEvent: {
       create: vi.fn().mockResolvedValue({}),
@@ -103,6 +106,41 @@ describe('EvaluationsService', () => {
       expect.objectContaining({
         data: expect.objectContaining({ overallRating: undefined }),
       }),
+    );
+  });
+
+  it('findByApplication should throw NotFoundException when application does not exist', async () => {
+    vi.mocked(prisma.application.findUnique).mockResolvedValue(null);
+    await expect(service.findByApplication('a1', 'u1')).rejects.toThrow('application_not_found');
+  });
+
+  it('findByApplication should return evaluations for valid application', async () => {
+    vi.mocked(prisma.application.findUnique).mockResolvedValue({
+      id: 'a1',
+      vacancy: { organizationId: 'org1' },
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    vi.mocked(prisma.evaluation.findMany).mockResolvedValue([{ id: 'e1' }] as never);
+    const result = await service.findByApplication('a1', 'u1');
+    expect(result).toHaveLength(1);
+  });
+
+  it('update should throw NotFoundException when evaluation does not exist', async () => {
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue(null);
+    await expect(service.update('e1', 'u1', 'updated')).rejects.toThrow('evaluation_not_found');
+  });
+
+  it('update should update evaluation and create audit event', async () => {
+    vi.mocked(prisma.evaluation.findUnique).mockResolvedValue({
+      id: 'e1',
+      applicationId: 'a1',
+      application: { vacancy: { organizationId: 'org1' } },
+    } as never);
+    vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+    const result = await service.update('e1', 'u1', 'updated comment');
+    expect(result).toBeDefined();
+    expect(prisma.auditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: 'evaluation.updated' }) }),
     );
   });
 });

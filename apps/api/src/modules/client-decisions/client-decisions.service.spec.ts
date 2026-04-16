@@ -73,4 +73,21 @@ describe('ClientDecisionsService', () => {
       }),
     );
   });
+
+  it('should reject invalid decision values', async () => {
+    await expect(service.create('si1', 'u1', 'invalid-decision')).rejects.toThrow('invalid_decision');
+  });
+
+  it('should accept all valid decision values', async () => {
+    for (const decision of ['approve', 'reject', 'interview', 'hold']) {
+      vi.mocked(prisma.shortlistItem.findUnique).mockResolvedValue({
+        id: 'si1',
+        shortlist: { vacancy: { organizationId: 'org1' } },
+      } as never);
+      vi.mocked(prisma.membership.findUnique).mockResolvedValue({ id: 'm1' } as never);
+      vi.mocked(prisma.clientDecision.create).mockResolvedValue({ id: 'd1', decision } as never);
+      const result = await service.create('si1', 'u1', decision);
+      expect(result).toBeDefined();
+    }
+  });
 });

@@ -46,7 +46,7 @@ export class AiGateway {
 
   constructor(
     @Inject(IntegrationsConfigService) private readonly config: IntegrationsConfigService,
-    private readonly openai: OpenAiProvider,
+    @Inject(OpenAiProvider) private readonly openai: OpenAiProvider,
   ) {}
 
   private get isReal(): boolean {
@@ -59,6 +59,14 @@ export class AiGateway {
 
   private get modelVersion(): string {
     return this.isReal ? (process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini') : 'mock-v1';
+  }
+
+  private safeJson(obj: unknown) {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch {
+      return {};
+    }
   }
 
   private async withFallback<T>(operation: string, realFn: () => Promise<T>, mockFn: () => T, input: unknown): Promise<{ result: T; provider: string; modelVersion: string }> {
@@ -74,7 +82,7 @@ export class AiGateway {
         this.logger.warn(JSON.stringify({ event: 'ai_real_failed', operation, error: String(err) }));
 
         await prisma.aiExecutionLog.create({
-          data: { operation, provider, modelVersion, promptVersion: `${operation}.v1`, status: 'error', requestJson: input as never, responseJson: { error: String(err) } as never },
+          data: { operation, provider, modelVersion, promptVersion: `${operation}.v1`, status: 'error', requestJson: this.safeJson(input) as never, responseJson: { error: String(err) } as never },
         });
 
         if (this.config.shouldFallbackToMock('ai')) {
@@ -106,7 +114,7 @@ export class AiGateway {
     );
 
     const log = await prisma.aiExecutionLog.create({
-      data: { operation: 'generate-questions', provider, modelVersion, promptVersion, status: 'success', requestJson: input as never, responseJson: { questions } as never },
+      data: { operation: 'generate-questions', provider, modelVersion, promptVersion, status: 'success', requestJson: this.safeJson(input) as never, responseJson: { questions } as never },
     });
 
     return { questions, executionId: log.id, provider, modelVersion, promptVersion };
@@ -130,7 +138,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'analyze-interview', provider, modelVersion, promptVersion: 'smart-interview.analysis.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'analyze-interview', provider, modelVersion, promptVersion: 'smart-interview.analysis.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return result;
@@ -153,7 +161,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'matching-explanation', provider, modelVersion, promptVersion: 'candidate-matching.explain.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'matching-explanation', provider, modelVersion, promptVersion: 'candidate-matching.explain.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return { provider, ...result };
@@ -176,7 +184,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'candidate-insights', provider, modelVersion, promptVersion: 'candidate-insights.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'candidate-insights', provider, modelVersion, promptVersion: 'candidate-insights.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return { provider, ...result };
@@ -197,7 +205,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'candidate-comparison', provider, modelVersion, promptVersion: 'candidate-comparison.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'candidate-comparison', provider, modelVersion, promptVersion: 'candidate-comparison.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return { provider, ...result };
@@ -214,7 +222,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'candidate-ranking', provider, modelVersion, promptVersion: 'candidate-ranking.v1', status: 'success', requestJson: input as never, responseJson: rationale as never },
+      data: { operation: 'candidate-ranking', provider, modelVersion, promptVersion: 'candidate-ranking.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: rationale as never },
     });
 
     return rationale as Record<string, string>;
@@ -237,7 +245,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'recommendation-engine', provider, modelVersion, promptVersion: 'recommendation-engine.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'recommendation-engine', provider, modelVersion, promptVersion: 'recommendation-engine.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return { provider, ...result };
@@ -289,7 +297,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'risk-analysis', provider, modelVersion, promptVersion: 'risk-analysis.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'risk-analysis', provider, modelVersion, promptVersion: 'risk-analysis.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return { provider, ...result };
@@ -329,7 +337,7 @@ export class AiGateway {
     );
 
     await prisma.aiExecutionLog.create({
-      data: { operation: 'generate-assistive-vacancy', provider, modelVersion, promptVersion: 'assistive-vacancy.v1', status: 'success', requestJson: input as never, responseJson: result as never },
+      data: { operation: 'generate-assistive-vacancy', provider, modelVersion, promptVersion: 'assistive-vacancy.v1', status: 'success', requestJson: this.safeJson(input) as never, responseJson: result as never },
     });
 
     return {

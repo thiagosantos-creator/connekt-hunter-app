@@ -20,6 +20,13 @@ export class ShortlistController {
     return this.shortlistService.addToShortlist(body.applicationId, user.id);
   }
 
+  @Post('direct')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('shortlist:write')
+  addDirectly(@Body() body: { candidateId: string; vacancyId: string }, @CurrentUser() user: AuthUser) {
+    return this.shortlistService.addDirectly(body.candidateId, body.vacancyId, user.id);
+  }
+
   @Get('items')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions('shortlist:read')

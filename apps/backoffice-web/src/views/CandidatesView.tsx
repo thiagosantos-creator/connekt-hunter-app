@@ -60,6 +60,7 @@ export function CandidatesView() {
   const [savingManagedCandidate, setSavingManagedCandidate] = useState(false);
   const [resettingCandidate, setResettingCandidate] = useState(false);
   const [resendingCandidateInvite, setResendingCandidateInvite] = useState(false);
+  const [shortlistDirectLoading, setShortlistDirectLoading] = useState(false);
   const canManageCandidateAccounts = hasPermission(user, 'users:manage');
 
   const orgOptions = useMemo(() => {
@@ -190,6 +191,31 @@ export function CandidatesView() {
       setMsgVariant('error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addDirectlyToShortlist = async () => {
+    if (!vacancyId) {
+      setMsg('Selecione uma vaga no topo da página antes de adicionar à Shortlist.');
+      setMsgVariant('error');
+      return;
+    }
+    if (!selectedManagedCandidateId) return;
+
+    setShortlistDirectLoading(true);
+    try {
+      await apiPost('/shortlist/direct', { 
+        candidateId: selectedManagedCandidateId, 
+        vacancyId 
+      });
+      setMsg(`O candidato foi inserido com sucesso na Shortlist da vaga selecionada.`);
+      setMsgVariant('success');
+      if (canManageCandidateAccounts) await loadManagedCandidates(orgId);
+    } catch (err) {
+      setMsg(extractErrorMessage(err));
+      setMsgVariant('error');
+    } finally {
+      setShortlistDirectLoading(false);
     }
   };
 
@@ -480,10 +506,22 @@ export function CandidatesView() {
             <CardDescription>Atualize o e-mail cadastrado e solicite redefinição de acesso para candidatos com conta criada.</CardDescription>
           </CardHeader>
           <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md }}>
-              <StatBox label="Candidatos no tenant" value={managedCandidates.length} />
-              <StatBox label="Com conta criada" value={activeManagedCandidates} />
-              <StatBox label="Reset disponível" value={resettableManagedCandidates} />
+            {/* Stats Premium */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
+              <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}`, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+                <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Candidatos no tenant</div>
+                <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{managedCandidates.length}</div>
+              </div>
+              <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #ecfdf5, #fff)`, border: `1px solid ${colors.successLight}`, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(16, 185, 129, 0.1)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+                <div style={{ fontSize: fontSize.sm, color: colors.success, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Com conta criada</div>
+                <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.successDark }}>{activeManagedCandidates}</div>
+              </div>
+              <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #eff6ff, #fff)`, border: `1px solid ${colors.infoLight}`, position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(59, 130, 246, 0.05)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+                <div style={{ fontSize: fontSize.sm, color: colors.info, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Reset disponível</div>
+                <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.infoDark }}>{resettableManagedCandidates}</div>
+              </div>
             </div>
 
             {loadingManagedCandidates ? (
@@ -580,7 +618,6 @@ export function CandidatesView() {
                           </>
                         )}
                       </div>
-
                       <div
                         style={{
                           display: 'grid',
@@ -591,23 +628,21 @@ export function CandidatesView() {
                           background: colors.surfaceAlt,
                         }}
                       >
-                        <div>
+                        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}>
                           <SectionTitle>Resumo da conta</SectionTitle>
-                          <p style={{ margin: 0 }}>Criado em: {formatDate(selectedManagedCandidate.createdAt)}</p>
-                          <p style={{ margin: `${spacing.xs}px 0 0` }}>Upgrade convidado: {formatDate(selectedManagedCandidate.guestUpgradeAt)}</p>
+                          <p style={{ margin: 0, fontSize: fontSize.sm }}>Criado em: {formatDate(selectedManagedCandidate.createdAt)}</p>
+                          <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.sm }}>Upgrade convidado: {formatDate(selectedManagedCandidate.guestUpgradeAt)}</p>
                         </div>
-                        <div>
+                        <div style={{ padding: spacing.md, borderRadius: radius.lg, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}>
                           <SectionTitle>Último acesso compartilhado</SectionTitle>
-                          <p style={{ margin: 0 }}>
+                          <p style={{ margin: 0, fontSize: fontSize.sm }}>
                             Canal: {inviteChannelLabel(selectedManagedCandidate.lastInvite?.channel)}
                           </p>
-                          <p style={{ margin: `${spacing.xs}px 0 0` }}>
+                          <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.sm }}>
                             Data: {formatDate(selectedManagedCandidate.lastInvite?.createdAt)}
                           </p>
                         </div>
-                      </div>
-
-                      <Input
+                      </div>                      <Input
                         label="E-mail do candidato"
                         type="email"
                         value={managedCandidateEmail}
@@ -642,6 +677,32 @@ export function CandidatesView() {
                         >
                           Solicitar nova senha
                         </Button>
+                      </div>
+
+                      <div style={{ paddingTop: spacing.md, marginTop: spacing.md, borderTop: `1px solid ${colors.borderLight}`}}>
+                        <SectionTitle>Ações de Headhunter</SectionTitle>
+                        <p style={{ margin: `0 0 ${spacing.sm}px`, fontSize: fontSize.sm, color: colors.textSecondary }}>
+                          Transforme este talento conectando-o diretamente na Shortlist da Vaga ativa.
+                        </p>
+                        <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                           <Select
+                              value={vacancyId}
+                              onChange={(e) => setVacancyId(e.target.value)}
+                              options={vacancyOptions}
+                              placeholder="1. Selecione a Vaga (se não selecionada acima)"
+                              style={{ width: 300, background: '#fff' }}
+                           />
+                           <Button
+                             type="button"
+                             variant="primary"
+                             onClick={() => { void addDirectlyToShortlist(); }}
+                             loading={shortlistDirectLoading}
+                             disabled={!vacancyId}
+                             style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})`, border: 'none', boxShadow: shadows.sm }}
+                           >
+                              ⚡ Inserir na Shortlist
+                           </Button>
+                        </div>
                       </div>
 
                       {!selectedManagedCandidate.canRequestPasswordReset && (

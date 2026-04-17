@@ -273,10 +273,10 @@ export function ClientReviewView() {
   }
 
   return (
-    <PageContent style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', background: colors.surface }}>
+    <PageContent style={{ padding: 0, position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, overflow: 'hidden', maxWidth: 'none', margin: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', minHeight: 0, background: colors.surface }}>
         
-        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc', minHeight: 0, minWidth: 0 }}>
           <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
             <h1 style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, margin: 0, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
               Shortlist <Badge variant="info">{stats.total}</Badge>
@@ -384,9 +384,9 @@ export function ClientReviewView() {
           </div>
         </aside>
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative' }}>
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative', minHeight: 0, minWidth: 0 }}>
           {!selectedAppId ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
               <EmptyState 
                 title="Selecione um candidato" 
                 description="Clique em um perfil na lista ao lado para iniciar a avaliação premium."
@@ -401,7 +401,7 @@ export function ClientReviewView() {
                 background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(24px)',
                 zIndex: 10, position: 'sticky', top: 0, boxShadow: '0 4px 32px rgba(0,0,0,0.06)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, minWidth: 0 }}>
                   <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primaryDark }}>Ações de Decisão</div>
                   <div style={{ width: 1, height: 28, background: colors.border }} />
                   {msg ? (
@@ -454,8 +454,8 @@ export function ClientReviewView() {
                 </div>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd' }}>
-                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl }}>
+              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd', minHeight: 0 }}>
+                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl, paddingBottom: 160 }}>
                   {loadingDetail ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', gap: spacing.md }}>
                       <Spinner size={32} />

@@ -52,6 +52,24 @@ export class ShortlistService {
     return item;
   }
 
+  async addDirectly(candidateId: string, vacancyId: string, actorId: string) {
+    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+
+    const membership = await prisma.membership.findUnique({
+      where: { organizationId_userId: { organizationId: vacancy.organizationId, userId: actorId } },
+    });
+    if (!membership) throw new ForbiddenException('user_not_member_of_org');
+
+    const application = await prisma.application.upsert({
+      where: { candidateId_vacancyId: { candidateId, vacancyId } },
+      update: {},
+      create: { candidateId, vacancyId },
+    });
+
+    return this.addToShortlist(application.id, actorId);
+  }
+
   async removeFromShortlist(itemId: string, actorId?: string) {
     const item = await prisma.shortlistItem.findUnique({
       where: { id: itemId },

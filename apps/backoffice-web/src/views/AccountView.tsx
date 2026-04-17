@@ -17,20 +17,29 @@ import {
   colors,
   radius,
   fontSize,
+  shadows,
+  fontWeight,
+  Badge,
 } from '@connekt/ui';
 
-const roleExperience: Record<string, { title: string; description: string }> = {
+const roleExperience: Record<string, { title: string; description: string; badge: string; color: string }> = {
   admin: {
     title: 'Modo Gestão',
-    description: 'Você possui visão completa do tenant, usuários e governança.',
+    description: 'Gestão completa do tenant, usuários e governança.',
+    badge: 'ADMIN',
+    color: colors.danger,
   },
   headhunter: {
     title: 'Modo Operação',
-    description: 'A experiência prioriza velocidade operacional na gestão de vagas e candidatos.',
+    description: 'Experiência focada em velocidade operacional, gestão de vagas e talentos.',
+    badge: 'RECRUITER',
+    color: colors.accent,
   },
   client: {
     title: 'Modo Decisão',
-    description: 'A experiência simplifica decisões com foco em aprovar, rejeitar ou solicitar entrevista.',
+    description: 'Foco em decisões rápidas: Aprovar, Rejeitar ou Entrevistar.',
+    badge: 'CLIENT',
+    color: colors.success,
   },
 };
 
@@ -51,7 +60,7 @@ export function AccountView() {
 
   useEffect(() => {
     if (!feedback) return;
-    const timer = setTimeout(() => setFeedback(''), 4000);
+    const timer = setTimeout(() => setFeedback(''), 5000);
     return () => clearTimeout(timer);
   }, [feedback]);
 
@@ -63,7 +72,7 @@ export function AccountView() {
     try {
       const result = await uploadMyAvatar(file);
       setAvatarUrl(result.avatarUrl);
-      setFeedback('Foto de perfil enviada com sucesso. Clique em salvar para persistir os outros dados.');
+      setFeedback('Foto de perfil enviada com sucesso. Clique em salvar para persistir os dados.');
       setFeedbackVariant('success');
     } catch (err) {
       setFeedback(`Erro no upload: ${String(err)}`);
@@ -95,64 +104,129 @@ export function AccountView() {
 
   return (
     <PageContent>
-      <PageHeader title="Conta e Segurança" description="Gerencie seus dados, segurança e experiência por perfil." />
+      <PageHeader 
+        title="Conta e Segurança" 
+        description="Gerencie seus dados e as configurações corporativas." 
+      />
 
-      {feedback && <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
+      {feedback && (
+        <div style={{ animation: 'fadeIn 0.3s ease', marginBottom: spacing.md }}>
+          <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>
+            {feedback}
+          </InlineMessage>
+        </div>
+      )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: spacing.lg, marginTop: spacing.md }}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Perfil</CardTitle>
-            <CardDescription>Dados básicos da conta e avatar corporativo.</CardDescription>
-          </CardHeader>
-          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <div style={{ background: colors.surfaceAlt, padding: spacing.lg, borderRadius: radius.lg, border: `1px solid ${colors.border}` }}>
-                <FileUpload
-                    label="Foto de perfil"
-                    description="JPG, PNG ou GIF. Máximo 2MB."
-                    value={avatarUrl}
-                    onFileSelect={handleAvatarUpload}
-                    previewType="avatar"
-                    loading={uploading}
-                />
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', 
+        gap: spacing.xl, 
+        marginTop: spacing.md,
+        alignItems: 'start'
+      }}>
+        {/* Left Column: Profile form */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xl }}>
+          <Card style={{ border: `1px solid ${colors.borderLight}`, boxShadow: shadows.md, overflow: 'hidden' }}>
+            <div style={{ 
+              height: 48, 
+              background: `linear-gradient(135deg, ${colors.primary} 0%, rgba(20,20,30,0.8) 100%)`,
+              borderBottom: `1px solid ${colors.border}`
+             }} />
+            <div style={{ padding: spacing.xl, paddingTop: 0, marginTop: -24 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: spacing.lg, marginBottom: spacing.lg }}>
+                <div style={{ 
+                  background: colors.surface, 
+                  borderRadius: radius.xl, 
+                  padding: 4, 
+                  boxShadow: shadows.md 
+                }}>
+                  <FileUpload
+                      label=""
+                      description=""
+                      value={avatarUrl}
+                      onFileSelect={handleAvatarUpload}
+                      previewType="avatar"
+                      loading={uploading}
+                  />
+                </div>
+                <div style={{ paddingBottom: spacing.sm }}>
+                  <h3 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>Seu Perfil</h3>
+                  <p style={{ margin: 0, color: colors.textMuted, fontSize: fontSize.sm }}>Visível no tenant e ecossistema</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginBottom: spacing.lg }}>
+                  <Input label="Nome Completo" value={name} onChange={(e) => setName(e.target.value)} required />
+                  <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Tech Recruiter" />
+              </div>
+
+              <Button onClick={() => { void save(); }} loading={saving} style={{ paddingLeft: spacing.xl, paddingRight: spacing.xl }}>
+                  {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
+          </Card>
+        </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
-                <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
-                <Input label="Cargo" value={title} onChange={(e) => setTitle(e.target.value)} />
-            </div>
+        {/* Right Column: Security & Role */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+          <Card style={{ border: `1px solid ${colors.borderLight}`, boxShadow: shadows.sm }}>
+            <CardHeader style={{ paddingBottom: spacing.sm }}>
+              <CardTitle style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <span style={{ fontSize: 20 }}>🛡️</span> Segurança
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div style={{ 
+                padding: spacing.md, 
+                borderRadius: radius.md, 
+                background: colors.surfaceAlt, 
+                border: `1px dashed ${colors.border}`,
+                marginBottom: spacing.md
+              }}>
+                <InlineMessage variant="info">
+                  Autenticação segura (SSO/MFA) provida exclusivamente pelo Cognito.
+                </InlineMessage>
+              </div>
 
-            <div style={{ padding: spacing.md, border: `1px solid ${colors.border}`, borderRadius: radius.md, background: colors.surfaceAlt }}>
-              <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Organizações vinculadas</div>
-              <strong style={{ display: 'block', fontSize: fontSize.md }}>{organizationSummary}</strong>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
+                <span style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Organizações Vinculadas
+                </span>
+                <span style={{ fontSize: fontSize.sm, color: colors.text, fontWeight: fontWeight.medium }}>
+                  {organizationSummary}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Button onClick={() => { void save(); }} loading={saving} style={{ alignSelf: 'flex-start', minWidth: 160 }}>
-                Salvar alterações
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Segurança</CardTitle>
-            <CardDescription>Autenticação gerenciada pelo provedor de identidade (Cognito).</CardDescription>
-          </CardHeader>
-          <CardContent style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <InlineMessage variant="info">
-              Sua senha, login social e MFA são gerenciados pelo Cognito.
-              Para alterar senha, vincular Google/LinkedIn ou configurar MFA, utilize o portal do provedor de identidade.
-            </InlineMessage>
-          </CardContent>
-        </Card>
+          <Card style={{ 
+            background: `linear-gradient(to right bottom, ${colors.surface}, ${colors.surfaceAlt})`,
+            border: `1px solid ${exp.color}40`,
+            boxShadow: `0 4px 20px ${exp.color}15`,
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '4px', background: exp.color }} />
+            <CardHeader>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <Badge style={{ background: `${exp.color}20`, color: exp.color, border: `1px solid ${exp.color}50`, marginBottom: spacing.xs }}>
+                    {exp.badge}
+                  </Badge>
+                  <CardTitle style={{ marginTop: spacing.xs }}>{exp.title}</CardTitle>
+                  <CardDescription style={{ maxWidth: 280 }}>{exp.description}</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
-
-      <Card style={{ marginTop: spacing.lg }}>
-        <CardHeader>
-          <CardTitle>{exp.title}</CardTitle>
-          <CardDescription>{exp.description}</CardDescription>
-        </CardHeader>
-      </Card>
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </PageContent>
   );
 }

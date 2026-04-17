@@ -387,15 +387,15 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </div>
             </section>
 
-            <section style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.9fr', gap: spacing.lg, marginBottom: spacing.lg }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
               <Card style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
                 <CardHeader><CardTitle>Smart scores</CardTitle></CardHeader>
                 <CardContent>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: spacing.sm, marginBottom: spacing.lg }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.sm, marginBottom: spacing.lg }}>
                     {smartCards.map((card) => (
                       <div key={card.label} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-                        <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</div>
-                        <div style={{ fontSize: 40, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.xs }}>{card.value}</div>
+                        <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{card.label}</div>
+                        <div style={{ fontSize: 40, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.xs, textAlign: 'center' }}>{card.value}</div>
                       </div>
                     ))}
                   </div>
@@ -426,7 +426,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </Card>
             </section>
 
-            <section style={{ display: 'grid', gridTemplateColumns: '1.15fr 0.85fr', gap: spacing.lg, marginBottom: spacing.lg }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
               <Card>
                 <CardHeader><CardTitle>Skills, idiomas e aderência</CardTitle></CardHeader>
                 <CardContent style={{ display: 'grid', gap: spacing.md }}>
@@ -447,7 +447,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </Card>
             </section>
 
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginBottom: spacing.lg }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
               <Card>
                 <CardHeader><CardTitle>Experiência profissional</CardTitle></CardHeader>
                 <CardContent style={{ display: 'grid', gap: spacing.md }}>
@@ -485,6 +485,16 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
                 <Card>
                   <CardHeader><CardTitle>Vídeo de apresentação</CardTitle></CardHeader>
                   <CardContent style={{ display: 'grid', gap: spacing.md }}>
+                    {detail.candidate.profile.introVideoPlaybackUrl && (
+                      <div style={{ borderRadius: radius.lg, overflow: 'hidden', background: '#000', display: 'flex', justifyContent: 'center' }}>
+                        <video 
+                          src={detail.candidate.profile.introVideoPlaybackUrl} 
+                          controls 
+                          playsInline
+                          style={{ width: '100%', maxHeight: 400, display: 'block', objectFit: 'contain' }} 
+                        />
+                      </div>
+                    )}
                     <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, flexWrap: 'wrap', gap: spacing.xs }}>
                         <Badge variant={detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? 'success' : 'warning'}>
@@ -581,7 +591,7 @@ export function CandidateProfileModal({ applicationId, open, onClose, viewerRole
               </section>
             )}
 
-            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg }}>
               <Card>
                 <CardHeader><CardTitle>Pareceres e histórico</CardTitle></CardHeader>
                 <CardContent style={{ display: 'grid', gap: spacing.md }}>

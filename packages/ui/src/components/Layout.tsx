@@ -83,11 +83,11 @@ export function StatBox({ label, value, subtext, icon }: { label: string; value:
   return (
     <div className="stat-box hover-card" style={{ 
       padding: spacing.xl, 
-      background: colors.surface, 
-      border: `1px solid ${colors.border}`, 
+      background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`,
+      border: `1px solid ${colors.borderLight}`, 
       borderRadius: radius.xl, 
       minWidth: 160, 
-      boxShadow: shadows.md, 
+      boxShadow: '0 2px 10px rgba(0,0,0,0.02)', 
       position: 'relative', 
       overflow: 'hidden',
       display: 'flex',
@@ -95,13 +95,13 @@ export function StatBox({ label, value, subtext, icon }: { label: string; value:
       gap: spacing.xs,
       justifyContent: 'center'
     }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, width: 6, height: '100%', background: colors.accent, borderRadius: '4px 0 0 4px' }} />
+      <div style={{ position: 'absolute', top: -10, left: -10, background: 'rgba(59, 130, 246, 0.05)', width: 80, height: 80, borderRadius: '50%', filter: 'blur(20px)' }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xs }}>
-        <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
-        {icon && <span style={{ fontSize: 20, filter: 'grayscale(1) opacity(0.5)' }}>{icon}</span>}
+        <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs, position: 'relative', zIndex: 1 }}>{label}</div>
+        {icon && <span style={{ fontSize: 24, padding: spacing.sm, borderRadius: radius.full, background: colors.surfaceAlt, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</span>}
       </div>
-      <div style={{ fontSize: fontSize.xxxl, fontWeight: fontWeight.black, color: colors.text, lineHeight: 1.1, letterSpacing: '-0.03em' }}>{value}</div>
-      {subtext && <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.sm, fontWeight: fontWeight.medium }}>{subtext}</div>}
+      <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text, position: 'relative', zIndex: 1 }}>{value}</div>
+      {subtext && <div style={{ fontSize: fontSize.sm, color: colors.info, marginTop: spacing.sm, fontWeight: fontWeight.medium, position: 'relative', zIndex: 1 }}>{subtext}</div>}
     </div>
   );
 }

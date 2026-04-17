@@ -193,6 +193,7 @@ export interface Application {
       photoUrl?: string;
       photoProvider?: string;
       introVideoKey?: string;
+      introVideoPlaybackUrl?: string;
       introVideoSummary?: string;
       introVideoTags?: string[];
       introVideoSentimentJson?: Record<string, unknown>;

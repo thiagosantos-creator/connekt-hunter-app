@@ -20,6 +20,7 @@ import {
   StatBox,
   spacing,
   colors,
+  radius,
   fontWeight,
   fontSize,
   Input,
@@ -185,13 +186,21 @@ export function VacanciesView() {
 
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
-        <StatBox label="Total de Vagas" value={stats.total} />
-        <StatBox label="Publicadas" value={stats.published} />
+      {/* Stats Premium */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
+        <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}`, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Total de Vagas</div>
+          <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.total}</div>
+        </div>
+        <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #ecfdf5, #fff)`, border: `1px solid ${colors.successLight}`, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(16, 185, 129, 0.1)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+          <div style={{ fontSize: fontSize.sm, color: colors.success, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Publicadas (Ativas)</div>
+          <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.successDark }}>{stats.published}</div>
+        </div>
       </div>
 
-      <Card>
-        <CardContent style={{ padding: 0 }}>
+      <div style={{ background: colors.surface, borderRadius: radius.xl, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', border: `1px solid rgba(0,0,0,0.04)` }}>
+        <div style={{ padding: 0 }}>
           <DataTable<Vacancy>
             data={vacancies}
             rowKey={(v) => v.id}
@@ -264,8 +273,8 @@ export function VacanciesView() {
               )}
             ]}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {showWizard && (
         <VacancyWizard 

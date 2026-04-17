@@ -21,6 +21,27 @@ import {
 import { apiGet } from '../services/api.js';
 import type { Application } from '../services/types.js';
 
+const premiumStyles = `
+@keyframes fadeInSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.premium-card {
+  animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: ${colors.surface};
+  border-radius: ${radius.xl}px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+`;
+
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
 const initials = (name: string) =>
@@ -139,15 +160,30 @@ export function ApplicationsView() {
         />
       ) : (
         <>
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
-            <StatBox label="Total" value={stats.total} subtext="aplicações recebidas" />
-            <StatBox label="Novas" value={stats.submitted} subtext={stats.submitted === 0 ? 'Todas triadas' : 'aguardando triagem'} />
-            <StatBox label="Shortlist" value={stats.shortlisted} subtext="pré-selecionados" />
-            <StatBox label="Aprovadas" value={stats.approved} subtext="candidatos aprovados" />
-            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radius.lg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          {/* Stats Premium */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}`, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Total</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.total}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #eff6ff, #fff)`, border: `1px solid ${colors.infoLight}`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(59, 130, 246, 0.05)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.info, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Novas</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.infoDark }}>{stats.submitted}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #fffbeb, #fff)`, border: `1px solid ${colors.warningLight}`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(245, 158, 11, 0.1)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.warning, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Shortlist</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.shortlisted}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #ecfdf5, #fff)`, border: `1px solid ${colors.successLight}`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: -20, right: -20, background: 'rgba(16, 185, 129, 0.1)', width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.success, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Aprovadas</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.successDark }}>{stats.approved}</div>
+            </div>
+            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.borderLight}`, borderRadius: radius.xl, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
               <ScoreGauge value={stats.progress} size={52} strokeWidth={5} />
-              <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }}>Pipeline</div>
+              <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center', fontWeight: fontWeight.medium }}>Conversão</div>
             </div>
           </div>
 
@@ -182,10 +218,11 @@ export function ApplicationsView() {
             <EmptyState title="Nenhuma aplicação" description="Ajuste os filtros para ver resultados." icon="🔍" />
           ) : (
             <div style={{ display: 'grid', gap: spacing.md }}>
-              {filtered.map((app) => {
+              <style>{premiumStyles}</style>
+              {filtered.map((app, index) => {
                 const name = app.candidate.profile?.fullName || app.candidate.email;
                 return (
-                  <Card key={app.id} style={{ overflow: 'hidden', transition: 'box-shadow 0.15s' }}>
+                  <div key={app.id} className="premium-card" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
                       {/* Left */}
                       <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>
@@ -230,16 +267,25 @@ export function ApplicationsView() {
                         </span>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
           )}
 
-          {/* Footer */}
-          <div style={{ marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm, fontSize: fontSize.sm, color: colors.textSecondary }}>
-            <span>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {apps.length} aplicações</span>
-            <span>{stats.submitted > 0 ? `${stats.submitted} nova(s) para triar` : '✅ Todas triadas'}</span>
+          {/* Footer Premium */}
+          <div style={{ 
+            marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.full, 
+            background: 'rgba(255,255,255,0.6)', border: `1px solid ${colors.borderLight}`, 
+            backdropFilter: 'blur(8px)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+            fontSize: fontSize.sm, color: colors.textSecondary 
+          }}>
+            <span style={{ paddingLeft: spacing.sm }}>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {apps.length} aplicações</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.sm }}>
+              {stats.submitted > 0 && <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors.info, boxShadow: `0 0 8px ${colors.info}` }} />}
+              <span>{stats.submitted > 0 ? `${stats.submitted} nova(s) para triar` : '✅ Todas triadas'}</span>
+            </div>
           </div>
         </>
       )}

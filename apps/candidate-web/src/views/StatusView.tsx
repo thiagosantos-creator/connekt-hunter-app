@@ -361,15 +361,27 @@ export function StatusView() {
     <button
       onClick={() => toggleSection(id)}
       style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: spacing.sm,
+        width: '100%', display: 'flex', alignItems: 'center', gap: spacing.md,
         background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-        textAlign: 'left',
+        textAlign: 'left', outline: 'none'
       }}
     >
-      <span style={{ fontSize: 20 }}>{icon}</span>
-      <span style={{ flex: 1, fontWeight: fontWeight.semibold, fontSize: fontSize.md, color: colors.text }}>{title}</span>
+      <div style={{ 
+        width: 38, height: 38, borderRadius: radius.md, background: expandedSection === id ? colors.primaryLight : colors.surfaceAlt, 
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+        border: `1px solid ${expandedSection === id ? colors.primary : colors.border}`,
+        transition: 'all 0.3s ease', boxShadow: expandedSection === id ? `0 0 10px ${colors.primary}40` : 'none'
+      }}>
+        {icon}
+      </div>
+      <span style={{ flex: 1, fontWeight: fontWeight.bold, fontSize: fontSize.md, color: expandedSection === id ? colors.primary : colors.text, transition: 'color 0.3s ease' }}>{title}</span>
       {badge && <Badge variant="info">{badge}</Badge>}
-      <span style={{ color: colors.textMuted, fontSize: fontSize.xs, transition: 'transform 0.2s', display: 'inline-block', transform: expandedSection === id ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+      <span style={{ 
+        color: colors.textMuted, fontSize: fontSize.xs, transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 24, height: 24, borderRadius: '50%', background: expandedSection === id ? colors.surfaceAlt : 'transparent',
+        transform: expandedSection === id ? 'rotate(180deg)' : 'rotate(0deg)' 
+      }}>▾</span>
     </button>
   );
 
@@ -378,43 +390,61 @@ export function StatusView() {
 
       {/* ── Hero card ─────────────────────────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-        borderRadius: radius.xl, padding: spacing.xl, color: colors.textInverse, boxShadow: shadows.lg, position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(135deg, ${colors.primary} 0%, rgba(20,20,30,0.9) 100%)`,
+        borderRadius: radius.xl, padding: spacing.xl, color: colors.textInverse, boxShadow: `0 12px 32px ${colors.primary}30`, position: 'relative', overflow: 'hidden',
       }}>
         {/* Background decoration */}
-        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
-        <div style={{ position: 'absolute', bottom: -20, left: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', top: -60, right: -40, width: 240, height: 240, borderRadius: '50%', background: `radial-gradient(circle, ${colors.accent}40 0%, transparent 70%)` }} />
+        <div style={{ position: 'absolute', bottom: -40, left: -40, width: 160, height: 160, borderRadius: '50%', background: `radial-gradient(circle, ${colors.info}30 0%, transparent 70%)` }} />
 
-        <div style={{ position: 'relative' }}>
-          {/* Avatar */}
-          <div style={{
-            width: 52, height: 52, borderRadius: radius.full,
-            background: 'rgba(255,255,255,0.15)', border: '2px solid rgba(255,255,255,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: fontSize.xl, fontWeight: fontWeight.bold, marginBottom: spacing.md,
-          }}>
-            {name.charAt(0).toUpperCase()}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              {/* Avatar com efeito glass */}
+              <div style={{
+                width: 64, height: 64, borderRadius: radius.full,
+                background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)',
+                fontSize: fontSize.xxl, fontWeight: fontWeight.bold, boxShadow: shadows.md
+              }}>
+                {name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize: fontSize.xs, color: colors.accent, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: fontWeight.bold }}>Portal do Candidato</div>
+                <h2 style={{ margin: 0, fontSize: fontSize.xxl, fontWeight: fontWeight.bold, display: 'flex', alignItems: 'center', gap: spacing.xs }}>
+                  Olá, {name.split(' ')[0]} <span style={{ animation: 'wave 2s infinite', display: 'inline-block', transformOrigin: '70% 70%' }}>👋</span>
+                </h2>
+              </div>
+            </div>
           </div>
 
-          <div style={{ fontSize: fontSize.xs, opacity: 0.7, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Portal do Candidato</div>
-          <h2 style={{ margin: `0 0 ${spacing.xs}px`, fontSize: fontSize.xxl, fontWeight: fontWeight.bold }}>Olá, {name.split(' ')[0]}!</h2>
-
           {candidateStatus?.vacancy && (
-            <div style={{ fontSize: fontSize.sm, opacity: 0.8, marginBottom: spacing.md }}>
-              📋 Candidatura: <strong>{candidateStatus.vacancy.title}</strong>
-              {candidateStatus.vacancy.location && ` · ${candidateStatus.vacancy.location}`}
+            <div style={{ 
+              display: 'inline-flex', alignItems: 'center', gap: spacing.sm, 
+              background: 'rgba(255,255,255,0.06)', padding: `${spacing.xs}px ${spacing.sm}px`, 
+              borderRadius: radius.md, border: '1px solid rgba(255,255,255,0.1)', width: 'fit-content',
+              fontSize: fontSize.sm
+            }}>
+              <span style={{ opacity: 0.8 }}>Candidatura:</span>
+              <strong>{candidateStatus.vacancy.title}</strong>
+              {candidateStatus.vacancy.location && <><span style={{ opacity: 0.4 }}>|</span><span style={{ opacity: 0.9 }}>{candidateStatus.vacancy.location}</span></>}
             </div>
           )}
 
-          {/* Progress bar */}
+          {/* Progress bar Premium */}
           {totalSteps > 0 && (
-            <div style={{ marginTop: spacing.md }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: fontSize.xs, opacity: 0.8 }}>
-                <span>Progresso da candidatura</span>
-                <span>{progressPct}%</span>
+            <div style={{ marginTop: spacing.xs }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: fontSize.xs, fontWeight: fontWeight.medium, opacity: 0.9 }}>
+                <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Progresso da candidatura</span>
+                <span style={{ color: progressPct === 100 ? '#10b981' : colors.accent }}>{progressPct}%</span>
               </div>
-              <div style={{ height: 6, borderRadius: radius.full, background: 'rgba(255,255,255,0.15)' }}>
-                <div style={{ height: '100%', width: `${progressPct}%`, borderRadius: radius.full, background: progressPct === 100 ? '#10b981' : colors.accent, transition: 'width 0.6s ease' }} />
+              <div style={{ height: 8, borderRadius: radius.full, background: 'rgba(0,0,0,0.3)', overflow: 'hidden', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)' }}>
+                <div style={{ 
+                  height: '100%', width: `${progressPct}%`, borderRadius: radius.full, 
+                  background: progressPct === 100 ? '#10b981' : `linear-gradient(90deg, ${colors.primaryLight}, ${colors.accent})`, 
+                  transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: `0 0 10px ${progressPct === 100 ? '#10b981' : colors.accent}80`
+                }} />
               </div>
             </div>
           )}
@@ -434,22 +464,24 @@ export function StatusView() {
               <div style={{ display: 'grid', gap: spacing.xs }}>
                 {candidateStatus.steps.map((step, i) => (
                   <div key={step.key} style={{
-                    display: 'flex', alignItems: 'center', gap: spacing.sm,
+                    display: 'flex', alignItems: 'center', gap: spacing.md,
                     padding: `${spacing.sm}px ${spacing.md}px`,
-                    borderRadius: radius.lg,
-                    background: step.current ? colors.infoLight : step.completed ? colors.successLight : colors.surfaceAlt,
-                    border: `1px solid ${step.current ? colors.info : step.completed ? colors.success : colors.borderLight}`,
+                    borderRadius: radius.md,
+                    background: step.current ? `${colors.info}10` : step.completed ? `${colors.success}10` : 'transparent',
+                    borderLeft: `3px solid ${step.current ? colors.info : step.completed ? colors.success : 'transparent'}`,
                     transition: 'all 0.2s',
                   }}>
                     <div style={{
                       width: 28, height: 28, borderRadius: radius.full, flexShrink: 0,
-                      background: step.completed ? colors.success : step.current ? colors.accent : colors.border,
-                      color: colors.textInverse, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: fontSize.xs, fontWeight: fontWeight.bold,
+                      background: step.completed ? colors.success : step.current ? colors.info : colors.surfaceAlt,
+                      color: step.completed || step.current ? colors.textInverse : colors.textMuted,
+                      border: `1px solid ${step.completed ? colors.success : step.current ? colors.info : colors.border}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: fontSize.xs, fontWeight: fontWeight.bold, boxShadow: step.current || step.completed ? shadows.sm : 'none'
                     }}>
                       {step.completed ? '✓' : i + 1}
                     </div>
-                    <span style={{ flex: 1, color: step.current ? colors.accent : step.completed ? colors.success : colors.textSecondary, fontWeight: step.current ? fontWeight.semibold : fontWeight.normal, fontSize: fontSize.sm }}>
+                    <span style={{ flex: 1, color: step.current ? colors.text : step.completed ? colors.text : colors.textSecondary, fontWeight: step.current ? fontWeight.bold : step.completed ? fontWeight.semibold : fontWeight.normal, fontSize: fontSize.sm }}>
                       {step.label}
                     </span>
                     {step.current && <Badge variant="info">Atual</Badge>}
@@ -793,6 +825,18 @@ export function StatusView() {
           Iniciar nova candidatura
         </button>
       </div>
+      <style>{`
+        @keyframes wave {
+          0% { transform: rotate(0deg); }
+          10% { transform: rotate(14deg); }
+          20% { transform: rotate(-8deg); }
+          30% { transform: rotate(14deg); }
+          40% { transform: rotate(-4deg); }
+          50% { transform: rotate(10deg); }
+          60% { transform: rotate(0deg); }
+          100% { transform: rotate(0deg); }
+        }
+      `}</style>
     </div>
   );
 }

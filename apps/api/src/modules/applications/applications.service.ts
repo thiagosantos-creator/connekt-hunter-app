@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { prisma } from '@connekt/db';
+import { StorageGateway } from '../integrations/storage.gateway.js';
 
 @Injectable()
 export class ApplicationsService {
+  constructor(@Inject(StorageGateway) private readonly storageGateway: StorageGateway) {}
+
   findAll(organizationIds: string[], role: string, options?: { limit?: number; offset?: number; search?: string; status?: string }) {
     const limit = Math.min(options?.limit ?? 50, 100);
     const offset = options?.offset ?? 0;
@@ -132,6 +135,22 @@ export class ApplicationsService {
       throw new NotFoundException('application_not_found');
     }
 
-    return application;
+    let introVideoPlaybackUrl: string | undefined;
+    if (application.candidate.profile?.introVideoKey) {
+      introVideoPlaybackUrl = await this.storageGateway.createPresignedDownload(
+        application.candidate.profile.introVideoKey,
+      );
+    }
+
+    return {
+      ...application,
+      candidate: {
+        ...application.candidate,
+        profile: application.candidate.profile ? {
+          ...application.candidate.profile,
+          introVideoPlaybackUrl,
+        } : application.candidate.profile,
+      },
+    };
   }
 }

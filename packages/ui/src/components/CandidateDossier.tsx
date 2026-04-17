@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { colors, fontSize, fontWeight, radius, shadows, spacing } from '../tokens/tokens.js';
 import { Button } from './Button.js';
 import { Card, CardContent, CardHeader, CardTitle } from './Card.js';
@@ -159,11 +160,26 @@ export interface CandidateDossierProps {
 export function CandidateDossier({
   detail,
   intelligence,
-  viewerRole = 'client',
+  viewerRole = 'headhunter',
   onOpenPortal,
   candidateWebBase,
   hideTopNav = false,
 }: CandidateDossierProps) {
+  const [dynamicVideoUrl, setDynamicVideoUrl] = useState<string | null>(detail.candidate?.profile?.introVideoPlaybackUrl || null);
+
+  useEffect(() => {
+    // If the backend didn't provide a presigned URL but the video exists, fetch it using the onboarding token
+    if (!dynamicVideoUrl && detail.candidate?.profile?.introVideoKey && detail.candidate?.token) {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      fetch(`${apiUrl}/candidate/onboarding/intro-video/playback/${detail.candidate.token}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.url) setDynamicVideoUrl(data.url);
+        })
+        .catch(err => console.error("Fallback video fetch failed:", err));
+    }
+  }, [detail.candidate?.profile?.introVideoPlaybackUrl, detail.candidate?.profile?.introVideoKey, detail.candidate?.token, dynamicVideoUrl]);
+
   if (!detail) return <EmptyState title="Perfil indisponível" description="Não foi possível montar a apresentação do candidato." />;
 
   const latestResume = detail?.candidate.onboarding?.resumes?.[0]?.parseResult?.parsedJson;
@@ -307,17 +323,27 @@ export function CandidateDossier({
             <CardContent>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#000', borderRadius: radius.lg, minHeight: 200, color: '#fff', position: 'relative', overflow: 'hidden' }}>
-                    {/* Placeholder for Video Player */}
-                    <div style={{ position: 'absolute', inset: 0, background: `url(${detail.candidate.profile.photoUrl}) center/cover opacity-30` }} />
-                    <div style={{ zIndex: 1, padding: spacing.md, textAlign: 'center' }}>
-                      <div style={{ fontSize: fontSize.xxxl, opacity: 0.8, marginBottom: spacing.xs }}>▶️</div>
-                      <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>Reproduzir Vídeo</div>
-                      {detail.candidate.profile.introVideoDurationSec != null && (
-                        <div style={{ fontSize: fontSize.xs, opacity: 0.7, marginTop: 4 }}>
-                          {Math.floor(detail.candidate.profile.introVideoDurationSec / 60)}:{String(detail.candidate.profile.introVideoDurationSec % 60).padStart(2, '0')} min
+                    {dynamicVideoUrl ? (
+                      <video 
+                        src={dynamicVideoUrl} 
+                        controls 
+                        playsInline
+                        style={{ width: '100%', maxHeight: 400, display: 'block', objectFit: 'contain' }} 
+                      />
+                    ) : (
+                      <>
+                        <div style={{ position: 'absolute', inset: 0, background: `url(${detail.candidate.profile.photoUrl}) center/cover opacity-30` }} />
+                        <div style={{ zIndex: 1, padding: spacing.md, textAlign: 'center' }}>
+                          <div style={{ fontSize: fontSize.xxxl, opacity: 0.8, marginBottom: spacing.xs }}>▶️</div>
+                          <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>Vídeo indisponível ou processando</div>
+                          {detail.candidate.profile.introVideoDurationSec != null && (
+                            <div style={{ fontSize: fontSize.xs, opacity: 0.7, marginTop: 4 }}>
+                              {Math.floor(detail.candidate.profile.introVideoDurationSec / 60)}:{String(detail.candidate.profile.introVideoDurationSec % 60).padStart(2, '0')} min
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </>
+                    )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
                   <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, flex: 1 }}>
@@ -348,14 +374,14 @@ export function CandidateDossier({
       )}
 
       {/* ── Smart scores + Risk ─────────────────────────────────── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'start' }}>
         <Card style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
           <CardHeader><CardTitle>Smart scores</CardTitle></CardHeader>
           <CardContent>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: spacing.sm, marginBottom: spacing.lg }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.sm, marginBottom: spacing.lg }}>
               {smartCards.map((card) => (
                 <div key={card.label} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: spacing.xs }}>{card.label}</div>
+                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: spacing.xs, textAlign: 'center' }}>{card.label}</div>
                   <ScoreBar value={card.value} label="" color={radarColor(card.value)} />
                   <div style={{ fontSize: fontSize.xl, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.sm }}>{card.value}</div>
                 </div>
@@ -389,7 +415,7 @@ export function CandidateDossier({
       </section>
 
       {/* ── Skills + Insights ───────────────────────────────────── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'start' }}>
         <Card>
           <CardHeader><CardTitle>Skills, idiomas e aderência</CardTitle></CardHeader>
           <CardContent style={{ display: 'grid', gap: spacing.md }}>
@@ -411,7 +437,7 @@ export function CandidateDossier({
       </section>
 
       {/* ── Experience + Education ──────────────────────────────── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'start' }}>
         <Card>
           <CardHeader><CardTitle>Experiência profissional</CardTitle></CardHeader>
           <CardContent style={{ display: 'grid', gap: spacing.md }}>
@@ -503,7 +529,7 @@ export function CandidateDossier({
       )}
 
       {/* ── Evaluations + Recommendations ───────────────────────── */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'start' }}>
         <Card>
           <CardHeader><CardTitle>Pareceres e histórico</CardTitle></CardHeader>
           <CardContent style={{ display: 'grid', gap: spacing.md }}>
@@ -517,14 +543,14 @@ export function CandidateDossier({
                       <div style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{formatDateTime(item.createdAt)}</div>
                     </div>
                     {item.overallRating != null && (
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, background: colors.primaryLight, color: colors.textInverse }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.md, background: colors.text, color: colors.textInverse, flexShrink: 0 }}>
                         <span style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, lineHeight: 1 }}>{item.overallRating}%</span>
                         <span style={{ fontSize: fontSize.xs, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 2 }}>ranking</span>
                       </div>
                     )}
                   </div>
                   {hasRatings && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: `${spacing.xs}px ${spacing.md}px`, marginBottom: spacing.sm, padding: spacing.sm, borderRadius: radius.md, background: colors.surface, border: `1px solid ${colors.border}` }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs, marginBottom: spacing.sm, padding: spacing.sm, borderRadius: radius.md, background: colors.surface, border: `1px solid ${colors.border}` }}>
                       {([
                         { key: 'ratingTechnical', label: '🔧 Técnica' },
                         { key: 'ratingBehavioral', label: '🤝 Comportamental' },
@@ -535,9 +561,9 @@ export function CandidateDossier({
                         if (val == null) return null;
                         return (
                           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
-                            <span style={{ fontSize: fontSize.xs, color: colors.textSecondary, minWidth: 90 }}>{label}</span>
-                            <span style={{ color: colors.warning }}>{Array.from({ length: val }, (_, i) => <span key={i}>★</span>)}</span>
-                            <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>{val}/5</span>
+                            <span style={{ fontSize: fontSize.xs, color: colors.textSecondary, flex: 1 }}>{label}</span>
+                            <span style={{ color: colors.warning, flexShrink: 0 }}>{Array.from({ length: val }, (_, i) => <span key={i}>★</span>)}</span>
+                            <span style={{ fontSize: fontSize.xs, color: colors.textMuted, width: 24, textAlign: 'right', flexShrink: 0 }}>{val}/5</span>
                           </div>
                         );
                       })}

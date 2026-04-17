@@ -21,11 +21,32 @@ import { apiGet, apiPost } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type { HeadhunterInboxItem } from '../services/types.js';
 
-const priorityMeta: Record<string, { variant: 'danger' | 'warning' | 'info'; label: string; icon: string; border: string }> = {
-  high: { variant: 'danger', label: 'Alta', icon: '🔴', border: colors.dangerLight },
-  medium: { variant: 'warning', label: 'Média', icon: '🟡', border: colors.warningLight },
-  low: { variant: 'info', label: 'Baixa', icon: '🔵', border: colors.infoLight },
+const priorityMeta: Record<string, { variant: 'danger' | 'warning' | 'info'; label: string; icon: string; border: string; glow: string }> = {
+  high: { variant: 'danger', label: 'Alta Prioridade', icon: '🔴', border: colors.danger, glow: `rgba(239, 68, 68, 0.15)` },
+  medium: { variant: 'warning', label: 'Atenção', icon: '🟡', border: colors.warning, glow: `rgba(245, 158, 11, 0.1)` },
+  low: { variant: 'info', label: 'Normal', icon: '🔵', border: colors.info, glow: `rgba(59, 130, 246, 0.05)` },
 };
+
+const premiumStyles = `
+@keyframes fadeInSlide {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.inbox-card-premium {
+  animation: fadeInSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: ${colors.surface};
+  border-radius: ${radius.xl}px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+.inbox-card-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+`;
 
 const formatAge = (hours: number) => {
   if (hours < 1) return '< 1h';
@@ -117,97 +138,165 @@ export function InboxView() {
         />
       ) : (
         <>
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
-            <StatBox label="Total" value={stats.total} subtext="tarefas pendentes" />
-            <StatBox label="Urgentes" value={stats.high} subtext={stats.high > 0 ? 'requer ação imediata' : 'Nenhuma urgente'} />
-            <StatBox label="Média" value={stats.medium} subtext="prioridade intermediária" />
-            <StatBox label="Baixa" value={stats.low} subtext="pode aguardar" />
+      {/* Stats Premium */}
+          <div style={{ 
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: spacing.md, marginBottom: spacing.xl 
+          }}>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}`, boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
+              <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Pendências Totais</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.total}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #fef2f2, #fff)`, border: `1px solid ${colors.dangerLight}`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: -20, right: -20, background: priorityMeta.high.glow, width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.danger, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Requer Ação Imediata (Urgente)</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.dangerDark }}>{stats.high}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #fffbeb, #fff)`, border: `1px solid ${colors.warningLight}`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: -20, right: -20, background: priorityMeta.medium.glow, width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.warning, fontWeight: fontWeight.semibold, marginBottom: spacing.xs }}>Intermediárias</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.medium}</div>
+            </div>
+            <div style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #eff6ff, #fff)`, border: `1px solid ${colors.infoLight}`, position: 'relative', overflow: 'hidden' }}>
+               <div style={{ position: 'absolute', top: -20, right: -20, background: priorityMeta.low.glow, width: 100, height: 100, borderRadius: '50%', filter: 'blur(20px)' }} />
+              <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Leves (Baixa prioridade)</div>
+              <div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{stats.low}</div>
+            </div>
           </div>
 
-          {/* Search */}
-          <div style={{ marginBottom: spacing.md }}>
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por vaga, candidato ou status..."
-            />
+          <div style={{ 
+            display: 'flex', flexWrap: 'wrap', gap: spacing.md, 
+            alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: spacing.xl,
+            padding: spacing.sm,
+            background: colors.surface,
+            borderRadius: radius.full,
+            border: `1px solid ${colors.borderLight}`,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+          }}>
+             <div style={{ flex: 1, minWidth: 260, paddingLeft: spacing.sm }}>
+               <input
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 placeholder="Buscar por vaga, candidato ou status..."
+                 style={{
+                   width: '100%', border: 'none', background: 'transparent',
+                   fontSize: fontSize.sm, color: colors.text, outline: 'none'
+                 }}
+               />
+             </div>
+             <div style={{ flexShrink: 0 }}>
+               <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} size="sm" />
+             </div>
           </div>
 
-          <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
-
-          {/* Cards */}
           {filtered.length === 0 ? (
             <EmptyState title="Nenhuma tarefa" description="Nenhum item corresponde aos filtros selecionados." icon="🔍" />
           ) : (
-            <div style={{ display: 'grid', gap: spacing.sm }}>
-              {filtered.map((item) => {
+            <div style={{ display: 'grid', gap: spacing.md }}>
+              <style>{premiumStyles}</style>
+              {filtered.map((item, index) => {
                 const meta = priorityMeta[item.priority] ?? priorityMeta.low;
                 return (
-                  <Card key={item.id} style={{ borderLeft: `4px solid ${meta.border}`, overflow: 'hidden' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: `${spacing.md}px ${spacing.lg}px` }}>
-                      {/* Left */}
-                      <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', minWidth: 0 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: radius.full, background: meta.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.md, flexShrink: 0 }}>
-                          {meta.icon}
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: 2 }}>
-                            <span style={{ fontWeight: fontWeight.semibold, fontSize: fontSize.md, color: colors.text }}>{item.vacancyTitle}</span>
-                            <Badge variant={meta.variant} size="sm">{meta.label}</Badge>
-                          </div>
-                          <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', fontSize: fontSize.sm, color: colors.textSecondary }}>
-                            <span>👤 {item.candidateEmail}</span>
-                            <span>📊 {item.status}</span>
-                            <span>⏱️ {formatAge(item.ageHours)} aberto</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick actions wired to backend */}
-                      <div style={{ display: 'flex', gap: spacing.xs, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {item.quickActions.map((action) => (
-                          <Button key={action} variant="outline" size="sm" onClick={async () => {
-                            try {
-                              if (action === 'Avaliar') {
-                                window.location.href = `/applications/${item.applicationId}/dossier`;
-                                return;
-                              }
-                              if (action === 'Shortlist') {
-                                await apiPost('/shortlist', { applicationId: item.applicationId });
-                                setMsg(`Candidato ${item.candidateEmail} adicionado à shortlist.`);
-                                setMsgVariant('success');
-                                load();
-                                return;
-                              }
-                              if (action === 'Agendar entrevista') {
-                                await apiPost('/workflow-automation/suggest', { candidateId: item.candidateId, vacancyId: item.vacancyId });
-                                setMsg(`Sugestão de entrevista criada para ${item.candidateEmail}.`);
-                                setMsgVariant('success');
-                                return;
-                              }
-                              setMsg(`Ação "${action}" para ${item.candidateEmail} executada.`);
-                              setMsgVariant('info');
-                            } catch (err) {
-                              setMsg(String(err));
-                              setMsgVariant('error');
-                            }
+                  <div key={item.id} className="inbox-card-premium" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <div style={{ 
+                      display: 'flex', alignItems: 'stretch',
+                      background: `linear-gradient(90deg, ${meta.glow} 0%, transparent 400px)`,
+                    }}>
+                      <div style={{ width: 4, background: meta.border, flexShrink: 0 }} />
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.xl, padding: spacing.xl, flex: 1, alignItems: 'center' }}>
+                        {/* Left Info */}
+                        <div style={{ display: 'flex', gap: spacing.lg, alignItems: 'center', minWidth: 0 }}>
+                          <div style={{ 
+                            width: 52, height: 52, borderRadius: radius.full, 
+                            background: '#fff', border: `1px solid ${colors.borderLight}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                            fontSize: '24px', flexShrink: 0 
                           }}>
-                            {action}
-                          </Button>
-                        ))}
+                            {meta.icon}
+                          </div>
+                          
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
+                              <span style={{ fontWeight: fontWeight.bold, fontSize: fontSize.lg, color: colors.text }}>{item.vacancyTitle}</span>
+                              <Badge variant={meta.variant} size="lg" style={{ letterSpacing: '0.02em', boxShadow: `0 0 10px ${meta.glow}` }}>{meta.label}</Badge>
+                            </div>
+                            <div style={{ display: 'flex', gap: spacing.lg, flexWrap: 'wrap', fontSize: fontSize.sm }}>
+                              <span style={{ color: colors.textSecondary, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                👤 <strong>{item.candidateEmail}</strong>
+                              </span>
+                              <span style={{ color: colors.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                📊 {item.status}
+                              </span>
+                              <span style={{ color: colors.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                ⏱️ Aguardando há {formatAge(item.ageHours)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {item.quickActions.map((action, aIdx) => (
+                            <Button 
+                              key={action} 
+                              variant={aIdx === 0 ? 'primary' : 'outline'} 
+                              size="md" 
+                              style={aIdx === 0 ? { boxShadow: `0 4px 12px ${meta.glow}` } : undefined}
+                              onClick={async () => {
+                                try {
+                                  if (action === 'Avaliar') {
+                                    window.location.href = `/applications/${item.applicationId}/dossier`;
+                                    return;
+                                  }
+                                  if (action === 'Shortlist') {
+                                    await apiPost('/shortlist', { applicationId: item.applicationId });
+                                    setMsg(`Candidato ${item.candidateEmail} adicionado à shortlist.`);
+                                    setMsgVariant('success');
+                                    load();
+                                    return;
+                                  }
+                                  if (action === 'Agendar entrevista') {
+                                    await apiPost('/workflow-automation/suggest', { candidateId: item.candidateId, vacancyId: item.vacancyId });
+                                    setMsg(`Sugestão de entrevista criada para ${item.candidateEmail}.`);
+                                    setMsgVariant('success');
+                                    return;
+                                  }
+                                  setMsg(`Ação "${action}" para ${item.candidateEmail} executada.`);
+                                  setMsgVariant('info');
+                                } catch (err) {
+                                  setMsg(String(err));
+                                  setMsgVariant('error');
+                                }
+                              }}
+                            >
+                              {action}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 );
               })}
             </div>
           )}
 
-          {/* Footer */}
-          <div style={{ marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: fontSize.sm, color: colors.textSecondary }}>
-            <span>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {items.length} tarefas</span>
-            <span>{stats.high > 0 ? `⚠️ ${stats.high} tarefa(s) urgente(s)` : '✅ Sem urgências'}</span>
+          {/* Footer Premium */}
+          <div style={{ 
+            marginTop: spacing.xl, padding: spacing.md, borderRadius: radius.full, 
+            background: 'rgba(255,255,255,0.6)', border: `1px solid ${colors.borderLight}`, 
+            backdropFilter: 'blur(8px)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+            fontSize: fontSize.sm, color: colors.textSecondary 
+          }}>
+            <span style={{ paddingLeft: spacing.sm }}>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {items.length} tarefas pendentes</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, paddingRight: spacing.sm }}>
+              {stats.high > 0 && <span style={{ width: 8, height: 8, borderRadius: '50%', background: colors.danger, boxShadow: `0 0 8px ${colors.danger}` }} />}
+              <span>{stats.high > 0 ? `${stats.high} ação(ões) prioritária(s)` : 'Tudo em dia 🎉'}</span>
+            </div>
           </div>
         </>
       )}

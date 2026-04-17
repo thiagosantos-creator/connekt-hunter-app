@@ -303,11 +303,11 @@ export function ShortlistView() {
   const isCurrentShortlisted = selectedAppId ? shortlistedIds.has(selectedAppId) : false;
 
   return (
-    <PageContent style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', background: colors.surface }}>
+    <PageContent style={{ padding: 0, position: 'fixed', top: 64, left: 0, right: 0, bottom: 0, maxWidth: 'none', margin: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', minHeight: 0, background: colors.surface }}>
         
         {/* Sidebar */}
-        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc', minHeight: 0, minWidth: 0 }}>
           <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
             <h1 style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, margin: 0, color: colors.primary }}>
               Triagem Ativa
@@ -344,7 +344,7 @@ export function ShortlistView() {
              />
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: spacing.sm }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: spacing.sm, minHeight: 0 }}>
             {filteredApps.length === 0 ? (
               <EmptyState title="Nenhum perfil" description="Ajuste os filtros" size="sm" />
             ) : (
@@ -406,9 +406,9 @@ export function ShortlistView() {
         </aside>
 
         {/* Main Workspace */}
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative' }}>
+        <main style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative', minHeight: 0 }}>
           {!selectedAppId ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
               <EmptyState 
                 title="Selecione um candidato" 
                 description="Clique em um perfil na lista ao lado para iniciar a avaliação premium."
@@ -445,8 +445,8 @@ export function ShortlistView() {
               </div>
 
               {/* Dossier Area */}
-              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd' }}>
-                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl }}>
+              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd', minHeight: 0 }}>
+                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl, paddingBottom: 160 }}>
                   {loadingDetail ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', gap: spacing.md }}>
                       <Spinner size={32} />

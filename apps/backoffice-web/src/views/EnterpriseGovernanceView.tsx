@@ -25,6 +25,8 @@ import {
   colors,
   radius,
   spacing,
+  fontSize,
+  fontWeight
 } from '@connekt/ui';
 import { uploadOrganizationBrandingAsset } from '../services/account.js';
 
@@ -180,9 +182,15 @@ export function EnterpriseGovernanceView() {
       {feedback && <InlineMessage variant={feedbackVariant} onDismiss={() => setFeedback('')}>{feedback}</InlineMessage>}
       {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
 
-      <Card style={{ marginBottom: spacing.lg }}><CardHeader><CardTitle>Escopo da governança</CardTitle></CardHeader><CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'minmax(240px, 360px) repeat(auto-fit, minmax(180px, 1fr))' }}><Select label="Tenant" value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={orgOptions} /><StatBox label="Tenant settings" value={canManageTenant ? 'Editável' : 'Somente leitura'} /><StatBox label="Access control" value={canManageAccess ? 'Editável' : 'Sem permissão'} /><StatBox label="Comunicação" value={canManageComms ? 'Editável' : 'Sem permissão'} /><StatBox label="Dashboard" value={dashboard?.period ?? 'Disponível'} /></CardContent></Card>
-      {kpis.length > 0 && <><SectionTitle>KPIs Executivos</SectionTitle><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>{kpis.map(([key, value]) => <StatBox key={key} label={fmt(key)} value={String(value)} />)}</div></>}
-      {funnel.length > 0 && <><SectionTitle>Funil Operacional</SectionTitle><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>{funnel.map(([key, value]) => <StatBox key={key} label={fmt(key)} value={String(value)} />)}</div></>}
+      <Card style={{ marginBottom: spacing.lg }}><CardHeader><CardTitle>Escopo da governança</CardTitle></CardHeader><CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'minmax(240px, 360px) repeat(auto-fit, minmax(180px, 1fr))' }}>
+        <Select label="Tenant" value={organizationId} onChange={(e) => setOrganizationId(e.target.value)} options={orgOptions} />
+        <div style={{ padding: spacing.md, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Tenant settings</div><div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text }}>{canManageTenant ? 'Editável' : 'Somente leitura'}</div></div>
+        <div style={{ padding: spacing.md, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Access control</div><div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text }}>{canManageAccess ? 'Editável' : 'Sem permissão'}</div></div>
+        <div style={{ padding: spacing.md, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Comunicação</div><div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text }}>{canManageComms ? 'Editável' : 'Sem permissão'}</div></div>
+        <div style={{ padding: spacing.md, borderRadius: radius.xl, background: `linear-gradient(135deg, ${colors.surface}, #f8fafc)`, border: `1px solid ${colors.borderLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Dashboard</div><div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.info }}>{dashboard?.period ?? 'Disponível'}</div></div>
+      </CardContent></Card>
+      {kpis.length > 0 && <><SectionTitle>KPIs Executivos</SectionTitle><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>{kpis.map(([key, value]) => <div key={key} style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #eff6ff, #fff)`, border: `1px solid ${colors.infoLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.info, marginBottom: spacing.xs }}>{fmt(key)}</div><div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.infoDark }}>{String(value)}</div></div>)}</div></>}
+      {funnel.length > 0 && <><SectionTitle>Funil Operacional</SectionTitle><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>{funnel.map(([key, value]) => <div key={key} style={{ padding: spacing.lg, borderRadius: radius.xl, background: `linear-gradient(135deg, #f8fafc, #fff)`, border: `1px solid ${colors.borderLight}` }}><div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>{fmt(key)}</div><div style={{ fontSize: '28px', fontWeight: fontWeight.bold, color: colors.text }}>{String(value)}</div></div>)}</div></>}
 
       <div style={{ display: 'grid', gap: spacing.md }}>
         <Card><CardHeader><CardTitle>Configuração do Tenant</CardTitle></CardHeader><CardContent style={{ display: 'grid', gap: spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>

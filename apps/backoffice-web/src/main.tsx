@@ -5,6 +5,7 @@ import { useAuth } from './hooks/useAuth.js';
 import { NavBar, ProtectedRoute, AuthProvider, PermissionRoute } from './components/layout/NavBar.js';
 import { ErrorBoundary } from './components/layout/ErrorBoundary.js';
 import { LoginView } from './views/LoginView.js';
+import { HomeView } from './views/HomeView.js';
 import { VacanciesView } from './views/VacanciesView.js';
 import { CandidatesView } from './views/CandidatesView.js';
 import { ApplicationsView } from './views/ApplicationsView.js';
@@ -26,8 +27,8 @@ import { PublicClientReviewView } from './views/PublicClientReviewView.js';
 function App() {
   const { user } = useAuth();
   const homeByRole: Record<string, string> = {
-    admin: '/vacancies',
-    headhunter: '/vacancies',
+    admin: '/dashboard',
+    headhunter: '/dashboard',
     client: '/client-review',
   };
   const home = user ? homeByRole[user.role] ?? '/applications' : '/login';
@@ -38,6 +39,7 @@ function App() {
       {user && <NavBar />}
       <Routes>
         <Route path="/login" element={<LoginView />} />
+        <Route path="/dashboard" element={<ProtectedRoute><HomeView /></ProtectedRoute>} />
         <Route path="/vacancies" element={<ProtectedRoute><VacanciesView /></ProtectedRoute>} />
         <Route path="/candidates" element={<PermissionRoute permission="candidates:invite"><CandidatesView /></PermissionRoute>} />
         <Route path="/applications" element={<ProtectedRoute><ApplicationsView /></ProtectedRoute>} />

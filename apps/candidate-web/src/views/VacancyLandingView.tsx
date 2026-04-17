@@ -190,76 +190,130 @@ export function VacancyLandingView() {
   }
 
   return (
-    <div style={{ maxWidth: 860, margin: '32px auto', padding: `0 ${spacing.md}px`, display: 'grid', gap: spacing.md }}>
-      <Card variant="elevated" style={{ overflow: 'hidden' }}>
-        {vacancy.organization.bannerUrl && (
-          <img
-            src={vacancy.organization.bannerUrl}
-            alt={`Banner de ${vacancy.organization.name}`}
-            style={{ width: '100%', maxHeight: 220, objectFit: 'cover', background: secondaryColor }}
-          />
-        )}
-        <CardHeader style={{ background: secondaryColor }}>
-          {vacancy.organization.logoUrl && (
+    <div className="fade-up" style={{ 
+      maxWidth: 960, 
+      margin: '0 auto', 
+      padding: `${spacing.xxl}px ${spacing.md}px`, 
+      display: 'grid', 
+      gap: spacing.xl 
+    }}>
+      {/* Hero Section */}
+      <section style={{ 
+        textAlign: 'center', 
+        paddingBottom: spacing.xxl,
+        borderBottom: `1px solid ${colors.border}`,
+        marginBottom: spacing.md
+      }}>
+        {vacancy.organization.logoUrl && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: spacing.lg }}>
             <img
               src={vacancy.organization.logoUrl}
               alt={`Logo de ${vacancy.organization.name}`}
-              style={{ width: 72, height: 72, objectFit: 'contain', borderRadius: radius.md, background: colors.surface, padding: spacing.sm, marginBottom: spacing.sm }}
+              style={{ 
+                width: 100, 
+                height: 100, 
+                objectFit: 'contain', 
+                borderRadius: radius.xl, 
+                background: colors.surface, 
+                padding: spacing.md, 
+                boxShadow: shadows.lg,
+                border: `1px solid ${colors.border}`
+              }}
             />
-          )}
-          <CardTitle style={{ color: primaryColor }}>{vacancy.title}</CardTitle>
-          <CardDescription>{vacancy.organization.name}</CardDescription>
-        </CardHeader>
-        <CardContent style={{ display: 'grid', gap: spacing.md }}>
-          <p style={{ margin: 0 }}>{vacancy.description}</p>
-
-          <div style={{ display: 'grid', gap: spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-            <div><strong>Localização</strong><div>{vacancy.location || 'A combinar'}</div></div>
-            <div><strong>Modalidade</strong><div>{vacancy.workModel || 'A combinar'}</div></div>
-            <div><strong>Senioridade</strong><div>{vacancy.seniority || 'A combinar'}</div></div>
-            <div><strong>Setor</strong><div>{vacancy.sector || 'A combinar'}</div></div>
-            <div><strong>Contratação</strong><div>{vacancy.employmentType || 'A combinar'}</div></div>
-            <div><strong>Faixa salarial</strong><div>{salaryLabel}</div></div>
           </div>
+        )}
+        <h1 style={{ 
+          fontSize: '3rem', 
+          fontWeight: fontWeight.black, 
+          color: primaryColor, 
+          margin: 0, 
+          letterSpacing: '-0.05em',
+          lineHeight: 1.1
+        }}>
+          {vacancy.title}
+        </h1>
+        <p style={{ 
+          fontSize: fontSize.xl, 
+          color: colors.textSecondary, 
+          marginTop: spacing.sm, 
+          fontWeight: fontWeight.medium 
+        }}>
+          {vacancy.organization.name}
+        </p>
+      </section>
 
-          <div>
-            <strong>Skills obrigatórias</strong>
-            <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', marginTop: spacing.xs }}>
-              {vacancy.requiredSkills.length > 0 ? vacancy.requiredSkills.map((skill) => (
-                <span key={skill} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.primaryLight, color: colors.textInverse, fontSize: fontSize.sm }}>
-                  {skill}
-                </span>
-              )) : <span>Nenhuma informada</span>}
-            </div>
-          </div>
-
-          {vacancy.desiredSkills.length > 0 && (
-            <div>
-              <strong>Skills desejáveis</strong>
-              <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap', marginTop: spacing.xs }}>
-                {vacancy.desiredSkills.map((skill) => (
-                  <span key={skill} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, fontSize: fontSize.sm }}>
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <Card variant="outlined" style={{ borderColor: primaryColor, borderWidth: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: spacing.xl, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: spacing.xl }}>
+          <Card className="glass-panel" style={{ border: 'none' }}>
             <CardHeader>
-              <CardTitle level={2}>Candidatar-se a esta vaga</CardTitle>
-              <CardDescription>Preencha seus dados para iniciar a candidatura. Seu currículo será solicitado na próxima etapa.</CardDescription>
+              <CardTitle>Sobre a Oportunidade</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={(e) => { void handleSelfApply(e); }} style={{ display: 'grid', gap: spacing.sm }}>
+              <p style={{ 
+                margin: 0, 
+                fontSize: fontSize.md, 
+                lineHeight: 1.8, 
+                color: colors.textSecondary,
+                whiteSpace: 'pre-wrap'
+              }}>
+                {vacancy.description}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md, background: colors.surfaceAlt, padding: spacing.lg, borderRadius: radius.lg, border: `1px solid ${colors.border}` }}>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Localização</strong><div style={{ fontWeight: fontWeight.bold }}>{vacancy.location || 'A combinar'}</div></div>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Modalidade</strong><div style={{ fontWeight: fontWeight.bold }}>{vacancy.workModel || 'A combinar'}</div></div>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Senioridade</strong><div style={{ fontWeight: fontWeight.bold }}>{vacancy.seniority || 'A combinar'}</div></div>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Setor</strong><div style={{ fontWeight: fontWeight.bold }}>{vacancy.sector || 'A combinar'}</div></div>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Contratação</strong><div style={{ fontWeight: fontWeight.bold }}>{vacancy.employmentType || 'A combinar'}</div></div>
+            <div><strong style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase' }}>Salário</strong><div style={{ fontWeight: fontWeight.bold }}>{salaryLabel}</div></div>
+          </div>
+
+          <Card className="glass-panel" style={{ border: 'none' }}>
+            <CardHeader><CardTitle>Skills & Requisitos</CardTitle></CardHeader>
+            <CardContent style={{ display: 'grid', gap: spacing.lg }}>
+              <div>
+                <strong style={{ display: 'block', marginBottom: spacing.sm, fontSize: fontSize.sm }}>Requisitos Obrigatórios</strong>
+                <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                  {vacancy.requiredSkills.length > 0 ? vacancy.requiredSkills.map((skill) => (
+                    <span key={skill} style={{ padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.full, background: colors.primary, color: colors.textInverse, fontSize: fontSize.sm, fontWeight: fontWeight.bold }}>
+                      {skill}
+                    </span>
+                  )) : <span style={{ color: colors.textMuted }}>Nenhuma informada</span>}
+                </div>
+              </div>
+
+              {vacancy.desiredSkills.length > 0 && (
+                <div>
+                  <strong style={{ display: 'block', marginBottom: spacing.sm, fontSize: fontSize.sm }}>Desejáveis / Diferenciais</strong>
+                  <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                    {vacancy.desiredSkills.map((skill) => (
+                      <span key={skill} style={{ padding: `${spacing.xs}px ${spacing.md}px`, borderRadius: radius.full, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, fontSize: fontSize.sm, color: colors.text }}>
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sidebar: Apply Form */}
+        <div style={{ position: 'sticky', top: 32, display: 'grid', gap: spacing.xl }}>
+          <Card className="glass-panel" style={{ border: `1px solid ${primaryColor}44`, borderTop: `4px solid ${primaryColor}` }}>
+            <CardHeader>
+              <CardTitle level={2} style={{ fontSize: fontSize.xl }}>Candidatar-se</CardTitle>
+              <CardDescription>Inicie seu processo seletivo agora.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => { void handleSelfApply(e); }} style={{ display: 'grid', gap: spacing.md }}>
                 <Input
                   label="Nome completo"
                   value={applyName}
                   onChange={(e) => setApplyName(e.target.value)}
-                  placeholder="Seu nome completo"
-                  hint="Use o mesmo nome que deseja ver no processo seletivo."
-                  autoComplete="name"
+                  placeholder="Seu nome"
                   required
                 />
                 <Input
@@ -268,8 +322,6 @@ export function VacancyLandingView() {
                   value={applyEmail}
                   onChange={(e) => setApplyEmail(e.target.value)}
                   placeholder="seu@email.com"
-                  hint="Enviaremos atualizações e acesso da candidatura para este e-mail."
-                  autoComplete="email"
                   required
                 />
                 <Input
@@ -277,64 +329,39 @@ export function VacancyLandingView() {
                   value={applyPhone}
                   onChange={handlePhoneChange}
                   onBlur={handlePhoneBlur}
-                  placeholder="+55 11 99999-0000"
-                  hint="Opcional. Ajuda a acelerar o contato do recrutamento."
-                  autoComplete="tel"
+                  placeholder="(XX) XXXXX-XXXX"
                   error={phoneError || undefined}
                 />
                 {applyMsg && <InlineMessage variant={applyVariant}>{applyMsg}</InlineMessage>}
-                <Button type="submit" loading={applying}>
-                  {applying ? 'Enviando...' : 'Candidatar-se'}
+                <Button type="submit" size="lg" loading={applying} fullWidth style={{ marginTop: spacing.sm }}>
+                  {applying ? 'Processando...' : 'Candidatar-se à Vaga'}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          {/* Collapsible section for candidates who already received an invite */}
-          <details style={{ borderRadius: radius.md, border: `1px solid ${colors.border}` }}>
-            <summary style={{
-              padding: `${spacing.md}px ${spacing.lg}px`,
-              cursor: 'pointer',
-              listStyle: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: spacing.sm,
-              fontSize: fontSize.sm,
-              fontWeight: fontWeight.medium,
-              color: colors.textSecondary,
-              userSelect: 'none',
-            }}>
-              <span>🔑 Já possui um convite ou código de acesso?</span>
-              <span style={{ fontSize: fontSize.xs }}>▾</span>
+          <details style={{ borderRadius: radius.md, border: `1px solid ${colors.border}`, background: 'rgba(255,255,255,0.02)' }}>
+            <summary style={{ padding: `${spacing.md}px`, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: fontSize.xs, color: colors.textMuted }}>
+              <span>Já tem um código?</span>
+              <span>▾</span>
             </summary>
-            <div style={{ padding: `0 ${spacing.lg}px ${spacing.lg}px`, borderTop: `1px solid ${colors.borderLight}` }}>
-              <p style={{ margin: `${spacing.md}px 0`, fontSize: fontSize.sm, color: colors.textSecondary }}>
-                Se você recebeu um código de acesso por e-mail ou SMS do recrutador, cole-o abaixo para continuar direto para o onboarding.
-              </p>
-              <div style={{ display: 'grid', gap: spacing.sm }}>
-                <Input
-                  label="Código de acesso"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Cole aqui o código recebido"
-                  hint="O código é longo — copie e cole diretamente para evitar erros."
-                />
-                <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
-                  <Button type="button" variant="outline" onClick={continueToPortal}>Continuar com este código</Button>
-                  <Button type="button" variant="ghost" onClick={() => navigate('/')}>Ir para portal do candidato</Button>
-                </div>
-              </div>
+            <div style={{ padding: spacing.md, borderTop: `1px solid ${colors.borderLight}` }}>
+              <Input
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Insira o código"
+              />
+              <Button size="sm" variant="ghost" fullWidth onClick={continueToPortal} style={{ marginTop: spacing.sm }}>Acessar</Button>
             </div>
           </details>
 
           {vacancy.organization.contactEmail && (
-            <p style={{ margin: 0, color: colors.textSecondary }}>
-              Dúvidas sobre esta vaga: {vacancy.organization.contactEmail}
-            </p>
+            <div style={{ textAlign: 'center', fontSize: fontSize.xs, color: colors.textMuted }}>
+              Dúvidas? <a href={`mailto:${vacancy.organization.contactEmail}`} style={{ color: primaryColor, textDecoration: 'none', fontWeight: fontWeight.bold }}>{vacancy.organization.contactEmail}</a>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

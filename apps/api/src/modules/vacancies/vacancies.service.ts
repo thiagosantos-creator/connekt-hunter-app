@@ -49,6 +49,8 @@ type VacancyPayload = {
   desiredSkills?: string[];
   salaryMin?: number;
   salaryMax?: number;
+  publishedAt?: string | Date;
+  closedAt?: string | Date;
   createdBy: string;
 };
 
@@ -78,7 +80,8 @@ export class VacanciesService {
         sector: data.sector ?? data.department,
         requiredSkills: data.requiredSkills ?? [],
         desiredSkills: data.desiredSkills ?? [],
-        publishedAt: publicationType !== 'draft' ? new Date() : undefined,
+        publishedAt: data.publishedAt ? new Date(data.publishedAt) : (publicationType !== 'draft' ? new Date() : undefined),
+        closedAt: data.closedAt ? new Date(data.closedAt) : undefined,
       },
     });
   }
@@ -157,8 +160,14 @@ export class VacanciesService {
 
     const shouldPublish = publicationType !== 'draft' && !existing.publishedAt;
     const updateData = { ...data };
-    if (shouldPublish) {
-      (updateData as Record<string, unknown>).publishedAt = new Date();
+    if (data.publishedAt) {
+       (updateData as Record<string, unknown>).publishedAt = new Date(data.publishedAt);
+    } else if (shouldPublish) {
+       (updateData as Record<string, unknown>).publishedAt = new Date();
+    }
+
+    if (data.closedAt) {
+       (updateData as Record<string, unknown>).closedAt = new Date(data.closedAt);
     }
 
     /* ── Lifecycle: auto-close / reopen logic ──────────────────── */

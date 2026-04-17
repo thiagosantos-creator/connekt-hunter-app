@@ -13,12 +13,12 @@ export interface PageHeaderProps {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+    <div className="fade-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl }}>
       <div>
-        <h2 style={{ margin: 0, fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text }}>{title}</h2>
-        {description && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.md, color: colors.textSecondary }}>{description}</p>}
+        <h2 style={{ margin: 0, fontSize: fontSize.xxxl, fontWeight: fontWeight.bold, color: colors.text, letterSpacing: '-0.02em' }}>{title}</h2>
+        {description && <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.md, color: colors.textSecondary, fontWeight: fontWeight.medium }}>{description}</p>}
       </div>
-      {actions && <div style={{ display: 'flex', gap: spacing.sm }}>{actions}</div>}
+      {actions && <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>{actions}</div>}
     </div>
   );
 }
@@ -79,13 +79,29 @@ export function EmptyState({ title, description, icon, action }: { title: string
 }
 
 /** Stat box for dashboards */
-export function StatBox({ label, value, subtext }: { label: string; value: string | number; subtext?: string }) {
+export function StatBox({ label, value, subtext, icon }: { label: string; value: string | number; subtext?: string; icon?: string }) {
   return (
-    <div className="stat-box" style={{ padding: spacing.lg, background: colors.surface, border: `1px solid ${colors.borderLight}`, borderRadius: radius.lg, minWidth: 140, boxShadow: shadows.sm, transition: 'all 0.2s ease', position: 'relative', overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${colors.accent}, ${colors.infoLight})`, opacity: 0.8 }} />
-      <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.textSecondary, marginBottom: spacing.xs, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: spacing.xs }}>{label}</div>
-      <div style={{ fontSize: fontSize.xxxl, fontWeight: fontWeight.bold, color: colors.text, lineHeight: 1.1, letterSpacing: '-0.02em' }}>{value}</div>
-      {subtext && <div style={{ fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.sm }}>{subtext}</div>}
+    <div className="stat-box hover-card" style={{ 
+      padding: spacing.xl, 
+      background: colors.surface, 
+      border: `1px solid ${colors.border}`, 
+      borderRadius: radius.xl, 
+      minWidth: 160, 
+      boxShadow: shadows.md, 
+      position: 'relative', 
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: spacing.xs,
+      justifyContent: 'center'
+    }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 6, height: '100%', background: colors.accent, borderRadius: '4px 0 0 4px' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xs }}>
+        <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+        {icon && <span style={{ fontSize: 20, filter: 'grayscale(1) opacity(0.5)' }}>{icon}</span>}
+      </div>
+      <div style={{ fontSize: fontSize.xxxl, fontWeight: fontWeight.black, color: colors.text, lineHeight: 1.1, letterSpacing: '-0.03em' }}>{value}</div>
+      {subtext && <div style={{ fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.sm, fontWeight: fontWeight.medium }}>{subtext}</div>}
     </div>
   );
 }
@@ -323,68 +339,75 @@ export function StepTimeline({ steps, current }: { steps: string[]; current: num
 export function GlobalStyles() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
       
       @keyframes spin { to { transform: rotate(360deg); } }
       @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
       @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      @keyframes fadeUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      @keyframes meshMove { 
+        0% { background-position: 0% 50%; } 
+        50% { background-position: 100% 50%; } 
+        100% { background-position: 0% 50%; } 
+      }
+
       *, *::before, *::after { box-sizing: border-box; }
+      
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         margin: 0;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         color: ${colors.text};
         background: ${colors.surfaceAlt};
+        background-image: 
+          radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0, transparent 45%),
+          radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0, transparent 45%),
+          radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0, transparent 45%),
+          radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.05) 0, transparent 45%);
+        background-attachment: fixed;
+        background-size: 200% 200%;
+        animation: meshMove 15s ease infinite;
         -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        line-height: 1.5;
-      }
-      a { color: ${colors.accent}; text-decoration: none; transition: color 0.15s ease; }
-      a:hover { color: ${colors.accentHover}; text-decoration: none; }
-
-      /* ─── Focus-visible utility: all interactive elements ─── */
-      a:focus-visible,
-      button:focus-visible,
-      [tabindex]:focus-visible {
-        outline: 2px solid ${colors.accent};
-        outline-offset: 2px;
+        line-height: 1.6;
       }
 
-      /* ─── Nav link utilities (dark bg) ─── */
-      .connekt-nav-link {
-        transition: color 0.15s, border-color 0.15s, background 0.15s;
-      }
-      .connekt-nav-link:hover {
-        color: ${colors.textInverse} !important;
-        background: ${colors.overlayLight};
-      }
-      .connekt-nav-link:focus-visible {
-        outline: 2px solid ${colors.accent};
-        outline-offset: -2px;
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+      a { color: ${colors.accentDark}; text-decoration: none; transition: all 0.2s ease; font-weight: 500; }
+      a:hover { color: ${colors.accent}; }
+
+      .fade-up {
+        animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
 
-      /* ─── Glassmorphism utility classes ─── */
       .glass-panel {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
         border: 1px solid rgba(255, 255, 255, 0.4);
         box-shadow: ${shadows.glass};
       }
-        
-      /* ─── Component utilities ─── */
-      .stat-box:hover {
-        transform: translateY(-2px);
-        box-shadow: ${shadows.md};
-        border-color: ${colors.border};
-      }
-      
+
       .hover-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .hover-card:hover {
-        transform: translateY(-4px);
-        box-shadow: ${shadows.lg};
-        border-color: ${colors.border};
+        transform: translateY(-4px) scale(1.01);
+        box-shadow: ${shadows.xl};
+        border-color: ${colors.accent}44;
+      }
+
+      button {
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      button:active {
+        transform: scale(0.96);
       }
 
       /* ─── Motion preferences ─── */
@@ -393,17 +416,6 @@ export function GlobalStyles() {
           animation-duration: 0.01ms !important;
           animation-iteration-count: 1 !important;
           transition-duration: 0.01ms !important;
-        }
-      }
-
-      /* ─── High-contrast preferences ─── */
-      @media (prefers-contrast: more) {
-        body { background: #ffffff; color: #000000; }
-        a { color: #0000cc; }
-        a:hover { color: #000080; }
-        button, input, select, textarea {
-          border-color: #000000 !important;
-          outline-color: #000000 !important;
         }
       }
     `}</style>

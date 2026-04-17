@@ -31,6 +31,8 @@ export class VacanciesController {
     desiredSkills?: string[];
     salaryMin?: number;
     salaryMax?: number;
+    publishedAt?: string | Date;
+    closedAt?: string | Date;
   }, @CurrentUser() user: AuthUser) {
     return this.vacanciesService.create({ ...body, createdBy: user.id });
   }
@@ -68,6 +70,8 @@ export class VacanciesController {
       desiredSkills?: string[];
       salaryMin?: number;
       salaryMax?: number;
+      publishedAt?: string | Date;
+      closedAt?: string | Date;
     },
     @CurrentUser() user: AuthUser,
   ) {

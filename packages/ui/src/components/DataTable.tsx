@@ -49,10 +49,15 @@ export function DataTable<T>({
   useInjectStyle('data-table-focus-styles', `
     .connekt-data-table__row:hover {
       background: ${colors.surfaceHover};
+      transform: scale(0.998);
+    }
+    .connekt-data-table__row:active {
+      background: ${colors.borderLight};
+      transform: scale(0.995);
     }
     .connekt-data-table__row:focus-visible,
     .connekt-data-table__control:focus-visible {
-      outline: 2px solid ${colors.info};
+      outline: 2px solid ${colors.accent};
       outline-offset: -2px;
     }
   `);

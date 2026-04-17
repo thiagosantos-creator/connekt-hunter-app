@@ -27,16 +27,32 @@ const sizeStyles: Record<string, React.CSSProperties> = {
 
 const buttonFocusStyles = `
   .connekt-ui-button:focus-visible {
-    outline: 2px solid ${colors.info};
+    outline: 2px solid ${colors.accent};
     outline-offset: 2px;
   }
   .connekt-ui-button:not(:disabled):hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    filter: brightness(1.05);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -4px ${colors.accentGlow};
+  }
+  .connekt-ui-button:not(:disabled):active {
+    transform: translateY(0px) scale(0.97);
   }
   .connekt-ui-button {
-    transition: all 0.15s ease;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .connekt-ui-button-primary:hover::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: lightRay 1.8s infinite;
+  }
+  @keyframes lightRay {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 `;
 

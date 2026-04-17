@@ -20,6 +20,8 @@ import {
   StatBox,
   spacing,
   colors,
+  fontWeight,
+  fontSize,
   Input,
   Select,
 } from '@connekt/ui';

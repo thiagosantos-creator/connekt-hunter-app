@@ -396,17 +396,18 @@ export function ClientReviewView() {
           ) : (
             <>
               <div style={{ 
-                height: 72, padding: `0 ${spacing.xl}px`, borderBottom: `1px solid ${colors.borderLight}`, 
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: colors.surface, zIndex: 10, position: 'sticky', top: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                minHeight: 80, padding: `${spacing.sm}px ${spacing.xl}px`, borderBottom: `1px solid ${colors.borderLight}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.md,
+                background: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(24px)',
+                zIndex: 10, position: 'sticky', top: 0, boxShadow: '0 4px 32px rgba(0,0,0,0.06)'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-                  <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold }}>Ações de Decisão</div>
-                  <div style={{ width: 1, height: 24, background: colors.borderLight }} />
+                  <div style={{ fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.primaryDark }}>Ações de Decisão</div>
+                  <div style={{ width: 1, height: 28, background: colors.border }} />
                   {msg ? (
                     <Badge variant={msgVariant === 'success' ? 'success' : 'danger'}>{msg}</Badge>
                   ) : (
-                    <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Avalie os sinais abaixo antes de decidir</div>
+                    <div style={{ fontSize: fontSize.sm, color: colors.textSecondary }}>Avalie os dados e a IA abaixo antes de finalizar</div>
                   )}
                 </div>
 

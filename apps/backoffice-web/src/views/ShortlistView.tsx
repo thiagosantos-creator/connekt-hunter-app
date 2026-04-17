@@ -3,8 +3,14 @@ import { apiPost, apiGet } from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.js';
 import type {
   Application,
+  ApplicationDetail,
   ShortlistItem,
   EvalRecord,
+  CandidateMatchingRecord,
+  CandidateRiskRecord,
+  CandidateInsightRecord,
+  CandidateRecommendation,
+  WorkflowSuggestion,
   PriorityScore,
   ReviewLinkResult,
   Vacancy,
@@ -12,18 +18,17 @@ import type {
 import {
   Badge,
   Button,
+  CandidateDossier,
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
   EmptyState,
   InlineMessage,
+  Input,
   PageContent,
-  PageHeader,
-  ScoreGauge,
   Select,
-  StatBox,
+  Spinner,
   Tabs,
   Textarea,
   colors,
@@ -35,18 +40,16 @@ import {
   zIndex,
 } from '@connekt/ui';
 
+const candidateWebBase = import.meta.env.VITE_CANDIDATE_WEB_URL ?? 'http://localhost:5174';
+
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 
-const formatRelative = (iso: string) => {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days === 0) return 'Hoje';
-  if (days === 1) return 'Ontem';
-  if (days < 30) return `${days}d atrás`;
-  return new Date(iso).toLocaleDateString('pt-BR');
-};
+async function getOrCompute<T>(getUrl: string, postUrl: string, body: Record<string, string>): Promise<T> {
+  return apiGet<T>(getUrl).catch(() => apiPost<T>(postUrl, body));
+}
 
 const bandMeta: Record<string, { variant: 'success' | 'warning' | 'danger' | 'info'; label: string }> = {
   high: { variant: 'danger', label: 'Alta prioridade' },
@@ -67,7 +70,7 @@ function StarRating({ label, value, onChange, disabled }: StarRatingProps) {
   const [hovered, setHovered] = useState(0);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-      <span style={{ fontSize: fontSize.sm, color: colors.textSecondary, minWidth: 180 }}>{label}</span>
+      <span style={{ fontSize: fontSize.sm, color: colors.textSecondary, minWidth: 160 }}>{label}</span>
       <div style={{ display: 'flex', gap: 4 }}>
         {[1, 2, 3, 4, 5].map((star) => (
           <button
@@ -98,58 +101,108 @@ function StarRating({ label, value, onChange, disabled }: StarRatingProps) {
   );
 }
 
+/* ── Main view ───────────────────────────────────────────────────────── */
+
 export function ShortlistView() {
   const { user } = useAuth();
 
   /* data */
   const [apps, setApps] = useState<Application[]>([]);
   const [shortlistedIds, setShortlistedIds] = useState<Set<string>>(new Set());
-  const [evals, setEvals] = useState<EvalRecord[]>([]);
   const [vacancies, setVacancies] = useState<Vacancy[]>([]);
   const [priorities, setPriorities] = useState<PriorityScore[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* UI */
+  /* Workspace selection */
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ApplicationDetail | null>(null);
+  const [selectedIntelligence, setSelectedIntelligence] = useState<any>({ recommendations: [], workflowSuggestions: [] });
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  /* UI state */
   const [activeTab, setActiveTab] = useState('pending');
   const [vacancyFilter, setVacancyFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [msg, setMsg] = useState('');
   const [msgVariant, setMsgVariant] = useState<'success' | 'error'>('success');
 
-  /* eval dialog */
-  const [evalDialog, setEvalDialog] = useState<{ appId: string; name: string } | null>(null);
+  /* Eval state */
   const [evalComment, setEvalComment] = useState('');
   const [evalRatings, setEvalRatings] = useState({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
   const [evalSaving, setEvalSaving] = useState(false);
 
-  const resetEvalDialog = () => {
-    setEvalComment('');
-    setEvalRatings({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
-    setEvalDialog(null);
-  };
-
-  /* priority */
-  const [priorityVacancyId, setPriorityVacancyId] = useState('');
-  const [priorityLoading, setPriorityLoading] = useState(false);
-
-  /* review link */
+  /* Sharing */
   const [reviewLinkLoading, setReviewLinkLoading] = useState(false);
-  const [reviewLink, setReviewLink] = useState<ReviewLinkResult | null>(null);
+
+  /* ── Initial Load ─────────────────────────────────────────────────── */
 
   useEffect(() => {
     void Promise.all([
-      apiGet<Application[]>('/applications').then(setApps),
+      apiGet<Application[]>('/applications').then(data => {
+        setApps(data);
+        const pending = data.filter(a => !shortlistedIds.has(a.id));
+        if (pending.length > 0 && !selectedAppId) {
+          setSelectedAppId(pending[0].id);
+        }
+      }),
       apiGet<Vacancy[]>('/vacancies').then(setVacancies).catch(() => setVacancies([])),
     ]).finally(() => setLoading(false));
   }, []);
 
-  /* ── Computed ───────────────────────────────────────────────────────── */
+  /* ── Selection Synch ──────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (!selectedAppId) {
+      setSelectedDetail(null);
+      setSelectedIntelligence({ recommendations: [], workflowSuggestions: [] });
+      setEvalComment('');
+      setEvalRatings({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
+      return;
+    }
+
+    let cancelled = false;
+    const loadSelection = async () => {
+      setLoadingDetail(true);
+      try {
+        const detail = await apiGet<ApplicationDetail>(`/applications/${selectedAppId}`);
+        if (cancelled) return;
+        setSelectedDetail(detail);
+
+        const candidateId = detail.candidate.id;
+        const vacancyId = detail.vacancy.id;
+        const [matching, risk, insights, recommendations, workflowSuggestions] = await Promise.all([
+          getOrCompute<CandidateMatchingRecord>(`/candidate-matching/${vacancyId}/${candidateId}`, '/candidate-matching/compute', { applicationId: selectedAppId }),
+          getOrCompute<CandidateRiskRecord>(`/risk-analysis?candidateId=${encodeURIComponent(candidateId)}&vacancyId=${encodeURIComponent(vacancyId)}`, '/risk-analysis/analyze', { candidateId, vacancyId }),
+          getOrCompute<CandidateInsightRecord>(`/candidate-insights/${vacancyId}/${candidateId}`, '/candidate-insights/generate', { candidateId, vacancyId }),
+          apiGet<CandidateRecommendation[]>(`/recommendation-engine/${vacancyId}`)
+            .then((items) => items.filter((item) => item.candidateId === candidateId))
+            .then(async (items) => items.length > 0 ? items : apiPost<CandidateRecommendation[]>('/recommendation-engine/generate', { candidateId, vacancyId })).catch(() => []),
+          Promise.resolve([]),
+        ]);
+
+        if (cancelled) return;
+        setSelectedIntelligence({ matching, risk, insights, recommendations, workflowSuggestions });
+        setEvalComment('');
+        setEvalRatings({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
+      } catch (err) {
+        console.error('Error loading dossier for workspace:', err);
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    };
+
+    void loadSelection();
+    return () => { cancelled = true; };
+  }, [selectedAppId]);
+
+  /* ── Computed ─────────────────────────────────────────────────────── */
 
   const stats = useMemo(() => {
     const total = apps.length;
     const pending = apps.filter((a) => !shortlistedIds.has(a.id)).length;
     const shortlisted = shortlistedIds.size;
-    return { total, pending, shortlisted };
+    const progress = total > 0 ? Math.round((shortlisted / total) * 100) : 0;
+    return { total, pending, shortlisted, progress };
   }, [apps, shortlistedIds]);
 
   const vacancyOptions = useMemo(() => {
@@ -158,51 +211,43 @@ export function ShortlistView() {
     return Array.from(seen, ([id, title]) => ({ value: id, label: title }));
   }, [apps]);
 
-  const priorityMap = useMemo(() => {
-    const map = new Map<string, PriorityScore>();
-    priorities.forEach((p) => map.set(p.candidateId, p));
-    return map;
-  }, [priorities]);
-
-  const filtered = useMemo(() => {
+  const filteredApps = useMemo(() => {
     let result = apps;
     if (activeTab === 'pending') result = result.filter((a) => !shortlistedIds.has(a.id));
     else if (activeTab === 'shortlisted') result = result.filter((a) => shortlistedIds.has(a.id));
-
     if (vacancyFilter) result = result.filter((a) => a.vacancy.id === vacancyFilter);
-
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       result = result.filter((a) => {
         const name = (a.candidate.profile?.fullName ?? '').toLowerCase();
         const email = a.candidate.email.toLowerCase();
-        const vac = a.vacancy.title.toLowerCase();
-        return name.includes(q) || email.includes(q) || vac.includes(q);
+        return name.includes(q) || email.includes(q);
       });
     }
     return result;
   }, [apps, shortlistedIds, activeTab, vacancyFilter, searchTerm]);
 
-  /* ── Actions ────────────────────────────────────────────────────────── */
+  /* ── Actions ──────────────────────────────────────────────────────── */
 
-  const addToShortlist = useCallback(async (appId: string) => {
+  const addToShortlist = useCallback(async () => {
+    if (!selectedAppId) return;
     try {
-      await apiPost<ShortlistItem>('/shortlist', { applicationId: appId });
-      setShortlistedIds((prev) => new Set([...prev, appId]));
+      await apiPost<ShortlistItem>('/shortlist', { applicationId: selectedAppId });
+      setShortlistedIds((prev) => new Set([...prev, selectedAppId]));
       setMsg('Adicionado à shortlist!');
       setMsgVariant('success');
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
     }
-  }, []);
+  }, [selectedAppId]);
 
   const submitEval = useCallback(async () => {
-    if (!user || !evalDialog || !evalComment.trim()) return;
+    if (!user || !selectedAppId || !evalComment.trim()) return;
     setEvalSaving(true);
     try {
-      const r = await apiPost<EvalRecord>('/evaluations', {
-        applicationId: evalDialog.appId,
+      await apiPost<EvalRecord>('/evaluations', {
+        applicationId: selectedAppId,
         evaluatorId: user.id,
         comment: evalComment,
         ratingTechnical: evalRatings.technical || undefined,
@@ -210,44 +255,29 @@ export function ShortlistView() {
         ratingInterviewer: evalRatings.interviewer || undefined,
         ratingAi: evalRatings.ai || undefined,
       });
-      setEvals((prev) => [...prev, r]);
-      resetEvalDialog();
       setMsg('Avaliação registrada com sucesso!');
       setMsgVariant('success');
+      // Refresh selected detail to show new review
+      const detail = await apiGet<ApplicationDetail>(`/applications/${selectedAppId}`);
+      setSelectedDetail(detail);
+      setEvalComment('');
+      setEvalRatings({ technical: 0, behavioral: 0, interviewer: 0, ai: 0 });
     } catch (err) {
       setMsg(String(err));
       setMsgVariant('error');
     } finally {
       setEvalSaving(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, evalDialog, evalComment, evalRatings]);
-
-  const calculatePriority = useCallback(async () => {
-    if (!priorityVacancyId) return;
-    setPriorityLoading(true);
-    try {
-      const data = await apiPost<PriorityScore[]>('/decision-engine/priority/calculate', { vacancyId: priorityVacancyId });
-      setPriorities(data);
-      setMsg('Priorização calculada com IA.');
-      setMsgVariant('success');
-    } catch (err) {
-      setMsg(String(err));
-      setMsgVariant('error');
-    } finally {
-      setPriorityLoading(false);
-    }
-  }, [priorityVacancyId]);
+  }, [user, selectedAppId, evalComment, evalRatings]);
 
   const generateReviewLink = useCallback(async () => {
-    if (!priorityVacancyId) return;
+    const vId = selectedDetail?.vacancy.id || vacancyFilter || vacancyOptions[0]?.value;
+    if (!vId) return;
     setReviewLinkLoading(true);
-    setReviewLink(null);
     try {
-      const result = await apiPost<ReviewLinkResult>('/shortlist/review-link', { vacancyId: priorityVacancyId });
-      setReviewLink(result);
+      const result = await apiPost<ReviewLinkResult>('/shortlist/review-link', { vacancyId: vId });
       await navigator.clipboard.writeText(result.url).catch(() => undefined);
-      setMsg(`Link de revisão gerado e copiado! Válido até ${new Date(result.expiresAt).toLocaleString('pt-BR')}.`);
+      setMsg(`Link gerado e copiado! Válido até ${new Date(result.expiresAt).toLocaleString('pt-BR')}.`);
       setMsgVariant('success');
     } catch (err) {
       setMsg(String(err));
@@ -255,268 +285,223 @@ export function ShortlistView() {
     } finally {
       setReviewLinkLoading(false);
     }
-  }, [priorityVacancyId]);
+  }, [selectedDetail, vacancyFilter, vacancyOptions]);
 
-  const tabs = [
-    { key: 'all', label: 'Todas', badge: stats.total },
-    { key: 'pending', label: 'Pendentes', badge: stats.pending },
-    { key: 'shortlisted', label: 'Shortlisted', badge: stats.shortlisted },
-  ];
+  /* ── Render ────────────────────────────────────────────────────────── */
+
+  if (loading) {
+    return (
+      <PageContent>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: spacing.md }}>
+          <Spinner size={40} />
+          <div style={{ color: colors.textSecondary }}>Carregando dados da shortlist...</div>
+        </div>
+      </PageContent>
+    );
+  }
+
+  const isCurrentShortlisted = selectedAppId ? shortlistedIds.has(selectedAppId) : false;
 
   return (
-    <PageContent>
-      <PageHeader
-        title="Shortlist e Avaliação"
-        description="Selecione candidatos para a shortlist, avalie perfis e priorize com assistência de IA."
-      />
-
-      {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
-
-      {loading ? (
-        <div style={{ display: 'grid', gap: spacing.lg }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: spacing.md }}>
-            {[1, 2, 3].map((i) => <div key={i} style={{ height: 80, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />)}
-          </div>
-          {[1, 2, 3].map((i) => <div key={i} style={{ height: 100, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }} />)}
-        </div>
-      ) : (
-        <>
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: spacing.md, marginBottom: spacing.lg }}>
-            <StatBox label="Total de aplicações" value={stats.total} subtext="candidatos no pipeline" />
-            <StatBox label="Pendentes" value={stats.pending} subtext="aguardando triagem" />
-            <StatBox label="Shortlisted" value={stats.shortlisted} subtext="selecionados" />
-            <div style={{ padding: spacing.md, background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: radius.lg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <ScoreGauge value={stats.total > 0 ? Math.round((stats.shortlisted / stats.total) * 100) : 0} size={52} strokeWidth={5} />
-              <div style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: spacing.xs, textAlign: 'center' }}>Taxa seleção</div>
-            </div>
-          </div>
-
-          {/* Priority calculator & Sharing */}
-          <Card style={{ marginBottom: spacing.lg }}>
-            <CardContent style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', flex: 1 }}>
-                <div style={{ flex: '1 1 240px', minWidth: 200, maxWidth: 400 }}>
-                  <Select
-                    label="Vaga e Ações de IA"
-                    value={priorityVacancyId}
-                    onChange={(e) => setPriorityVacancyId(e.target.value)}
-                    options={[{ value: '', label: 'Selecione uma vaga...' }, ...vacancyOptions]}
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => { void calculatePriority(); }}
-                  disabled={!priorityVacancyId}
-                  loading={priorityLoading}
-                >
-                  🤖 Calcular Prioridade
-                </Button>
-                {priorities.length > 0 && (
-                  <Badge variant="info" size="sm" style={{ alignSelf: 'center', marginBottom: spacing.sm }}>
-                    {priorities.length} ranqueados
-                  </Badge>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: spacing.sm, flexWrap: 'wrap' }}>
-                <Button
-                  variant="outline"
-                  onClick={() => { void generateReviewLink(); }}
-                  disabled={!priorityVacancyId}
-                  loading={reviewLinkLoading}
-                >
-                  🔗 Gerar Link para Gestor
-                </Button>
-                {reviewLink && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { void navigator.clipboard.writeText(reviewLink.url).catch(() => undefined); }}
-                  >
-                    📋 Copiar link
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: spacing.md }}>
-            <div style={{ flex: '1 1 260px', minWidth: 200 }}>
-              <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Buscar</label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nome, e-mail ou vaga..."
-                style={{ width: '100%', padding: `${spacing.sm}px ${spacing.md}px`, border: `1px solid ${colors.border}`, borderRadius: radius.md, fontSize: fontSize.md, outline: 'none', background: colors.surface, color: colors.text, boxSizing: 'border-box' }}
+    <PageContent style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', height: '100%', background: colors.surface }}>
+        
+        {/* Sidebar */}
+        <aside style={{ borderRight: `1px solid ${colors.borderLight}`, display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+          <div style={{ padding: spacing.lg, borderBottom: `1px solid ${colors.borderLight}`, background: colors.surface }}>
+            <h1 style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, margin: 0, color: colors.primary }}>
+              Triagem Ativa
+            </h1>
+            <p style={{ fontSize: fontSize.xs, color: colors.textMuted, marginTop: 4 }}>
+               {stats.total} total • {stats.pending} pendentes
+            </p>
+            
+            <div style={{ marginTop: spacing.md, display: 'grid', gap: spacing.xs }}>
+              <Input 
+                placeholder="Filtrar por nome ou email..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)}
+                size="sm"
+              />
+              <Select 
+                value={vacancyFilter} 
+                onChange={e => setVacancyFilter(e.target.value)}
+                options={[{ value: '', label: 'Todas as vagas' }, ...vacancyOptions]}
+                size="sm"
               />
             </div>
-            {vacancyOptions.length > 1 && (
-              <div style={{ flex: '0 1 240px', minWidth: 180 }}>
-                <Select
-                  label="Vaga"
-                  value={vacancyFilter}
-                  onChange={(e) => setVacancyFilter(e.target.value)}
-                  options={[{ value: '', label: 'Todas' }, ...vacancyOptions]}
-                />
+          </div>
+
+          <div style={{ padding: `${spacing.sm}px ${spacing.lg}px`, background: colors.surface, borderBottom: `1px solid ${colors.borderLight}` }}>
+             <Tabs 
+                tabs={[
+                  { key: 'pending', label: 'Pendentes', badge: stats.pending },
+                  { key: 'shortlisted', label: 'Shortlist', badge: stats.shortlisted },
+                ]} 
+                active={activeTab} 
+                onChange={setActiveTab} 
+                size="sm"
+             />
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: spacing.sm }}>
+            {filteredApps.length === 0 ? (
+              <EmptyState title="Nenhum perfil" description="Ajuste os filtros" size="sm" />
+            ) : (
+              <div style={{ display: 'grid', gap: spacing.sm }}>
+                {filteredApps.map(app => {
+                  const isActive = selectedAppId === app.id;
+                  const isShortlisted = shortlistedIds.has(app.id);
+                  const candidateName = app.candidate.profile?.fullName || app.candidate.email;
+                  
+                  return (
+                    <div 
+                      key={app.id}
+                      onClick={() => setSelectedAppId(app.id)}
+                      style={{
+                        padding: spacing.md,
+                        borderRadius: radius.lg,
+                        background: isActive ? colors.primaryLight : colors.surface,
+                        border: `1px solid ${isActive ? colors.primary : colors.borderLight}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isActive ? shadows.sm : 'none',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                        <div style={{ 
+                          width: 36, height: 36, borderRadius: radius.full, 
+                          background: isActive ? colors.surface : (isShortlisted ? colors.successLight : colors.primaryLight),
+                          color: isActive ? colors.primary : (isShortlisted ? colors.successDark : colors.textInverse),
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: fontSize.sm, fontWeight: fontWeight.bold, flexShrink: 0
+                        }}>
+                          {app.candidate.profile?.photoUrl ? (
+                            <img src={app.candidate.profile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          ) : isShortlisted ? '✓' : initials(candidateName)}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: isActive ? colors.textInverse : colors.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {candidateName}
+                          </div>
+                          <div style={{ fontSize: fontSize.xs, color: isActive ? 'rgba(255,255,255,0.8)' : colors.textSecondary, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {app.vacancy.title}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
+          <div style={{ padding: spacing.md, borderTop: `1px solid ${colors.borderLight}`, background: colors.surface }}>
+             <Button variant="outline" size="sm" style={{ width: '100%' }} onClick={generateReviewLink} loading={reviewLinkLoading}>
+                🔗 Copiar Link para Gestor
+             </Button>
+          </div>
+        </aside>
 
-          {/* Cards */}
-          {filtered.length === 0 ? (
-            <EmptyState title="Nenhuma aplicação" description="Ajuste os filtros ou a aba." icon="🔍" />
+        {/* Main Workspace */}
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', position: 'relative' }}>
+          {!selectedAppId ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <EmptyState 
+                title="Selecione um candidato" 
+                description="Clique em um perfil na lista ao lado para iniciar a avaliação premium."
+                icon="👆"
+              />
+            </div>
           ) : (
-            <div style={{ display: 'grid', gap: spacing.md }}>
-              {filtered.map((app) => {
-                const name = app.candidate.profile?.fullName || app.candidate.email;
-                const isShortlisted = shortlistedIds.has(app.id);
-                const priority = priorityMap.get(app.candidate.id);
-                const band = priority ? bandMeta[priority.priorityBand.toLowerCase()] : null;
+            <>
+              {/* Sticky Action Header */}
+              <div style={{ 
+                height: 72, padding: `0 ${spacing.xl}px`, borderBottom: `1px solid ${colors.borderLight}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: colors.surface, zIndex: 10, position: 'sticky', top: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                  <div style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold }}>Ações de Headhunter</div>
+                  <div style={{ width: 1, height: 24, background: colors.borderLight }} />
+                  {msg ? (
+                    <Badge variant={msgVariant === 'success' ? 'success' : 'danger'}>{msg}</Badge>
+                  ) : (
+                    <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Valide os dados do dossiê</div>
+                  )}
+                </div>
 
-                return (
-                  <Card key={app.id} style={{ overflow: 'hidden', borderLeft: isShortlisted ? `4px solid ${colors.success}` : undefined }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: spacing.md, padding: spacing.lg }}>
-                      {/* Left */}
-                      <div style={{ display: 'flex', gap: spacing.md, alignItems: 'flex-start', minWidth: 0 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: radius.full, background: isShortlisted ? colors.success : colors.primaryLight, color: colors.textInverse, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fontSize.md, fontWeight: fontWeight.bold, flexShrink: 0, overflow: 'hidden' }}>
-                          {isShortlisted ? '✓' : app.candidate.profile?.photoUrl ? (
-                            <img src={app.candidate.profile.photoUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                          ) : (
-                            initials(name)
-                          )}
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap', marginBottom: spacing.xs }}>
-                            <span style={{ fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.text }}>{name}</span>
-                            {isShortlisted && <Badge variant="success" size="sm">Shortlisted</Badge>}
-                            {band && <Badge variant={band.variant} size="sm">📊 {band.label} ({priority!.score.toFixed(1)})</Badge>}
-                          </div>
-                          <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', fontSize: fontSize.sm, color: colors.textSecondary }}>
-                            <span>📋 {app.vacancy.title}</span>
-                            {app.vacancy.seniority && <span>🎯 {app.vacancy.seniority}</span>}
-                            <span>📅 {formatRelative(app.createdAt)}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' }}>
-                        {!isShortlisted ? (
-                          <Button variant="success" size="sm" onClick={() => { void addToShortlist(app.id); }}>
-                            ✓ Shortlist
-                          </Button>
-                        ) : (
-                          <Badge variant="success" size="sm">Na shortlist</Badge>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => { setEvalDialog({ appId: app.id, name }); setEvalComment(''); }}>
-                          💬 Avaliar
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Footer */}
-          <div style={{ marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm, fontSize: fontSize.sm, color: colors.textSecondary }}>
-            <span>Exibindo <strong style={{ color: colors.text }}>{filtered.length}</strong> de {apps.length}</span>
-            <span>{evals.length > 0 ? `${evals.length} avaliação(ões) nesta sessão` : 'Nenhuma avaliação registrada nesta sessão'}</span>
-          </div>
-        </>
-      )}
-
-      {/* Eval dialog */}
-      {evalDialog && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="eval-dialog-title"
-          onClick={() => !evalSaving && resetEvalDialog()}
-          onKeyDown={(e) => { if (e.key === 'Escape' && !evalSaving) resetEvalDialog(); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: zIndex.modal }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: colors.surface, padding: spacing.xl, borderRadius: radius.xl, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: shadows.lg, display: 'grid', gap: spacing.md }}>
-            <div>
-              <h3 id="eval-dialog-title" style={{ margin: 0, fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.text }}>
-                Avaliação profissional
-              </h3>
-              <p style={{ margin: `${spacing.xs}px 0 0`, fontSize: fontSize.sm, color: colors.textSecondary }}>
-                Sobre <strong>{evalDialog.name}</strong>
-              </p>
-            </div>
-
-            {/* Star ratings */}
-            <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'grid', gap: spacing.sm }}>
-              <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: spacing.xs }}>
-                Avaliações por dimensão (opcional)
+                <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
+                    {isCurrentShortlisted ? (
+                      <Badge variant="success" size="lg">✅ Na Shortlist</Badge>
+                    ) : (
+                      <Button variant="success" size="md" onClick={addToShortlist} style={{ boxShadow: shadows.glow }}>
+                         Adicionar à Shortlist
+                      </Button>
+                    )}
+                </div>
               </div>
-              <StarRating
-                label="🔧 Técnica"
-                value={evalRatings.technical}
-                onChange={(v) => setEvalRatings((r) => ({ ...r, technical: v }))}
-                disabled={evalSaving}
-              />
-              <StarRating
-                label="🤝 Comportamental"
-                value={evalRatings.behavioral}
-                onChange={(v) => setEvalRatings((r) => ({ ...r, behavioral: v }))}
-                disabled={evalSaving}
-              />
-              <StarRating
-                label="🎙️ Entrevistador"
-                value={evalRatings.interviewer}
-                onChange={(v) => setEvalRatings((r) => ({ ...r, interviewer: v }))}
-                disabled={evalSaving}
-              />
-              <StarRating
-                label="🤖 IA"
-                value={evalRatings.ai}
-                onChange={(v) => setEvalRatings((r) => ({ ...r, ai: v }))}
-                disabled={evalSaving}
-              />
-              {/* Overall preview */}
-              {Object.values(evalRatings).some((v) => v > 0) && (() => {
-                const vals = Object.values(evalRatings).filter((v) => v > 0);
-                const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
-                const score = Math.round(((avg - 1) / 4) * 100);
-                return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, paddingTop: spacing.xs, borderTop: `1px solid ${colors.border}` }}>
-                    <span style={{ fontSize: fontSize.sm, color: colors.textSecondary, minWidth: 180 }}>⭐ Geral (média)</span>
-                    <span style={{ fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.text }}>{avg.toFixed(1)}/5</span>
-                    <span style={{ fontSize: fontSize.sm, color: colors.textMuted }}>= {score}% no ranking</span>
-                  </div>
-                );
-              })()}
-            </div>
 
-            <Textarea
-              label="Seu parecer"
-              value={evalComment}
-              onChange={(e) => setEvalComment(e.target.value)}
-              placeholder="Adicione sua avaliação profissional sobre o candidato..."
-              rows={4}
-              required
-            />
-
-            <div style={{ padding: spacing.sm, borderRadius: radius.md, background: colors.infoLight, fontSize: fontSize.xs, color: colors.info, lineHeight: 1.6 }}>
-              💡 Esta avaliação ficará registrada no perfil do candidato e será visível para o cliente na revisão. Os scores não são visíveis para os candidatos.
-            </div>
-
-            <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'flex-end' }}>
-              <Button variant="ghost" onClick={resetEvalDialog} disabled={evalSaving}>Cancelar</Button>
-              <Button onClick={() => { void submitEval(); }} loading={evalSaving} disabled={!evalComment.trim()}>
-                Salvar avaliação
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+              {/* Dossier Area */}
+              <div style={{ flex: 1, overflowY: 'auto', background: '#fcfcfd' }}>
+                <div style={{ maxWidth: 1000, margin: '0 auto', padding: spacing.xl }}>
+                  {loadingDetail ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', gap: spacing.md }}>
+                      <Spinner size={32} />
+                      <div style={{ color: colors.textSecondary }}>Montando Dossiê e IA...</div>
+                    </div>
+                  ) : selectedDetail ? (
+                    <>
+                      <CandidateDossier 
+                        detail={selectedDetail} 
+                        intelligence={selectedIntelligence} 
+                        viewerRole="headhunter" 
+                         candidateWebBase={candidateWebBase}
+                      />
+                      
+                      {/* Inline Evaluation Form */}
+                      <Card style={{ marginTop: spacing.lg, borderColor: colors.primaryLight }}>
+                        <CardHeader><CardTitle>Avaliação do Headhunter</CardTitle></CardHeader>
+                        <CardContent>
+                           <div style={{ display: 'grid', gap: spacing.md }}>
+                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
+                               <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
+                                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: spacing.xs }}>
+                                     Ranking
+                                  </div>
+                                  <StarRating label="🔧 Técnica" value={evalRatings.technical} onChange={(v) => setEvalRatings(r => ({ ...r, technical: v }))} disabled={evalSaving} />
+                                  <StarRating label="🤝 Comportamental" value={evalRatings.behavioral} onChange={(v) => setEvalRatings(r => ({ ...r, behavioral: v }))} disabled={evalSaving} />
+                                  <StarRating label="🎙️ Entrevistador" value={evalRatings.interviewer} onChange={(v) => setEvalRatings(r => ({ ...r, interviewer: v }))} disabled={evalSaving} />
+                                  <StarRating label="🤖 IA" value={evalRatings.ai} onChange={(v) => setEvalRatings(r => ({ ...r, ai: v }))} disabled={evalSaving} />
+                               </div>
+                               <div>
+                                  <Textarea
+                                     label="Seu parecer profissional"
+                                     value={evalComment}
+                                     onChange={(e) => setEvalComment(e.target.value)}
+                                     placeholder="Este parecer será lido pelo Gestor/Cliente quando aprovarem o perfil..."
+                                     rows={8}
+                                  />
+                               </div>
+                             </div>
+                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: spacing.xs }}>
+                                <Button onClick={submitEval} loading={evalSaving} disabled={!evalComment.trim()}>
+                                   Registrar Parecer
+                                </Button>
+                             </div>
+                           </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
     </PageContent>
   );
 }

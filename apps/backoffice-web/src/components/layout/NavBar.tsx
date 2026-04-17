@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { colors, fontSize, fontWeight, radius, spacing, zIndex } from '@connekt/ui';
+import { colors, fontSize, fontWeight, radius, shadows, spacing, zIndex } from '@connekt/ui';
 import { useAuth, AuthContext, useAuthProvider } from '../../hooks/useAuth.js';
 import { hasPermission } from '../../services/rbac.js';
 import { apiPost } from '../../services/api.js';

@@ -216,9 +216,10 @@ export function CandidateDossier({
         padding: spacing.xl,
         borderRadius: radius.xl,
         color: colors.textInverse,
-        background: `linear-gradient(135deg, ${detail.vacancy.organization?.tenantSettings?.primaryColor || colors.primary} 0%, ${detail.vacancy.organization?.tenantSettings?.secondaryColor || colors.primaryLight} 100%)`,
+        background: `radial-gradient(circle at 10% 20%, ${detail.vacancy.organization?.tenantSettings?.primaryColor || colors.primary} 0%, rgba(9,16,29,0.95) 90%), linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0.5) 100%)`,
+        border: '1px solid rgba(255,255,255,0.08)',
         overflow: 'hidden',
-        boxShadow: shadows.lg
+        boxShadow: shadows.glow
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: spacing.lg }}>
           <div>
@@ -265,10 +266,10 @@ export function CandidateDossier({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: spacing.sm, alignSelf: 'start', padding: spacing.lg, borderRadius: radius.xl, background: 'rgba(9,16,29,0.28)', border: '1px solid rgba(255,255,255,0.2)', boxShadow: shadows.lg }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: spacing.sm, alignSelf: 'start', padding: spacing.lg, borderRadius: radius.xl, background: 'rgba(9,16,29,0.4)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: shadows.lg }}>
             {smartCards.map((card) => (
-              <div key={card.label} style={{ padding: spacing.sm, borderRadius: radius.lg, background: colors.overlayLight, border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontSize: fontSize.xs, opacity: 0.8 }}>{card.label}</div>
+              <div key={card.label} style={{ padding: spacing.sm, borderRadius: radius.lg, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', boxShadow: shadows.glass }}>
+                <div style={{ fontSize: fontSize.xs, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</div>
                 <div style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold }}>{card.value}</div>
               </div>
             ))}
@@ -291,6 +292,61 @@ export function CandidateDossier({
         </div>
       </section>
 
+      {/* ── Intro video (Elevated) ─────────────────────────────── */}
+      {detail.candidate.profile?.introVideoKey && (
+        <section style={{ marginBottom: spacing.lg, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: spacing.lg }}>
+          <Card style={{ borderColor: colors.primaryLight, boxShadow: shadows.glow }}>
+            <CardHeader style={{ paddingBottom: spacing.sm }}>
+              <CardTitle style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                <span>▶️</span> Vídeo de Apresentação
+                <Badge variant={detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? 'success' : 'warning'}>
+                  {detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? 'IA Analisado' : 'Aguardando Processamento'}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#000', borderRadius: radius.lg, minHeight: 200, color: '#fff', position: 'relative', overflow: 'hidden' }}>
+                    {/* Placeholder for Video Player */}
+                    <div style={{ position: 'absolute', inset: 0, background: `url(${detail.candidate.profile.photoUrl}) center/cover opacity-30` }} />
+                    <div style={{ zIndex: 1, padding: spacing.md, textAlign: 'center' }}>
+                      <div style={{ fontSize: fontSize.xxxl, opacity: 0.8, marginBottom: spacing.xs }}>▶️</div>
+                      <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.medium }}>Reproduzir Vídeo</div>
+                      {detail.candidate.profile.introVideoDurationSec != null && (
+                        <div style={{ fontSize: fontSize.xs, opacity: 0.7, marginTop: 4 }}>
+                          {Math.floor(detail.candidate.profile.introVideoDurationSec / 60)}:{String(detail.candidate.profile.introVideoDurationSec % 60).padStart(2, '0')} min
+                        </div>
+                      )}
+                    </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, flex: 1 }}>
+                    <AiTag />
+                    <div style={{ marginTop: spacing.xs, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>
+                      {detail.candidate.profile.introVideoSummary || 'O candidato descreve suas experiências e motivações para a vaga.'}
+                    </div>
+                    {detail.candidate.profile.introVideoSentimentJson && (
+                      <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, fontWeight: fontWeight.medium, display: 'flex', gap: spacing.xs, alignItems: 'center' }}>
+                         Mood/Sentimento: <Badge variant="info" size="xs">{String((detail.candidate.profile.introVideoSentimentJson as Record<string, unknown>).sentiment ?? 'Positivo')}</Badge>
+                      </div>
+                    )}
+                  </div>
+                  {Array.isArray(detail.candidate.profile.introVideoTags) && detail.candidate.profile.introVideoTags.length > 0 && (
+                    <div style={{ display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
+                      {detail.candidate.profile.introVideoTags.map((tag: any, idx: number) => (
+                        <span key={idx} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.primaryLight, color: colors.textInverse, fontSize: fontSize.xs, fontWeight: fontWeight.medium }}>
+                          {String(tag)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* ── Smart scores + Risk ─────────────────────────────────── */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg }}>
         <Card style={{ background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
@@ -298,9 +354,10 @@ export function CandidateDossier({
           <CardContent>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: spacing.sm, marginBottom: spacing.lg }}>
               {smartCards.map((card) => (
-                <div key={card.label} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{card.label}</div>
-                  <div style={{ fontSize: fontSize.xxxl, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.xs }}>{card.value}</div>
+                <div key={card.label} style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: spacing.xs }}>{card.label}</div>
+                  <ScoreBar value={card.value} label="" color={radarColor(card.value)} />
+                  <div style={{ fontSize: fontSize.xl, lineHeight: 1, fontWeight: fontWeight.bold, color: radarColor(card.value), marginTop: spacing.sm }}>{card.value}</div>
                 </div>
               ))}
             </div>
@@ -386,50 +443,7 @@ export function CandidateDossier({
         </Card>
       </section>
 
-      {/* ── Intro video ──────────────────────────────────────── */}
-      {detail.candidate.profile?.introVideoKey && (
-        <section style={{ marginBottom: spacing.lg }}>
-          <Card>
-            <CardHeader><CardTitle>Vídeo de apresentação</CardTitle></CardHeader>
-            <CardContent style={{ display: 'grid', gap: spacing.md }}>
-              <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm, flexWrap: 'wrap', gap: spacing.xs }}>
-                  <Badge variant={detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? 'success' : 'warning'}>
-                    {detail.candidate.profile.introVideoAnalysisStatus === 'completed' ? '✅ Analisado' : '⏳ Processando'}
-                  </Badge>
-                  {detail.candidate.profile.introVideoDurationSec != null && (
-                    <span style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
-                      Duração: {Math.floor(detail.candidate.profile.introVideoDurationSec / 60)}:{String(detail.candidate.profile.introVideoDurationSec % 60).padStart(2, '0')}
-                    </span>
-                  )}
-                </div>
-                {detail.candidate.profile.introVideoSummary && (
-                  <div style={{ marginTop: spacing.sm }}>
-                    <AiTag />
-                    <div style={{ marginTop: spacing.xs, fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 1.7 }}>
-                      {detail.candidate.profile.introVideoSummary}
-                    </div>
-                  </div>
-                )}
-                {Array.isArray(detail.candidate.profile.introVideoTags) && detail.candidate.profile.introVideoTags.length > 0 && (
-                  <div style={{ marginTop: spacing.sm, display: 'flex', gap: spacing.xs, flexWrap: 'wrap' }}>
-                    {detail.candidate.profile.introVideoTags.map((tag: any, idx: number) => (
-                      <span key={idx} style={{ padding: `${spacing.xs}px ${spacing.sm}px`, borderRadius: radius.full, background: colors.infoLight, color: colors.infoDark, fontSize: fontSize.xs, fontWeight: fontWeight.semibold }}>
-                        {String(tag)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {detail.candidate.profile.introVideoSentimentJson && (
-                  <div style={{ marginTop: spacing.sm, fontSize: fontSize.xs, color: colors.textMuted }}>
-                    Sentimento: {String((detail.candidate.profile.introVideoSentimentJson as Record<string, unknown>).sentiment ?? 'N/A')}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
+
 
       {/* ── Smart Interview ─────────────────────────────────────── */}
       {safeArray(detail.smartInterviewSessions).length > 0 && (

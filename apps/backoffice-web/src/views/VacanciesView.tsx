@@ -108,7 +108,7 @@ export function VacanciesView() {
         salaryMax: formData.salaryMax ? Number(formData.salaryMax) : undefined,
       };
 
-      if (editingVacancy) {
+      if (editingVacancy && editingVacancy.id) {
         await apiPatch(`/vacancies/${editingVacancy.id}`, payload);
         setMsg('Vaga atualizada com sucesso.');
       } else {
@@ -256,21 +256,48 @@ export function VacanciesView() {
                       background: v.status === 'active' ? colors.success : colors.textMuted,
                       boxShadow: v.status === 'active' ? `0 0 10px ${colors.success}88` : 'none'
                     }} />
-                    <Badge variant={variant} style={{ textTransform: 'capitalize', fontWeight: fontWeight.bold }}>{label}</Badge>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Badge variant={variant} style={{ textTransform: 'capitalize', fontWeight: fontWeight.bold }}>{label}</Badge>
+                      {v.publicationType === 'public' ? (
+                        <span style={{ fontSize: 10, color: colors.successDark, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>🌐 Pública</span>
+                      ) : (
+                        <span style={{ fontSize: 10, color: colors.textTertiary, display: 'flex', alignItems: 'center', gap: 4 }}>🔒 Privada</span>
+                      )}
+                    </div>
                   </div>
                 );
               }},
-              { key: 'actions', header: 'Ações', render: (v) => (
-                <div style={{ display: 'flex', gap: spacing.xs }}>
-                  <Button size="sm" variant="ghost" onClick={() => setPreviewVacancy(v)} title="Visualizar Publicação">👁️</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingVacancy(v); setShowWizard(true); }} title="Editar Vaga">✏️</Button>
-                  {v.status === 'active' ? (
-                    <Button size="sm" variant="ghost" onClick={() => executeStatusAction(v.id, 'close')} title="Encerrar Vaga">🚫</Button>
-                  ) : (
-                    <Button size="sm" variant="ghost" onClick={() => executeStatusAction(v.id, 'reopen')} title="Reabrir Vaga">✅</Button>
-                  )}
-                </div>
-              )}
+              { key: 'actions', header: 'Ações', render: (v) => {
+                const isPublic = v.publicationType === 'public' && v.status === 'active';
+                const copyLink = async () => {
+                  try {
+                    const candidateUrl = import.meta.env.VITE_CANDIDATE_WEB_URL || 'http://localhost:5174';
+                    await navigator.clipboard.writeText(`${candidateUrl}/vacancies/${v.id}`);
+                    setMsg('Link de compartilhamento copiado!');
+                    setMsgVariant('success');
+                  } catch (e) {
+                    setMsg('Falha ao copiar link.');
+                    setMsgVariant('error');
+                  }
+                };
+                return (
+                  <div style={{ display: 'flex', gap: spacing.xs }}>
+                    {isPublic && (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={copyLink} title="Copiar Link Público">🔗</Button>
+                        <Button size="sm" variant="ghost" as="a" href={`${import.meta.env.VITE_CANDIDATE_WEB_URL || 'http://localhost:5174'}/vacancies/${v.id}`} target="_blank" title="Abrir no Portal do Candidato">🌐</Button>
+                      </>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setPreviewVacancy(v)} title="Preview Interno">👁️</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditingVacancy(v); setShowWizard(true); }} title="Editar Vaga">✏️</Button>
+                    {v.status === 'active' ? (
+                      <Button size="sm" variant="ghost" onClick={() => executeStatusAction(v.id, 'close')} title="Encerrar Vaga">🚫</Button>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => executeStatusAction(v.id, 'reopen')} title="Reabrir Vaga">✅</Button>
+                    )}
+                  </div>
+                );
+              }}
             ]}
           />
         </div>

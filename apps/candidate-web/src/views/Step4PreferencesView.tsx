@@ -16,6 +16,7 @@ export function Step4PreferencesView() {
   const [salaryMax, setSalaryMax] = useState('');
   const [jobTitles, setJobTitles] = useState<string[]>(Array(MAX_JOB_TITLES).fill(''));
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [workModelPreference, setWorkModelPreference] = useState<string[]>([]);
   const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,6 +38,7 @@ export function Step4PreferencesView() {
         setSalaryMax(draft.salaryMax);
         setJobTitles(Array.from({ length: MAX_JOB_TITLES }, (_, index) => draft.jobTitles[index] ?? ''));
         setSelectedLanguages(draft.languages.filter(Boolean));
+        setWorkModelPreference(draft.workModelPreference ?? []);
       })
       .catch(() => undefined)
       .finally(() => setInitializing(false));
@@ -45,6 +47,12 @@ export function Step4PreferencesView() {
   const toggleLanguage = (lang: string) => {
     setSelectedLanguages((prev) =>
       prev.includes(lang) ? prev.filter((value) => value !== lang) : [...prev, lang],
+    );
+  };
+  
+  const toggleWorkModel = (model: string) => {
+    setWorkModelPreference((prev) =>
+      prev.includes(model) ? prev.filter((v) => v !== model) : [...prev, model],
     );
   };
 
@@ -76,6 +84,7 @@ export function Step4PreferencesView() {
         salaryMax: max,
         jobTitles: jobTitles.map((title) => title.trim()).filter(Boolean),
         languages: selectedLanguages,
+        workModelPreference,
       });
       navigate('/onboarding/intro-video');
     } catch (err) {
@@ -115,6 +124,39 @@ export function Step4PreferencesView() {
                       <label style={{ display: 'block', fontSize: fontSize.xs, color: colors.textSecondary, marginBottom: 4 }}>Máximo</label>
                       <Input type="number" min={0} placeholder="ex: 10000" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} />
                     </div>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: spacing.lg }}>
+                  <div style={{ fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: '0.05em', color: colors.textMuted, marginBottom: spacing.sm }}>
+                    Preferência por Trabalho (selecionar um ou mais)
+                  </div>
+                  <div style={{ display: 'flex', gap: spacing.xs }}>
+                    {['remoto', 'hibrido', 'presencial'].map((mode) => {
+                      const active = workModelPreference.includes(mode);
+                      const labels: Record<string, string> = { remoto: 'Remoto', hibrido: 'Híbrido', presencial: 'Presencial' };
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => toggleWorkModel(mode)}
+                          style={{
+                            padding: `${spacing.xs}px ${spacing.md}px`,
+                            borderRadius: radius.md,
+                            border: `1.5px solid ${active ? colors.accent : colors.border}`,
+                            background: active ? colors.infoLight : colors.surface,
+                            color: active ? colors.accent : colors.textSecondary,
+                            fontSize: fontSize.sm,
+                            fontWeight: active ? fontWeight.bold : fontWeight.normal,
+                            cursor: 'pointer',
+                            flex: 1,
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {active ? '✓ ' : ''}{labels[mode]}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

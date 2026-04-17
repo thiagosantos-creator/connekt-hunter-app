@@ -39,6 +39,7 @@ export class OnboardingController {
       salaryMax?: number;
       jobTitles?: string[];
       languages?: string[];
+      workModelPreference?: string[];
     },
   ) {
     return this.onboardingService.preferences(body.token, {
@@ -46,6 +47,7 @@ export class OnboardingController {
       salaryMax: body.salaryMax,
       jobTitles: body.jobTitles,
       languages: body.languages,
+      workModelPreference: body.workModelPreference,
     });
   }
 

@@ -39,6 +39,7 @@ export function derivePreferenceDraft(
       salaryMax: existingPreferences.salaryMax?.toString() ?? '',
       jobTitles: existingPreferences.jobTitles.slice(0, 3),
       languages: existingPreferences.languages,
+      workModelPreference: existingPreferences.workModelPreference,
     };
   }
 
@@ -64,5 +65,6 @@ export function derivePreferenceDraft(
     salaryMax: '',
     jobTitles,
     languages,
+    workModelPreference: [],
   };
 }

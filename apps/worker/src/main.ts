@@ -14,6 +14,7 @@ import {
   DetectEntitiesCommand,
   type LanguageCode as ComprehendLanguageCode,
 } from '@aws-sdk/client-comprehend';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import OpenAI from 'openai';
 
 function isTranscriptionReal(): boolean {
@@ -139,6 +140,14 @@ const CB_FAILURE_THRESHOLD = 5;
 const CB_RESET_TIMEOUT_MS = 60_000;
 const INITIAL_RETRY_DELAY_MS = 1_000;
 const MAX_RETRY_DELAY_MS = 30_000;
+
+/** helper to download content from S3 as string */
+async function downloadS3Object(bucket: string, key: string, region: string): Promise<string> {
+  const s3Client = new S3Client({ region });
+  const response = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+  const body = await response.Body?.transformToString();
+  return body ?? '';
+}
 
 function getCircuitBreaker(provider: string): CircuitBreakerState {
   if (!circuitBreakers.has(provider)) {
@@ -457,11 +466,12 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
           }
 
           if (transcriptUri) {
-            const response = await fetch(transcriptUri);
-            if (!response.ok) {
-              throw new Error(`Failed to fetch transcript: HTTP ${response.status}`);
+            const transcriptKey = `transcriptions/${jobName}.json`;
+            const transcriptRaw = await downloadS3Object(bucket, transcriptKey, region);
+            if (!transcriptRaw) {
+              throw new Error(`Failed to download transcript from S3: bucket=${bucket} key=${transcriptKey}`);
             }
-            const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
+            const data = JSON.parse(transcriptRaw) as { results?: { transcripts?: Array<{ transcript?: string }> } };
             transcriptContent = data.results?.transcripts?.map((item) => item.transcript).join(' ') ?? transcriptContent;
             transcriptProvider = 'aws-transcribe';
           }
@@ -681,18 +691,11 @@ export async function processSmartInterviewVideoJobs(): Promise<number> {
             }
 
             if (transcriptUri) {
-              try {
-                const response = await fetch(transcriptUri);
-                if (!response.ok) {
-                  throw new Error(`Failed to fetch transcript: HTTP ${response.status}`);
-                }
-                const data = (await response.json()) as { results?: { transcripts?: Array<{ transcript?: string }> } };
-                transcriptContent = data.results?.transcripts?.map((t) => t.transcript).join(' ') ?? '';
-                provider = 'aws-transcribe';
-              } catch (fetchErr) {
-                console.error(JSON.stringify({ source: 'worker', event: 'transcription_fetch_failed', answerId: payload.answerId, error: String(fetchErr) }));
-                throw fetchErr;
-              }
+              const transcriptKey = `transcriptions/${jobName}.json`;
+              const transcriptRaw = await downloadS3Object(bucket, transcriptKey, region);
+              const data = JSON.parse(transcriptRaw) as { results?: { transcripts?: Array<{ transcript?: string }> } };
+              transcriptContent = data.results?.transcripts?.map((t) => t.transcript).join(' ') ?? '';
+              provider = 'aws-transcribe';
 
               console.log(JSON.stringify({ source: 'worker', event: 'transcription_real_completed', answerId: payload.answerId, jobName, transcriptLength: transcriptContent.length }));
             }
@@ -1377,6 +1380,7 @@ export async function processInviteFollowupJobs(): Promise<number> {
 }
 
 async function run() {
+  await logEnvironmentConfig();
   console.log('[worker] starting');
 
   const shutdown = () => {
@@ -1408,6 +1412,21 @@ async function run() {
   } finally {
     await prisma.$disconnect();
   }
+}
+
+async function logEnvironmentConfig() {
+  const config = {
+    APP_ENV: process.env.APP_ENV || 'not set',
+    NODE_ENV: process.env.NODE_ENV || 'not set',
+    FF_TRANSCRIBE_REAL: process.env.FF_TRANSCRIBE_REAL === 'true',
+    FF_CV_PARSER_REAL: process.env.FF_CV_PARSER_REAL === 'true',
+    FF_MATCHING_REAL: process.env.FF_MATCHING_REAL === 'true',
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Present' : 'MISSING',
+    AI_PROVIDER_API_KEY: process.env.AI_PROVIDER_API_KEY ? 'Present' : 'MISSING',
+    AWS_REGION: process.env.AWS_REGION || 'not set',
+    S3_BUCKET: process.env.S3_BUCKET || 'not set',
+  };
+  console.log(JSON.stringify({ level: 'info', source: 'worker', event: 'startup_config', config }));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

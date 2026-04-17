@@ -124,20 +124,19 @@ export function CandidateDossierView() {
 
       {error && <InlineMessage variant="error" onDismiss={() => setError('')}>{error}</InlineMessage>}
 
-      {loading && !detail ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingTop: spacing.xxl, paddingBottom: spacing.xxl }}>
-          <Spinner size={32} />
-          <div style={{ fontSize: fontSize.md, color: colors.textSecondary }}>Carregando perfil do candidato...</div>
-          <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>Consolidando dados de IA, matching e avaliações</div>
-        </div>
-      ) : (
+      {!loading && detail ? (
         <CandidateDossier 
             detail={detail} 
             intelligence={intelligence} 
             viewerRole={viewerRole} 
             candidateWebBase={candidateWebBase}
         />
-      )}
+      ) : !loading && error ? (
+        <EmptyState 
+          title="Erro ao carregar perfil" 
+          description={error}
+        />
+      ) : null}
     </PageContent>
   );
 }

@@ -306,6 +306,13 @@ export interface ApplicationDetail extends Application {
         };
       }>;
     };
+    preferences?: {
+      salaryMin?: number;
+      salaryMax?: number;
+      jobTitles?: string[];
+      languages?: string[];
+      workModelPreference?: string[];
+    };
   };
   evaluations?: Array<{
     id: string;

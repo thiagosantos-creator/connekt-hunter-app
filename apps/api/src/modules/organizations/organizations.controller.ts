@@ -42,9 +42,11 @@ export class OrganizationsController {
   }
 
   @Get()
-  @RequirePermissions('users:manage')
-  findAll() {
-    return this.organizationsService.findAll();
+  findAll(@CurrentUser() user: AuthUser) {
+    if (user.role === 'admin' || user.permissions?.includes('users:manage')) {
+      return this.organizationsService.findAll();
+    }
+    return this.organizationsService.findManyByIds(user.organizationIds || []);
   }
 
   @Post(':organizationId/branding/:type/upload-url')

@@ -165,7 +165,13 @@ export function CandidateDossier({
   candidateWebBase,
   hideTopNav = false,
 }: CandidateDossierProps) {
-  const [dynamicVideoUrl, setDynamicVideoUrl] = useState<string | null>(detail.candidate?.profile?.introVideoPlaybackUrl || null);
+  const [dynamicVideoUrl, setDynamicVideoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (detail?.candidate?.profile?.introVideoPlaybackUrl) {
+      setDynamicVideoUrl(detail.candidate.profile.introVideoPlaybackUrl);
+    }
+  }, [detail]);
 
   useEffect(() => {
     // If the backend didn't provide a presigned URL but the video exists, fetch it using the onboarding token
@@ -435,6 +441,47 @@ export function CandidateDossier({
           </CardContent>
         </Card>
       </section>
+
+      {/* ── Preferences ────────────────────────────────────────── */}
+      {(detail.candidate.preferences || safeArray(detail.candidate.preferences?.jobTitles).length > 0) && (
+        <section style={{ marginBottom: spacing.lg }}>
+          <Card>
+            <CardHeader><CardTitle>Preferências e pretensão</CardTitle></CardHeader>
+            <CardContent>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.md }}>
+                <div style={{ display: 'grid', gap: spacing.md }}>
+                   <TagBlock 
+                    title="Cargos de interesse" 
+                    tags={safeArray(detail.candidate.preferences?.jobTitles)} 
+                    tone="info" 
+                    emptyLabel="Nenhum cargo específico informado." 
+                  />
+                  <TagBlock 
+                    title="Modelos de trabalho" 
+                    tags={safeArray(detail.candidate.preferences?.workModelPreference)} 
+                    tone="neutral" 
+                    emptyLabel="Nenhuma preferência informada." 
+                  />
+                </div>
+                <div style={{ padding: spacing.md, borderRadius: radius.lg, background: colors.surfaceAlt, border: `1px solid ${colors.border}`, display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+                  <div style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSecondary }}>Pretensão salarial</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: spacing.xs }}>
+                    <span style={{ fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.primary }}>
+                      {detail.candidate.preferences?.salaryMin ? `R$ ${detail.candidate.preferences.salaryMin.toLocaleString('pt-BR')}` : 'Não informado'}
+                    </span>
+                    {detail.candidate.preferences?.salaryMax && (
+                      <span style={{ fontSize: fontSize.sm, color: colors.textMuted }}>
+                        até R$ {detail.candidate.preferences.salaryMax.toLocaleString('pt-BR')}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: fontSize.xs, color: colors.textMuted }}>Valores informados pelo candidato durante o onboarding.</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* ── Experience + Education ──────────────────────────────── */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: spacing.lg, marginBottom: spacing.lg, alignItems: 'start' }}>

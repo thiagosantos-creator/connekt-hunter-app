@@ -186,7 +186,7 @@ export class OnboardingService {
 
   async preferences(
     token: string,
-    data: { salaryMin?: number; salaryMax?: number; jobTitles?: string[]; languages?: string[] },
+    data: { salaryMin?: number; salaryMax?: number; jobTitles?: string[]; languages?: string[]; workModelPreference?: string[] },
   ) {
     const candidate = await prisma.candidate.findUnique({ where: { token } });
     if (!candidate) throw new NotFoundException('candidate_not_found');
@@ -198,6 +198,7 @@ export class OnboardingService {
         salaryMax: data.salaryMax ?? null,
         jobTitles: data.jobTitles ?? [],
         languages: data.languages ?? [],
+        workModelPreference: data.workModelPreference ?? [],
       },
       create: {
         candidateId: candidate.id,
@@ -205,6 +206,7 @@ export class OnboardingService {
         salaryMax: data.salaryMax ?? null,
         jobTitles: data.jobTitles ?? [],
         languages: data.languages ?? [],
+        workModelPreference: data.workModelPreference ?? [],
       },
     });
 
@@ -397,6 +399,7 @@ export class OnboardingService {
         salaryMax: candidate.preferences.salaryMax,
         jobTitles: candidate.preferences.jobTitles,
         languages: candidate.preferences.languages,
+        workModelPreference: candidate.preferences.workModelPreference,
       } : null,
       steps,
       introVideo: candidate.profile?.introVideoKey ? {

@@ -168,6 +168,17 @@ export class OrganizationsService {
     });
   }
 
+  findManyByIds(ids: string[]) {
+    return prisma.organization.findMany({
+      where: { id: { in: ids } },
+      orderBy: { name: 'asc' },
+      include: {
+        tenantPolicy: true,
+        tenantSettings: true,
+      },
+    });
+  }
+
   async createBrandingUpload(organizationId: string, type: 'logo' | 'banner', filename: string, contentType?: string) {
     const upload = await this.storageGateway.createPresignedUpload({
       tenantId: organizationId,

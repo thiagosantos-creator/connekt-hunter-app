@@ -59,6 +59,7 @@ export interface CandidateStatus {
     salaryMax?: number | null;
     jobTitles: string[];
     languages: string[];
+    workModelPreference: string[];
   } | null;
   steps: StatusStep[];
   introVideo: {

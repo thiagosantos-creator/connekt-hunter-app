@@ -49,6 +49,7 @@ export function VacancyWizard({ onClose, onSave, organizations, initialData, org
     desiredSkills: initialData?.desiredSkills || [],
     salaryMin: initialData?.salaryMin || '',
     salaryMax: initialData?.salaryMax || '',
+    publicationType: initialData?.publicationType || 'public',
   });
 
   const [skillInput, setSkillInput] = useState('');
@@ -102,8 +103,10 @@ export function VacancyWizard({ onClose, onSave, organizations, initialData, org
   };
 
   const isStepValid = () => {
-    if (step === 0) return form.title && orgId;
-    if (step === 1) return form.description.length > 50;
+    if (step === 0) return !!(form.title && orgId && form.seniority && form.location);
+    if (step === 1) return form.description.length > 20;
+    if (step === 2 && form.publicationType === 'public') return form.requiredSkills.length > 0;
+    if (step === 3 && form.publicationType === 'public') return !!(form.sector && form.employmentType);
     return true;
   };
 
@@ -253,11 +256,11 @@ export function VacancyWizard({ onClose, onSave, organizations, initialData, org
                      value={form.publishedAt ? new Date(form.publishedAt).toISOString().split('T')[0] : ''} 
                      onChange={e => setForm(f => ({ ...f, publishedAt: e.target.value }))} 
                    />
-                   <Input 
-                     label="Data de Encerramento" 
-                     type="date" 
-                     value={form.closedAt ? new Date(form.closedAt).toISOString().split('T')[0] : ''} 
-                     onChange={e => setForm(f => ({ ...f, closedAt: e.target.value }))} 
+                   <Select 
+                     label="Visibilidade no Portal"
+                     value={form.publicationType}
+                     onChange={e => setForm(f => ({ ...f, publicationType: e.target.value }))}
+                     options={[{value: 'public', label: 'Pública (Visível no Portal)'}, {value: 'draft', label: 'Privada (Somente Interna)'}]}
                    />
                 </div>
               </div>

@@ -504,6 +504,7 @@ model CandidatePreferences {
   salaryMax   Int?
   jobTitles   String[]
   languages   String[]
+  workModelPreference String[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)

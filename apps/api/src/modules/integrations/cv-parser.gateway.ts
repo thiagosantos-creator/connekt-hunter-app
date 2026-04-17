@@ -20,8 +20,12 @@ export class CvParserGateway {
     if (isReal) {
       try {
         if (!input.resumeText?.trim()) {
+          this.logger.warn('CV Parse skipped: empty text');
           throw new Error('resume_text_required_for_real_cv_parser');
         }
+
+        const snippet = input.resumeText.slice(0, 100).replace(/\n/g, ' ');
+        this.logger.log(`Starting real CV parse for candidate ${input.candidateId} (text length: ${input.resumeText.length}). Snippet: "${snippet}..."`);
 
         const result = await this.openai.parseResume({
           resumeText: input.resumeText,
@@ -44,9 +48,16 @@ export class CvParserGateway {
           }),
         );
       } catch (err) {
-        this.logger.warn(JSON.stringify({ event: 'cv_parse_real_failed', resumeId: input.resumeId, error: String(err) }));
+        const errorDetails = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+        this.logger.warn(JSON.stringify({ 
+          event: 'cv_parse_real_failed', 
+          resumeId: input.resumeId, 
+          candidateId: input.candidateId,
+          error: errorDetails 
+        }));
 
         if (this.config.shouldFallbackToMock('cv-parser')) {
+          this.logger.log(`Falling back to mock CV parse for resume ${input.resumeId}`);
           parsed = this.getMockParsed(provider, input.objectKey);
           provider = 'cv-parser-mock';
         } else {
@@ -54,6 +65,7 @@ export class CvParserGateway {
         }
       }
     } else {
+      this.logger.log(`Mock CV parse triggered for resume ${input.resumeId}`);
       parsed = this.getMockParsed(provider, input.objectKey);
     }
 

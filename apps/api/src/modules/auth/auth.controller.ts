@@ -107,4 +107,9 @@ export class AuthController {
     }
     return { ok: true };
   }
+
+  @Post('register')
+  register(@Body() body: { agencyName: string; email: string; primaryColor?: string; publicName?: string; plan?: string }) {
+    return this.authService.workspaceSignup(body);
+  }
 }

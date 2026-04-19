@@ -30,6 +30,7 @@ import { CommunicationCenterModule } from './modules/communication-center/commun
 import { ExecutiveDashboardModule } from './modules/executive-dashboard/executive-dashboard.module.js';
 import { UserManagementModule } from './modules/user-management/user-management.module.js';
 import { ClientCommentsModule } from './modules/client-comments/client-comments.module.js';
+import { BillingModule } from './modules/billing/billing.module.js';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { ClientCommentsModule } from './modules/client-comments/client-comments.
     CommunicationCenterModule,
     ExecutiveDashboardModule,
     UserManagementModule,
+    BillingModule,
   ],
   controllers: [HealthController],
 })

@@ -154,6 +154,30 @@ export function VacanciesView() {
     }
   };
 
+  const handleVerify = async (id: string) => {
+    try {
+      await apiPost(`/vacancies/${id}/verify`, {});
+      setMsg('Vaga verificada com sucesso! Agora ela está visível para candidatos.');
+      setMsgVariant('success');
+      await load();
+    } catch (err) {
+      setMsg('Erro ao verificar: ' + String(err));
+      setMsgVariant('error');
+    }
+  };
+
+  const handleGenerateReviewLink = async (vacancyId: string) => {
+    try {
+      const { url } = await apiPost<{ url: string }>('/shortlist/review-link', { vacancyId });
+      await navigator.clipboard.writeText(url);
+      setMsg('Link de revisão para o cliente copiado para a área de transferência!');
+      setMsgVariant('success');
+    } catch (err) {
+      setMsg('Erro ao gerar link de revisão. Certifique-se de que existem candidatos na shortlist.');
+      setMsgVariant('error');
+    }
+  };
+  
   const executeStatusAction = async (vacancyId: string, action: string) => {
     try {
       const patchData: Record<string, any> = {};
@@ -185,6 +209,28 @@ export function VacanciesView() {
       />
 
       {msg && <InlineMessage variant={msgVariant} onDismiss={() => setMsg('')}>{msg}</InlineMessage>}
+
+      {/* Verification Banner - High Visibility for Headhunters */}
+      {vacancies.some(v => v.isVerified === false) && (
+        <InlineMessage 
+          variant="warning" 
+          style={{ 
+            marginBottom: spacing.lg, 
+            padding: spacing.md, 
+            borderRadius: radius.xl,
+            background: 'linear-gradient(90deg, #fffbeb, #fff7ed)',
+            border: `1px solid ${colors.warningLight}`
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, width: '100%' }}>
+            <span style={{ fontSize: 24 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ display: 'block', fontSize: fontSize.md }}>Vagas pendentes de revisão</strong>
+              <span style={{ fontSize: fontSize.sm, opacity: 0.8 }}>Algumas vagas foram geradas por IA e precisam da sua validação humanizada antes de serem consideradas 100% ativas para o cliente.</span>
+            </div>
+          </div>
+        </InlineMessage>
+      )}
 
       {/* Stats Premium */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.md, marginBottom: spacing.xl }}>
@@ -249,15 +295,20 @@ export function VacanciesView() {
                 };
                 const variant = colorsMap[v.status ?? ''] || 'info';
                 const label = labelsMap[v.status ?? ''] || v.status;
+                const isVerified = v.isVerified !== false;
+
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                     <div style={{ 
                       width: 8, height: 8, borderRadius: '50%', 
-                      background: v.status === 'active' ? colors.success : colors.textMuted,
-                      boxShadow: v.status === 'active' ? `0 0 10px ${colors.success}88` : 'none'
+                      background: v.status === 'active' ? (isVerified ? colors.success : colors.warning) : colors.textMuted,
+                      boxShadow: v.status === 'active' ? `0 0 10px ${isVerified ? colors.success : colors.warning}88` : 'none'
                     }} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <Badge variant={variant} style={{ textTransform: 'capitalize', fontWeight: fontWeight.bold }}>{label}</Badge>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Badge variant={variant} style={{ textTransform: 'capitalize', fontWeight: fontWeight.bold }}>{label}</Badge>
+                        {!isVerified && <Badge variant="warning" style={{ fontSize: 9 }}>REVISÃO IA</Badge>}
+                      </div>
                       {v.publicationType === 'public' ? (
                         <span style={{ fontSize: 10, color: colors.successDark, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>🌐 Pública</span>
                       ) : (
@@ -282,6 +333,9 @@ export function VacanciesView() {
                 };
                 return (
                   <div style={{ display: 'flex', gap: spacing.xs }}>
+                    <Button variant="outline" size="xs" onClick={() => handleGenerateReviewLink(v.id)}>
+                      🔗 Link de Revisão
+                    </Button>
                     {isPublic && (
                       <>
                         <Button size="sm" variant="ghost" onClick={copyLink} title="Copiar Link Público">🔗</Button>
@@ -289,6 +343,9 @@ export function VacanciesView() {
                       </>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => setPreviewVacancy(v)} title="Preview Interno">👁️</Button>
+                    {v.isVerified === false && (
+                      <Button size="sm" onClick={() => handleVerify(v.id)} title="Verificar Vaga">✅</Button>
+                    )}
                     <Button size="sm" variant="outline" onClick={() => { setEditingVacancy(v); setShowWizard(true); }} title="Editar Vaga">✏️</Button>
                     {v.status === 'active' ? (
                       <Button size="sm" variant="ghost" onClick={() => executeStatusAction(v.id, 'close')} title="Encerrar Vaga">🚫</Button>

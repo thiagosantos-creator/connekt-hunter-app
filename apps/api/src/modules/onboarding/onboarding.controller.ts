@@ -30,6 +30,11 @@ export class OnboardingController {
     return this.onboardingService.completeResume(body.token, body.resumeId, body.filename);
   }
 
+  @Post('profile/sync')
+  syncProfile(@Body() body: { token: string; data: any }) {
+    return this.onboardingService.saveParsedProfile(body.token, body.data);
+  }
+
   @Post('preferences')
   savePreferences(
     @Body()

@@ -15,6 +15,12 @@ export function resolveNextOnboardingStep(
     if (!basic?.completed) return '/onboarding/basic';
     if (!consent?.completed) return '/onboarding/consent';
     if (!resume?.completed) return '/onboarding/resume';
+    
+    // New Step: Review Parsed Profile
+    // We send them to review after resume upload, before preferences.
+    // If preferences are not done yet, they should go through review.
+    if (!preferences?.completed) return '/onboarding/review';
+    
     if (!preferences?.completed) return '/onboarding/preferences';
     if (!introVideo?.completed) return '/onboarding/intro-video';
     return '/status';

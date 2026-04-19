@@ -58,7 +58,7 @@ export class AiGateway {
   }
 
   private get modelVersion(): string {
-    return this.isReal ? (process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini') : 'mock-v1';
+    return this.isReal ? (process.env.AI_MODEL_VERSION ?? 'gpt-4o-mini') : 'mock-v1';
   }
 
   private safeJson(obj: unknown) {

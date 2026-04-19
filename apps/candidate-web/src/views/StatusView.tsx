@@ -3,21 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { apiGet, apiPost, getToken } from '../services/api.js';
 import type { CandidateInfo } from '../services/types.js';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  InlineMessage,
-  Input,
-  Badge,
-  colors,
-  fontSize,
-  fontWeight,
   spacing,
   radius,
   shadows,
+  zIndex,
+  TenantBrandingProvider,
+  colors,
+  fontSize,
+  fontWeight,
+  Button,
+  InlineMessage,
+  Card,
+  CardHeader,
+  CardContent,
+  Badge,
 } from '@connekt/ui';
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -32,7 +31,7 @@ interface CandidateStatus {
   candidateId: string;
   fullName: string | null;
   email: string;
-  vacancy: { id: string; title: string; location?: string } | null;
+  vacancy: { id: string; title: string; location?: string; organization?: { tenantSettings?: { primaryColor?: string; secondaryColor?: string; logoUrl?: string } } } | null;
   onboardingStatus: string;
   steps: StatusStep[];
   interview: { id: string; status: string } | null;
@@ -385,13 +384,20 @@ export function StatusView() {
     </button>
   );
 
+  const tenantSettings = candidateStatus?.vacancy?.organization?.tenantSettings;
+
   return (
-    <div style={{ maxWidth: 620, margin: '32px auto', padding: `0 ${spacing.md}px`, display: 'grid', gap: spacing.md }}>
+    <TenantBrandingProvider
+      primaryColor={tenantSettings?.primaryColor}
+      secondaryColor={tenantSettings?.secondaryColor}
+      logoUrl={tenantSettings?.logoUrl}
+    >
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: `${spacing.xl}px ${spacing.md}px 100px`, display: 'grid', gap: spacing.md }}>
 
       {/* ── Hero card ─────────────────────────────────────────────────── */}
       <div style={{
-        background: `linear-gradient(135deg, ${colors.primary} 0%, rgba(20,20,30,0.9) 100%)`,
-        borderRadius: radius.xl, padding: spacing.xl, color: colors.textInverse, boxShadow: `0 12px 32px ${colors.primary}30`, position: 'relative', overflow: 'hidden',
+        background: `linear-gradient(135deg, var(--brand-primary, ${colors.primary}) 0%, rgba(20,20,30,0.9) 100%)`,
+        borderRadius: radius.xl, padding: spacing.xl, color: colors.textInverse, boxShadow: `0 12px 32px var(--brand-primary-faint, ${colors.primary}30)`, position: 'relative', overflow: 'hidden',
       }}>
         {/* Background decoration */}
         <div style={{ position: 'absolute', top: -60, right: -40, width: 240, height: 240, borderRadius: '50%', background: `radial-gradient(circle, ${colors.accent}40 0%, transparent 70%)` }} />
@@ -441,7 +447,7 @@ export function StatusView() {
               <div style={{ height: 8, borderRadius: radius.full, background: 'rgba(0,0,0,0.3)', overflow: 'hidden', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.5)' }}>
                 <div style={{ 
                   height: '100%', width: `${progressPct}%`, borderRadius: radius.full, 
-                  background: progressPct === 100 ? '#10b981' : `linear-gradient(90deg, ${colors.primaryLight}, ${colors.accent})`, 
+                  background: progressPct === 100 ? '#10b981' : `linear-gradient(90deg, var(--brand-primary, ${colors.primaryLight}), ${colors.accent})`, 
                   transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
                   boxShadow: `0 0 10px ${progressPct === 100 ? '#10b981' : colors.accent}80`
                 }} />
@@ -837,6 +843,6 @@ export function StatusView() {
           100% { transform: rotate(0deg); }
         }
       `}</style>
-    </div>
+    </TenantBrandingProvider>
   );
 }

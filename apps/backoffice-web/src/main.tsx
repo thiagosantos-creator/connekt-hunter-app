@@ -23,6 +23,8 @@ import { InboxView } from './views/InboxView.js';
 import { EnterpriseGovernanceView } from './views/EnterpriseGovernanceView.js';
 import { CandidateDossierView } from './views/CandidateDossierView.js';
 import { PublicClientReviewView } from './views/PublicClientReviewView.js';
+import { SaasLanding } from './views/SaasLanding.js';
+import { WorkspaceSetupView } from './views/WorkspaceSetupView.js';
 
 function App() {
   const { user } = useAuth();
@@ -38,6 +40,8 @@ function App() {
       <GlobalStyles />
       {user && <NavBar />}
       <Routes>
+        <Route path="/" element={<SaasLanding />} />
+        <Route path="/onboarding" element={<WorkspaceSetupView />} />
         <Route path="/login" element={<LoginView />} />
         <Route path="/dashboard" element={<ProtectedRoute><HomeView /></ProtectedRoute>} />
         <Route path="/vacancies" element={<ProtectedRoute><VacanciesView /></ProtectedRoute>} />

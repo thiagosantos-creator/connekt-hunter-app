@@ -18,7 +18,7 @@ describe('vertical slice 18 - AWS Transcribe, Comprehend & OpenAI real provider 
         featureFlag: 'FF_AI_REAL',
         realProvider: 'OpenAI',
         modelVersionEnv: 'AI_MODEL_VERSION',
-        defaultModel: 'gpt-4.1-mini',
+        defaultModel: 'gpt-4o-mini',
         auditLogging: 'aiExecutionLog',
       };
 

@@ -89,4 +89,10 @@ export class VacanciesController {
   }) {
     return this.vacanciesService.generateAssistiveContent(body);
   }
+
+  @Post(':vacancyId/verify')
+  @RequirePermissions('vacancies:write')
+  verify(@Param('vacancyId') vacancyId: string, @CurrentUser() user: AuthUser) {
+    return this.vacanciesService.verify(vacancyId, user.id);
+  }
 }

@@ -105,6 +105,7 @@ model Vacancy {
   riskEvaluations RiskEvaluation[]
   templates       VacancyTemplate[]
   candidateInvites CandidateInvite[]
+  isVerified     Boolean       @default(true)
   clientReviewSessions ClientReviewSession[]
 }
 

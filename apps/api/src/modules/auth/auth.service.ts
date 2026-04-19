@@ -227,4 +227,65 @@ export class AuthService {
         : null,
     };
   }
+
+  /**
+   * SaaS MVP: Creates a new organization, an admin user, and links them.
+   * This is used by the self-service onboarding flow.
+   */
+  async workspaceSignup(data: { agencyName: string; email: string; primaryColor?: string; publicName?: string; plan?: string }) {
+    // 1. Create User (or find if exists - in dev mode we assume new)
+    const user = await prisma.user.upsert({
+      where: { email: data.email },
+      update: { name: data.agencyName, role: 'headhunter' },
+      create: { email: data.email, name: data.agencyName, role: 'headhunter' },
+    });
+
+    // 2. Create Organization
+    const org = await prisma.organization.create({
+      data: {
+        name: data.agencyName,
+        status: 'active',
+        ownerAdminUserId: user.id,
+      },
+    });
+
+    // 3. Link User to Org
+    await prisma.membership.create({
+      data: {
+        organizationId: org.id,
+        userId: user.id,
+        role: 'admin',
+      },
+    });
+
+    // 4. Create Tenant Settings (Branding)
+    await prisma.tenantSettings.create({
+      data: {
+        organizationId: org.id,
+        primaryColor: data.primaryColor || '#0F62FE',
+        publicName: data.publicName || data.agencyName,
+        planSegment: data.plan || 'pro',
+        timezone: 'America/Sao_Paulo',
+        operationalCalendar: 'business-days',
+      },
+    });
+
+    // 5. Create Tenant Policy
+    await prisma.tenantPolicy.create({
+      data: { organizationId: org.id },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId: user.id,
+        action: 'saas.workspace.onboarded',
+        entityType: 'organization',
+        entityId: org.id,
+        metadata: { plan: data.plan, email: data.email } as never,
+      },
+    });
+
+    // Return login result
+    return this.login(data.email);
+  }
 }

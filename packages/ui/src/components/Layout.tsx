@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { colors, radius, spacing, fontSize, fontWeight, shadows, zIndex } from '../tokens/tokens.js';
 
 /* -------------------------------------------------------------------------- */
@@ -293,6 +293,9 @@ export function Tabs({ tabs, active, onChange }: { tabs: Tab[]; active: string; 
   );
 }
 
+  );
+}
+
 /** Step indicator with timeline visual */
 export function StepTimeline({ steps, current }: { steps: string[]; current: number }) {
   return (
@@ -313,9 +316,9 @@ export function StepTimeline({ steps, current }: { steps: string[]; current: num
                   justifyContent: 'center',
                   fontSize: fontSize.sm,
                   fontWeight: fontWeight.semibold,
-                  background: isDone ? colors.success : isActive ? colors.accent : colors.surfaceAlt,
+                  background: isDone ? colors.success : isActive ? 'var(--brand-primary, ' + colors.accent + ')' : colors.surfaceAlt,
                   color: isDone || isActive ? colors.textInverse : colors.textMuted,
-                  border: `2px solid ${isDone ? colors.success : isActive ? colors.accent : colors.border}`,
+                  border: `2px solid ${isDone ? colors.success : isActive ? 'var(--brand-primary, ' + colors.accent + ')' : colors.border}`,
                   transition: 'all 0.2s',
                 }}
               >
@@ -333,6 +336,31 @@ export function StepTimeline({ steps, current }: { steps: string[]; current: num
       })}
     </div>
   );
+}
+
+/** Dynamic Branding Provider */
+export interface TenantBrandingProps {
+  primaryColor?: string | null;
+  secondaryColor?: string | null;
+  logoUrl?: string | null;
+  children: React.ReactNode;
+}
+
+export function TenantBrandingProvider({ primaryColor, secondaryColor, logoUrl, children }: TenantBrandingProps) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (primaryColor) root.style.setProperty('--brand-primary', primaryColor);
+    if (secondaryColor) root.style.setProperty('--brand-secondary', secondaryColor);
+    if (logoUrl) root.style.setProperty('--brand-logo', `url(${logoUrl})`);
+    
+    return () => {
+      root.style.removeProperty('--brand-primary');
+      root.style.removeProperty('--brand-secondary');
+      root.style.removeProperty('--brand-logo');
+    };
+  }, [primaryColor, secondaryColor, logoUrl]);
+
+  return <>{children}</>;
 }
 
 /** Global CSS injection (call once at root) */
@@ -363,15 +391,22 @@ export function GlobalStyles() {
         color: ${colors.text};
         background: ${colors.surfaceAlt};
         background-image: 
-          radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0, transparent 45%),
-          radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.08) 0, transparent 45%),
-          radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.05) 0, transparent 45%),
-          radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.05) 0, transparent 45%);
+          radial-gradient(at 0% 0%, var(--brand-primary-faint, rgba(59, 130, 246, 0.08)) 0, transparent 45%),
+          radial-gradient(at 100% 0%, var(--brand-secondary-faint, rgba(6, 182, 212, 0.08)) 0, transparent 45%),
+          radial-gradient(at 100% 100%, var(--brand-primary-faint, rgba(59, 130, 246, 0.05)) 0, transparent 45%),
+          radial-gradient(at 0% 100%, var(--brand-secondary-faint, rgba(6, 182, 212, 0.05)) 0, transparent 45%);
         background-attachment: fixed;
         background-size: 200% 200%;
         animation: meshMove 15s ease infinite;
         -webkit-font-smoothing: antialiased;
         line-height: 1.6;
+      }
+
+      :root {
+        --brand-primary: ${colors.accent};
+        --brand-secondary: ${colors.info};
+        --brand-primary-faint: rgba(59, 130, 246, 0.08);
+        --brand-secondary-faint: rgba(6, 182, 212, 0.08);
       }
 
       ::-webkit-scrollbar { width: 6px; height: 6px; }

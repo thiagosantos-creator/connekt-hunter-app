@@ -13,12 +13,14 @@ import {
   InlineMessage,
   Input,
   Spinner,
-  spacing,
   colors,
-  radius,
   fontSize,
   fontWeight,
+  spacing,
+  radius,
   shadows,
+  zIndex,
+  TenantBrandingProvider,
 } from '@connekt/ui';
 
 function getLuminance(hex: string): number {
@@ -91,12 +93,6 @@ export function VacancyLandingView() {
 
   const primaryColor = safeColor(vacancy?.organization.primaryColor, colors.surface, colors.primary);
   const secondaryColor = vacancy?.organization.secondaryColor || colors.surfaceAlt;
-  const salaryLabel = useMemo(() => {
-    if (!vacancy?.salaryMin && !vacancy?.salaryMax) return 'A combinar';
-    const min = vacancy.salaryMin ? `R$ ${vacancy.salaryMin.toLocaleString('pt-BR')}` : '-';
-    const max = vacancy.salaryMax ? `R$ ${vacancy.salaryMax.toLocaleString('pt-BR')}` : '-';
-    return `${min} até ${max}`;
-  }, [vacancy]);
 
   const continueToPortal = () => {
     const normalized = token.trim();
@@ -183,13 +179,21 @@ export function VacancyLandingView() {
     );
   }
 
+  const tenantSettings = vacancy?.organization?.tenantSettings;
+
   return (
-    <div className="fade-up" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', paddingBottom: spacing.xxl * 2 }}>
+    <TenantBrandingProvider
+      primaryColor={tenantSettings?.primaryColor}
+      secondaryColor={tenantSettings?.secondaryColor}
+      logoUrl={tenantSettings?.logoUrl}
+    >
+      <div style={{ background: colors.surface, minHeight: '100vh' }}>
+      <div className="fade-up" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', paddingBottom: spacing.xxl * 2 }}>
       {/* Dynamic Background */}
       <div style={{
         position: 'absolute',
         top: 0, left: 0, right: 0, height: '45vh',
-        background: `linear-gradient(135deg, ${primaryColor}22 0%, ${secondaryColor}11 100%)`,
+        background: `linear-gradient(135deg, var(--brand-primary-faint, ${primaryColor}22) 0%, var(--brand-secondary-faint, ${secondaryColor}11) 100%)`,
         zIndex: -2,
       }} />
       <div style={{
@@ -246,7 +250,7 @@ export function VacancyLandingView() {
           </h1>
           <p style={{
             fontSize: fontSize.xl,
-            color: primaryColor,
+            color: 'var(--brand-primary, ' + primaryColor + ')',
             marginTop: spacing.sm,
             fontWeight: fontWeight.bold,
             letterSpacing: '-0.3px'
@@ -412,22 +416,7 @@ export function VacancyLandingView() {
                   </div>
                 )}
                 
-                <Button 
-                  type="submit" 
-                  size="xl" 
-                  loading={applying} 
-                  style={{ 
-                    marginTop: spacing.md, 
-                    fontWeight: 800, 
-                    letterSpacing: '0.5px',
-                    background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-                    border: 'none',
-                    boxShadow: `0 8px 20px ${primaryColor}40`,
-                    transition: 'transform 0.2s, box-shadow 0.2s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
-                >
+                <Button type="submit" size="lg" disabled={applying} style={{ background: primaryColor, color: '#fff', marginTop: spacing.sm }}>
                   {applying ? 'Processando...' : 'INICIAR INSCRIÇÃO'}
                 </Button>
                 
@@ -466,8 +455,8 @@ export function VacancyLandingView() {
             )}
           </div>
 
-        </div>
       </div>
-    </div>
+      </div>
+    </TenantBrandingProvider>
   );
 }

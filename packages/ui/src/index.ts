@@ -42,6 +42,7 @@ export {
   Toast,
   Tabs,
   StepTimeline,
+  TenantBrandingProvider,
   GlobalStyles,
 } from './components/Layout.js';
 export type { PageHeaderProps, MessageVariant, ToastItem, Tab } from './components/Layout.js';

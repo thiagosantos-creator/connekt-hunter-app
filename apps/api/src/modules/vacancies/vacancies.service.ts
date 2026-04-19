@@ -76,6 +76,7 @@ export class VacanciesService {
       data: {
         ...data,
         publicationType,
+        isVerified: publicationType === 'public' ? true : false,
         status: data.status ?? 'active',
         sector: data.sector ?? data.department,
         requiredSkills: data.requiredSkills ?? [],
@@ -218,6 +219,32 @@ export class VacanciesService {
 
     return this.enrichWithPublicationStatus(updated);
   }
+  
+  async verify(vacancyId: string, actorId: string) {
+    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
+    if (!vacancy) throw new NotFoundException('vacancy_not_found');
+
+    const canAccess = await canAccessOrganization(vacancy.organizationId, actorId);
+    if (!canAccess) throw new ForbiddenException('user_not_member_of_org');
+
+    const updated = await prisma.vacancy.update({
+      where: { id: vacancyId },
+      data: { isVerified: true },
+      include: { organization: true },
+    });
+
+    await prisma.auditEvent.create({
+      data: {
+        actorId,
+        action: 'vacancy.verified',
+        entityType: 'Vacancy',
+        entityId: vacancyId,
+        metadata: { title: vacancy.title } as never,
+      },
+    });
+
+    return this.enrichWithPublicationStatus(updated);
+  }
 
   private enrichWithPublicationStatus(vacancy: VacancyRecord) {
     const publicationMissingFields = this.getPublicationMissingFields({
@@ -283,7 +310,7 @@ export class VacanciesService {
       createdBy: vacancy.createdBy,
     });
 
-    if (vacancy.publicationType !== 'public' || vacancy.status !== 'active' || publicationMissingFields.length > 0) {
+    if (vacancy.publicationType !== 'public' || vacancy.status !== 'active' || !vacancy.isVerified || publicationMissingFields.length > 0) {
       throw new NotFoundException('vacancy_not_public');
     }
 

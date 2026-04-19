@@ -1,20 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
-  Badge,
-  Button,
-  CandidateDossier,
-  EmptyState,
-  InlineMessage,
-  PageContent,
-  TableSkeleton,
-  colors,
-  fontSize,
-  fontWeight,
-  radius,
-  shadows,
   spacing,
   zIndex,
+  TenantBrandingProvider,
 } from '@connekt/ui';
 import { apiPublicGet, apiPublicPost } from '../services/api.js';
 import type { PublicReviewShortlistItem } from '../services/types.js';
@@ -134,11 +123,23 @@ export function PublicClientReviewView() {
     );
   }
 
+    );
+  }
+
+  const currentIndex = items.findIndex(i => i.applicationId === selectedAppId);
+  const nextItem = items[currentIndex + 1];
+  const prevItem = items[currentIndex - 1];
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <TenantBrandingProvider
+      primaryColor={tenantSettings?.primaryColor}
+      secondaryColor={tenantSettings?.secondaryColor}
+      logoUrl={tenantSettings?.logoUrl}
+    >
+      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Brand header */}
       <header style={{
-        background: brandPrimary,
+        background: 'var(--brand-primary, ' + brandPrimary + ')',
         color: colors.textInverse,
         padding: `${spacing.sm}px ${spacing.xl}px`,
         display: 'flex',
@@ -197,8 +198,8 @@ export function PublicClientReviewView() {
                     padding: spacing.md,
                     borderRadius: radius.lg,
                     cursor: 'pointer',
-                    background: isActive ? colors.primaryLight : 'transparent',
-                    border: `1px solid ${isActive ? brandPrimary : 'transparent'}`,
+                    background: isActive ? 'var(--brand-primary-faint, ' + colors.primaryLight + ')' : 'transparent',
+                    border: `1px solid ${isActive ? 'var(--brand-primary, ' + brandPrimary + ')' : 'transparent'}`,
                     marginBottom: spacing.xs,
                     transition: 'all 0.2s',
                     position: 'relative',
@@ -266,12 +267,40 @@ export function PublicClientReviewView() {
                         Decisão para {selectedItem?.candidate.fullName}:
                        </div>
                        {selectedItem?.currentDecision && (
-                         <Badge variant={decisionMeta[selectedItem.currentDecision as DecisionKind].badge}>
-                           {decisionMeta[selectedItem.currentDecision as DecisionKind].icon} {decisionMeta[selectedItem.currentDecision as DecisionKind].label}
-                         </Badge>
+                         <div className="fade-up" style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                           <Badge variant={decisionMeta[selectedItem.currentDecision as DecisionKind].badge}>
+                             {decisionMeta[selectedItem.currentDecision as DecisionKind].icon} {decisionMeta[selectedItem.currentDecision as DecisionKind].label}
+                           </Badge>
+                           <span style={{ fontSize: 12, color: colors.success }}>✓ Decidido</span>
+                         </div>
                        )}
                     </div>
-                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                    
+                    <div style={{ display: 'flex', gap: spacing.lg, alignItems: 'center' }}>
+                      {/* Carousel Controls */}
+                      <div style={{ display: 'flex', gap: 2, background: colors.surfaceAlt, padding: 2, borderRadius: radius.md, border: `1px solid ${colors.borderLight}` }}>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          disabled={!prevItem} 
+                          onClick={() => prevItem && setSelectedAppId(prevItem.applicationId)}
+                          style={{ padding: '4px 8px' }}
+                        >
+                          ←
+                        </Button>
+                        <div style={{ width: 1, background: colors.borderLight }} />
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          disabled={!nextItem} 
+                          onClick={() => nextItem && setSelectedAppId(nextItem.applicationId)}
+                          style={{ padding: '4px 8px' }}
+                        >
+                          →
+                        </Button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: spacing.sm }}>
                       {decisionOrder.map((kind) => {
                         const meta = decisionMeta[kind];
                         const isCurrent = selectedItem?.currentDecision === kind;
@@ -338,6 +367,6 @@ export function PublicClientReviewView() {
           </div>
         </div>
       )}
-    </div>
+    </TenantBrandingProvider>
   );
 }

@@ -28,7 +28,7 @@ export class OpenAiProvider {
   }
 
   get modelVersion(): string {
-    return process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini';
+    return process.env.AI_MODEL_VERSION ?? 'gpt-4o-mini';
   }
 
   async generateInterviewQuestions(input: {
@@ -585,6 +585,9 @@ Seja atrativo, claro e direto ao ponto. Use a língua portuguesa do Brasil.`,
     languages: Array<{ name: string; level: string; confidence: number }>;
     location: { city?: string; state?: string; country?: string; confidence: number };
     summary: string;
+    fullName?: string;
+    phone?: string;
+    keywords: string[];
   }> {
     const response = await this.getClient().chat.completions.create({
       model: this.modelVersion,
@@ -593,17 +596,25 @@ Seja atrativo, claro e direto ao ponto. Use a língua portuguesa do Brasil.`,
       messages: [
         {
           role: 'system',
-          content: `Você é um parser especializado em currículos. Extraia informações estruturadas do currículo abaixo.
-Retorne EXCLUSIVAMENTE um JSON:
+          content: `Você é um parser especializado em currículos profissionais. Sua tarefa é extrair e estruturar informações de currículos técnicos e executivos.
+Retorne EXCLUSIVAMENTE um JSON válido no formato abaixo:
 {
-  "experience": [{"company": "nome", "role": "cargo", "period": "período", "confidence": 0.0-1.0}],
-  "education": [{"institution": "nome", "degree": "grau", "field": "área", "confidence": 0.0-1.0}],
-  "skills": [{"name": "habilidade", "level": "junior|mid|senior|expert", "confidence": 0.0-1.0}],
+  "fullName": "nome completo do candidato",
+  "phone": "telefone de contato",
+  "experience": [{"company": "nome da empresa", "role": "cargo", "period": "período (ex: Jan 2020 - Jan 2022 ou Atual)", "confidence": 0.0-1.0}],
+  "education": [{"institution": "nome da instituição", "degree": "grau (ex: Bacharelado, Mestrado)", "field": "área de estudo", "confidence": 0.0-1.0}],
+  "skills": [{"name": "nome da habilidade", "level": "junior|mid|senior|expert", "confidence": 0.0-1.0}],
   "languages": [{"name": "idioma", "level": "Nativo|Fluente|Avançado|Intermediário|Básico", "confidence": 0.0-1.0}],
   "location": {"city": "cidade", "state": "estado", "country": "país", "confidence": 0.0-1.0},
-  "summary": "resumo profissional em 2-3 frases"
+  "summary": "resumo profissional em 2-3 frases, focado em conquistas e perfil técnico",
+  "keywords": ["tag1", "tag2", "tag3"]
 }
-Seja preciso com os dados extraídos. Atribua confidence menor quando a informação for ambígua.`,
+Regras:
+1. Extraia o máximo de detalhes possível, mas mantenha a fidelidade ao texto original.
+2. Identifique o nível das habilidades (skills) com base no contexto das experiências.
+3. Se uma informação não for encontrada, retorne null ou array vazio conforme apropriado.
+4. "keywords" devem ser termos curtos que resumem a stack tecnológica ou áreas de domínio.
+5. Atribua confidence menor (ex: 0.4-0.6) quando a extração for baseada em inferência ou texto ambíguo.`,
         },
         {
           role: 'user',
@@ -614,6 +625,8 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
 
     const content = response.choices[0]?.message?.content ?? '{}';
     const parsed = safeJsonParse<{
+      fullName?: string;
+      phone?: string;
       experience?: Array<{
         company?: string;
         role?: string;
@@ -635,6 +648,7 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
         confidence?: number;
       };
       summary?: string;
+      keywords?: string[];
     }>(content, {}, this.logger, 'parseResume');
 
     this.logger.log(
@@ -647,6 +661,8 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
     );
 
     return {
+      fullName: parsed.fullName,
+      phone: parsed.phone,
       experience: (parsed.experience ?? []).map((e) => ({
         company: e.company ?? '',
         role: e.role ?? '',
@@ -676,6 +692,7 @@ Seja preciso com os dados extraídos. Atribua confidence menor quando a informa�
         confidence: parsed.location?.confidence ?? 0.5,
       },
       summary: parsed.summary ?? '',
+      keywords: parsed.keywords ?? [],
     };
   }
 

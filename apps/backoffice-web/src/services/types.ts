@@ -43,6 +43,7 @@ export interface Vacancy {
   desiredSkills?: string[];
   salaryMin?: number;
   salaryMax?: number;
+  isVerified?: boolean;
   organization?: { id: string; name?: string };
   publicationReady?: boolean;
   publicationMissingFields?: string[];

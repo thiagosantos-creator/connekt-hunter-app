@@ -41,7 +41,7 @@ function getOpenAiClient(): OpenAI | null {
 }
 
 function getModelVersion(): string {
-  return process.env.AI_MODEL_VERSION ?? 'gpt-4.1-mini';
+  return process.env.AI_MODEL_VERSION ?? 'gpt-4o-mini';
 }
 
 function safeJsonParse<T = unknown>(json: string, fallback: T, context: string): T {
@@ -300,17 +300,21 @@ export async function processResumeUploads(): Promise<number> {
               messages: [
                 {
                   role: 'system',
-                  content: `Você é um parser especializado em currículos. Extraia informações estruturadas do currículo abaixo.
-Retorne EXCLUSIVAMENTE um JSON:
+                  content: `Você é um parser especializado em currículos profissionais. Sua tarefa é extrair e estruturar informações de currículos técnicos e executivos.
+Retorne EXCLUSIVAMENTE um JSON válido no formato abaixo:
 {
-  "experience": [{"company": "nome", "role": "cargo", "period": "período", "confidence": 0.0-1.0}],
-  "education": [{"institution": "nome", "degree": "grau", "field": "área", "confidence": 0.0-1.0}],
-  "skills": [{"name": "habilidade", "level": "junior|mid|senior|expert", "confidence": 0.0-1.0}],
+  "experience": [{"company": "nome da empresa", "role": "cargo", "period": "período (ex: Jan 2020 - Jan 2022 ou Atual)", "confidence": 0.0-1.0}],
+  "education": [{"institution": "nome da instituição", "degree": "grau (ex: Bacharelado, Mestrado)", "field": "área de estudo", "confidence": 0.0-1.0}],
+  "skills": [{"name": "nome da habilidade", "level": "junior|mid|senior|expert", "confidence": 0.0-1.0}],
   "languages": [{"name": "idioma", "level": "Nativo|Fluente|Avançado|Intermediário|Básico", "confidence": 0.0-1.0}],
   "location": {"city": "cidade", "state": "estado", "country": "país", "confidence": 0.0-1.0},
-  "summary": "resumo profissional em 2-3 frases"
+  "summary": "resumo profissional em 2-3 frases, focado em conquistas e perfil técnico"
 }
-Seja preciso com os dados extraídos. Atribua confidence menor quando a informação for ambígua.`,
+Regras:
+1. Extraia o máximo de detalhes possível, mas mantenha a fidelidade ao texto original.
+2. Identifique o nível das habilidades (skills) com base no contexto das experiências.
+3. Se uma informação não for encontrada, retorne null ou array vazio conforme apropriado.
+4. Atribua confidence menor (ex: 0.4-0.6) quando a extração for baseada em inferência ou texto ambíguo.`,
                 },
                 {
                   role: 'user',
@@ -407,6 +411,12 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
         throw new Error(`[candidate.intro-video-uploaded] intro video not found for candidateId=${payload.candidateId} eventId=${evt.id}`);
       }
 
+      // Update status to processing
+      await prisma.candidateProfile.update({
+        where: { candidateId: payload.candidateId },
+        data: { introVideoAnalysisStatus: 'processing' },
+      });
+
       const latestApplication = candidate.applications[0];
       const resumeParsed = candidate.onboarding?.resumes[0]?.parseResult?.parsedJson as
         | { summary?: string; experience?: Array<{ role?: string }>; skills?: Array<string | { name?: string }> }
@@ -435,6 +445,8 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
           const mediaFormat = detectMediaFormat(candidate.profile.introVideoKey);
           const transcribeClient = new TranscribeClient({ region });
 
+          console.log(`[worker] Starting Transcribe job=${jobName} bucket=${bucket} region=${region} format=${mediaFormat}`);
+
           await transcribeClient.send(new StartTranscriptionJobCommand({
             TranscriptionJobName: jobName,
             LanguageCode: 'pt-BR' as TranscribeLanguageCode,
@@ -451,32 +463,59 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
             const result = await transcribeClient.send(new GetTranscriptionJobCommand({ TranscriptionJobName: jobName }));
             const job = result.TranscriptionJob;
             jobStatus = job?.TranscriptionJobStatus ?? 'FAILED';
+            
             if (jobStatus === 'COMPLETED') {
               transcriptUri = job?.Transcript?.TranscriptFileUri ?? '';
               transcriptLanguage = job?.LanguageCode ?? 'pt-BR';
+              console.log(`[worker] Transcribe job=${jobName} COMPLETED. transcriptUri=${transcriptUri}`);
               break;
             }
             if (jobStatus === 'FAILED') {
-              throw new Error(`Transcribe job failed: ${job?.FailureReason ?? 'unknown'}`);
+              const reason = job?.FailureReason ?? 'unknown';
+              console.error(`[worker] Transcribe job=${jobName} FAILED. Reason: ${reason}`);
+              throw new Error(`Transcribe job failed: ${reason}`);
             }
           }
 
           if (jobStatus !== 'COMPLETED') {
-            throw new Error('Transcribe job timed out after 60 polling attempts');
+            throw new Error(`Transcribe job=${jobName} timed out after 60 polling attempts`);
           }
 
           if (transcriptUri) {
             const transcriptKey = `transcriptions/${jobName}.json`;
-            const transcriptRaw = await downloadS3Object(bucket, transcriptKey, region);
-            if (!transcriptRaw) {
-              throw new Error(`Failed to download transcript from S3: bucket=${bucket} key=${transcriptKey}`);
+            let transcriptRaw: string | null = null;
+            
+            try {
+              transcriptRaw = await downloadS3Object(bucket, transcriptKey, region);
+            } catch (dlErr) {
+              console.warn(`[worker] S3 download failed for ${transcriptKey}, trying fetch from URI. Error: ${dlErr}`);
+              const resp = await fetch(transcriptUri);
+              if (resp.ok) {
+                transcriptRaw = await resp.text();
+              }
             }
+
+            if (!transcriptRaw) {
+              throw new Error(`Failed to download transcript from S3 or URI: bucket=${bucket} key=${transcriptKey}`);
+            }
+
             const data = JSON.parse(transcriptRaw) as { results?: { transcripts?: Array<{ transcript?: string }> } };
             transcriptContent = data.results?.transcripts?.map((item) => item.transcript).join(' ') ?? transcriptContent;
             transcriptProvider = 'aws-transcribe';
           }
         } catch (err) {
-          console.error(JSON.stringify({ source: 'worker', event: 'candidate_intro_video_transcription_failed', candidateId: payload.candidateId, error: String(err) }));
+          console.error(JSON.stringify({ 
+            source: 'worker', 
+            event: 'candidate_intro_video_transcription_failed', 
+            candidateId: payload.candidateId, 
+            error: String(err) 
+          }));
+          
+          await prisma.candidateProfile.update({
+            where: { candidateId: payload.candidateId },
+            data: { introVideoAnalysisStatus: 'failed' },
+          });
+
           if (!shouldFallbackToMock('transcription')) throw err;
         }
       }
@@ -523,10 +562,14 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
           const comprehendRegion = process.env.AWS_COMPREHEND_REGION ?? process.env.S3_REGION ?? 'us-east-1';
           const comprehendClient = new ComprehendClient({ region: comprehendRegion });
           const truncated = transcriptContent.slice(0, 5000);
+          
+          // Use 'pt' for Comprehend if starts with 'pt'
+          const compLang = transcriptLanguage.toLowerCase().startsWith('pt') ? 'pt' : 'en';
+
           const [sentimentResult, keyPhrasesResult, entitiesResult] = await Promise.all([
-            comprehendClient.send(new DetectSentimentCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
-            comprehendClient.send(new DetectKeyPhrasesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
-            comprehendClient.send(new DetectEntitiesCommand({ Text: truncated, LanguageCode: 'pt' as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectSentimentCommand({ Text: truncated, LanguageCode: compLang as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectKeyPhrasesCommand({ Text: truncated, LanguageCode: compLang as ComprehendLanguageCode })),
+            comprehendClient.send(new DetectEntitiesCommand({ Text: truncated, LanguageCode: compLang as ComprehendLanguageCode })),
           ]);
 
           sentimentJson = {
@@ -561,12 +604,20 @@ export async function processCandidateIntroVideoJobs(): Promise<number> {
               messages: [
                 {
                   role: 'system',
-                  content: `Você analisa vídeos de apresentação de candidatos. Retorne EXCLUSIVAMENTE um JSON:
+                  content: `Você analisa vídeos de apresentação de candidatos de forma premium e detalhada. 
+Retorne EXCLUSIVAMENTE um JSON com a seguinte estrutura:
 {
-  "summary": "resumo objetivo em 2 frases",
+  "summary": "Resumo executivo de impacto (3-4 frases) destacando a essência do candidato.",
+  "insights": {
+    "soft_skills": ["skill1", "skill2"],
+    "communication_style": "descrição do estilo de comunicação",
+    "enthusiasm_level": "baixo/médio/alto",
+    "professional_presence": "descrição da postura",
+    "key_takeaways": ["ponto importante 1", "ponto importante 2"]
+  },
   "tags": ["tag1", "tag2", "tag3"]
 }
-As tags devem refletir experiência, competências, contexto profissional e sinais de comunicação úteis para recrutamento.`,
+As tags devem refletir experiência, competências e sinais de comunicação.`,
                 },
                 {
                   role: 'user',
@@ -575,12 +626,24 @@ As tags devem refletir experiência, competências, contexto profissional e sina
               ],
             });
 
-            const parsed = safeJsonParse<{ summary?: string; tags?: string[] }>(
+            const parsed = safeJsonParse<{ 
+              summary?: string; 
+              insights?: Record<string, unknown>;
+              tags?: string[] 
+            }>(
               response.choices[0]?.message?.content ?? '{}',
               {},
               'candidate_intro_video_analysis',
             );
-            analysisSummary = parsed.summary ?? analysisSummary;
+            
+            // Format summary to include insights if present
+            if (parsed.insights) {
+              const insightsStr = JSON.stringify(parsed.insights);
+              analysisSummary = `${parsed.summary ?? analysisSummary}\n\n[AI Insights]: ${insightsStr}`;
+            } else {
+              analysisSummary = parsed.summary ?? analysisSummary;
+            }
+            
             introTags = uniqueTags(parsed.tags ?? introTags);
             analysisProvider = 'aws-comprehend+openai';
             modelVersion = getModelVersion();
@@ -593,7 +656,18 @@ As tags devem refletir experiência, competências, contexto profissional e sina
             ]);
           }
         } catch (err) {
-          console.error(JSON.stringify({ source: 'worker', event: 'candidate_intro_video_analysis_failed', candidateId: payload.candidateId, error: String(err) }));
+          console.error(JSON.stringify({ 
+            source: 'worker', 
+            event: 'candidate_intro_video_analysis_failed', 
+            candidateId: payload.candidateId, 
+            error: String(err) 
+          }));
+          
+          await prisma.candidateProfile.update({
+            where: { candidateId: payload.candidateId },
+            data: { introVideoAnalysisStatus: 'failed' },
+          });
+
           if (!shouldFallbackToMock('ai')) throw err;
         }
       }
@@ -1382,36 +1456,45 @@ export async function processInviteFollowupJobs(): Promise<number> {
 async function run() {
   await logEnvironmentConfig();
   console.log('[worker] starting');
+  console.log('[worker] Entering main loop...');
+  
+  const SLEEP_MS = Number(process.env.WORKER_SLEEP_MS ?? 5000);
+  let isRunning = true;
 
-  const shutdown = () => {
-    console.log('[worker] shutting down');
-    prisma.$disconnect()
-      .then(() => process.exit(0))
-      .catch((err: unknown) => { console.error('[worker] disconnect error', err); process.exit(1); });
-  };
+  // Handle graceful shutdown
+  process.on('SIGINT', () => { isRunning = false; console.log('[worker] SIGINT received, shutting down...'); });
+  process.on('SIGTERM', () => { isRunning = false; console.log('[worker] SIGTERM received, shutting down...'); });
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  while (isRunning) {
+    try {
+      const processedResume = await processResumeUploads();
+      const processedCandidateIntroVideo = await processCandidateIntroVideoJobs();
+      const processedVideo = await processSmartInterviewVideoJobs();
+      const processedAnalysis = await processSmartInterviewAnalysisJobs();
+      const processedMatching = await processMatchingComputeJobs();
+      const processedInsights = await processInsightsGenerateJobs();
+      const processedComparison = await processComparisonGenerateJobs();
+      const processedRecommendation = await processRecommendationGenerateJobs();
+      const processedRisk = await processRiskAnalyzeJobs();
+      const processedAutomation = await processAutomationTriggerJobs();
+      const processedInviteFollowup = await processInviteFollowupJobs();
 
-  try {
-    const processedResume = await processResumeUploads();
-    const processedCandidateIntroVideo = await processCandidateIntroVideoJobs();
-    const processedVideo = await processSmartInterviewVideoJobs();
-    const processedAnalysis = await processSmartInterviewAnalysisJobs();
-    const processedMatching = await processMatchingComputeJobs();
-    const processedInsights = await processInsightsGenerateJobs();
-    const processedComparison = await processComparisonGenerateJobs();
-    const processedRecommendation = await processRecommendationGenerateJobs();
-    const processedRisk = await processRiskAnalyzeJobs();
-    const processedAutomation = await processAutomationTriggerJobs();
-    const processedInviteFollowup = await processInviteFollowupJobs();
-    console.log(`[worker] resume=${processedResume} candidateIntroVideo=${processedCandidateIntroVideo} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation} inviteFollowup=${processedInviteFollowup}`);
-  } catch (err) {
-    console.error('[worker] error', err);
-    process.exitCode = 1;
-  } finally {
-    await prisma.$disconnect();
+      const total = processedResume + processedCandidateIntroVideo + processedVideo + processedAnalysis + processedMatching + processedInsights + processedComparison + processedRecommendation + processedRisk + processedAutomation + processedInviteFollowup;
+      
+      if (total > 0) {
+        console.log(`[worker] Loop completed. Processed: resume=${processedResume} candidateIntroVideo=${processedCandidateIntroVideo} smartInterviewVideo=${processedVideo} smartInterviewAnalysis=${processedAnalysis} matching=${processedMatching} insights=${processedInsights} comparison=${processedComparison} recommendation=${processedRecommendation} risk=${processedRisk} automation=${processedAutomation} inviteFollowup=${processedInviteFollowup}`);
+      }
+    } catch (err) {
+      console.error('[worker] Error in main loop:', err);
+    }
+
+    if (isRunning) {
+      await new Promise(resolve => setTimeout(resolve, SLEEP_MS));
+    }
   }
+
+  await prisma.$disconnect();
+  console.log('[worker] Main loop finished, disconnected from DB.');
 }
 
 async function logEnvironmentConfig() {

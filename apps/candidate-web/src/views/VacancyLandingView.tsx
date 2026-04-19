@@ -457,6 +457,8 @@ export function VacancyLandingView() {
 
       </div>
       </div>
+      </div>
+      </div>
     </TenantBrandingProvider>
   );
 }

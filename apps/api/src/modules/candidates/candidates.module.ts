@@ -12,6 +12,7 @@ import { IntegrationsModule } from '../integrations/integrations.module.js';
   imports: [AuthModule, InviteFollowUpModule, NotificationPreferencesModule, IntegrationsModule],
   controllers: [CandidatesController, CandidateProfileController],
   providers: [CandidatesService, CandidateProfileService],
+  exports: [CandidatesService, CandidateProfileService],
 })
 export class CandidatesModule {}
 

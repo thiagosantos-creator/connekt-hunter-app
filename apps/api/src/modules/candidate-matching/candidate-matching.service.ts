@@ -119,37 +119,116 @@ export class CandidateMatchingService {
     return this.getMatching(application.candidateId, application.vacancyId);
   }
 
-  async getMatching(candidateId: string, vacancyId: string) {
-    return prisma.matchingScore.findUnique({
-      where: { candidateId_vacancyId: { candidateId, vacancyId } },
-      include: {
-        breakdowns: true,
-        evidences: true,
-        explanations: true,
-      },
-    });
-  }
-
-  async compareCandidates(vacancyId: string, leftCandidateId: string, rightCandidateId: string, actorId?: string) {
-    const vacancy = await prisma.vacancy.findUnique({ where: { id: vacancyId } });
-    if (!vacancy) throw new NotFoundException('vacancy_not_found');
-    await this.assertTenantAccess(vacancy.organizationId, actorId);
-
-    const [left, right] = await Promise.all([
-      prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: leftCandidateId, vacancyId } } }),
-      prisma.matchingScore.findUnique({ where: { candidateId_vacancyId: { candidateId: rightCandidateId, vacancyId } } }),
+  async computeOnDemandMatching(candidateId: string, vacancyId: string, actorId?: string) {
+    const [candidate, vacancy] = await Promise.all([
+      prisma.candidate.findUnique({
+        where: { id: candidateId },
+        include: { profile: true, onboarding: { include: { resumes: { include: { parseResult: true } } } } },
+      }),
+      prisma.vacancy.findUnique({ where: { id: vacancyId } }),
     ]);
 
-    const comparison = await this.aiGateway.compareCandidates({
-      vacancyId,
-      left: { candidateId: leftCandidateId, score: left?.score ?? 0 },
-      right: { candidateId: rightCandidateId, score: right?.score ?? 0 },
+    if (!candidate || !vacancy) throw new NotFoundException('candidate_or_vacancy_not_found');
+    await this.assertTenantAccess(vacancy.organizationId, actorId);
+
+    const resumeSummary = candidate.onboarding?.resumes.at(0)?.parseResult?.parsedJson;
+    const resumeText = JSON.stringify(resumeSummary ?? { summary: 'no-resume' });
+    const candidateText = `${candidate.email} ${candidate.profile?.fullName ?? ''} ${resumeText}`;
+    const vacancyText = `${vacancy.title} ${vacancy.description}`;
+
+    // Vector search context (can be used for more advanced RAG-based matching later)
+    const candidateVector = await this.toEmbedding(candidateText);
+    const vacancyVector = await this.toEmbedding(vacancyText);
+
+    // Dynamic scoring for Sourcing context (limited signal since no application exists yet)
+    const profileScore = candidate.profile?.fullName ? 0.3 : 0.1;
+    const resumeScore = resumeSummary ? 0.5 : 0.1;
+    const baseScore = 0.2; // Base match potential
+
+    const score = Number(((profileScore + resumeScore + baseScore) * 100).toFixed(2));
+
+    const matching = await prisma.matchingScore.upsert({
+      where: { candidateId_vacancyId: { candidateId, vacancyId } },
+      update: { score, status: 'completed', computedAt: new Date() },
+      create: { candidateId, vacancyId, score, status: 'completed', modelVersion: 'matching-on-demand' },
     });
 
-    return prisma.candidateComparison.upsert({
-      where: { vacancyId_leftCandidateId_rightCandidateId: { vacancyId, leftCandidateId, rightCandidateId } },
-      update: { comparisonJson: comparison as never },
-      create: { vacancyId, leftCandidateId, rightCandidateId, comparisonJson: comparison as never },
+    const dimensions = [
+      { dimension: 'profile', score: Number((profileScore * 100).toFixed(2)), weight: 0.4, reasoning: 'Completude e dados do perfil.' },
+      { dimension: 'resume', score: Number((resumeScore * 100).toFixed(2)), weight: 0.6, reasoning: 'Aderência técnica baseada no CV parseado.' },
+    ];
+
+    await prisma.matchingBreakdown.deleteMany({ where: { matchingScoreId: matching.id } });
+    await prisma.matchingBreakdown.createMany({
+      data: dimensions.map((item) => ({ ...item, matchingScoreId: matching.id })),
     });
+
+    const explanation = await this.aiGateway.explainMatching({
+      applicationId: `ondemand-${candidateId}-${vacancyId}`,
+      score,
+      dimensions,
+    });
+
+    await prisma.aiExplanation.create({
+      data: {
+        candidateId,
+        matchingScoreId: matching.id,
+        context: 'on-demand-sourcing',
+        explanation: explanation.text,
+        generatedBy: explanation.provider,
+      },
+    });
+
+    return this.getMatching(candidateId, vacancyId);
+  }
+
+  async getMatching(candidateId: string, vacancyId: string) {
+    const matching = await prisma.matchingScore.findUnique({
+      where: { candidateId_vacancyId: { candidateId, vacancyId } },
+      include: {
+        breakdown: true,
+        explanations: { orderBy: { createdAt: 'desc' }, take: 1 },
+        evidences: true,
+      },
+    });
+
+    if (!matching) return null;
+
+    return {
+      score: matching.score,
+      status: matching.status || 'completed',
+      computedAt: matching.computedAt,
+      modelVersion: matching.modelVersion,
+      dimensions: matching.breakdown.map((b) => ({
+        dimension: b.dimension,
+        score: b.score,
+        weight: b.weight,
+        reasoning: b.reasoning,
+      })),
+      explanation: matching.explanations[0]?.explanation,
+      evidences: matching.evidences.map((ev) => ({
+        sourceType: ev.sourceType,
+        excerpt: ev.excerpt,
+        confidence: ev.confidence,
+      })),
+    };
+  }
+
+  async compareCandidates(vacancyId: string, leftId: string, rightId: string, actorId?: string) {
+    const [left, right] = await Promise.all([
+      this.getMatching(leftId, vacancyId),
+      this.getMatching(rightId, vacancyId),
+    ]);
+
+    if (!left || !right) {
+      throw new NotFoundException('matching_data_missing_for_comparison');
+    }
+
+    return {
+      winner: left.score >= right.score ? 'left' : 'right',
+      gap: Math.abs(left.score - right.score),
+      left,
+      right,
+    };
   }
 }

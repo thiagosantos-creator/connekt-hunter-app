@@ -15,6 +15,7 @@ import {
   InlineMessage,
   Card,
   CardHeader,
+  CardDescription,
   CardContent,
   Badge,
 } from '@connekt/ui';
@@ -843,6 +844,7 @@ export function StatusView() {
           100% { transform: rotate(0deg); }
         }
       `}</style>
+      </div>
     </TenantBrandingProvider>
   );
 }

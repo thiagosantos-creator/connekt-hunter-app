@@ -3,7 +3,19 @@ import { useParams } from 'react-router-dom';
 import {
   spacing,
   zIndex,
+  colors,
+  fontSize,
+  fontWeight,
+  shadows,
+  radius,
+  Button,
+  Badge,
+  InlineMessage,
+  EmptyState,
+  Table,
+  TableSkeleton,
   TenantBrandingProvider,
+  CandidateDossier,
 } from '@connekt/ui';
 import { apiPublicGet, apiPublicPost } from '../services/api.js';
 import type { PublicReviewShortlistItem } from '../services/types.js';
@@ -120,9 +132,6 @@ export function PublicClientReviewView() {
           <Button variant="primary" onClick={() => window.location.reload()}>Tentar novamente</Button>
         </div>
       </div>
-    );
-  }
-
     );
   }
 
@@ -301,20 +310,21 @@ export function PublicClientReviewView() {
                       </div>
 
                       <div style={{ display: 'flex', gap: spacing.sm }}>
-                      {decisionOrder.map((kind) => {
-                        const meta = decisionMeta[kind];
-                        const isCurrent = selectedItem?.currentDecision === kind;
-                        return (
-                          <Button
-                            key={kind}
-                            variant={meta.button}
-                            onClick={() => openDecisionConfirm(selectedItem!.id, kind, selectedItem!.candidate.fullName || 'Candidato')}
-                            style={{ opacity: isCurrent ? 1 : 0.8, border: isCurrent ? `2px solid rgba(0,0,0,0.2)` : 'none' }}
-                          >
-                            {meta.icon} {meta.label}
-                          </Button>
-                        );
-                      })}
+                        {decisionOrder.map((kind) => {
+                          const meta = decisionMeta[kind];
+                          const isCurrent = selectedItem?.currentDecision === kind;
+                          return (
+                            <Button
+                              key={kind}
+                              variant={meta.button}
+                              onClick={() => openDecisionConfirm(selectedItem!.id, kind, selectedItem!.candidate.fullName || 'Candidato')}
+                              style={{ opacity: isCurrent ? 1 : 0.8, border: isCurrent ? `2px solid rgba(0,0,0,0.2)` : 'none' }}
+                            >
+                              {meta.icon} {meta.label}
+                            </Button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -367,6 +377,7 @@ export function PublicClientReviewView() {
           </div>
         </div>
       )}
+      </div>
     </TenantBrandingProvider>
   );
 }

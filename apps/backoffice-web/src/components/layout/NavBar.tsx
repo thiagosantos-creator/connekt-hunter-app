@@ -22,6 +22,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: 'Dashboard', to: '/dashboard' },
         { label: 'Vagas', to: '/vacancies' },
+        { label: 'Sourcing', to: '/sourcing' },
         { label: 'Candidatos', to: '/candidates' },
         { label: 'Aplicações', to: '/applications' },
         { label: 'Inbox', to: '/inbox' },
@@ -60,6 +61,7 @@ const navByRole: Record<string, NavSection[]> = {
       items: [
         { label: 'Dashboard', to: '/dashboard' },
         { label: 'Vagas', to: '/vacancies' },
+        { label: 'Sourcing', to: '/sourcing' },
         { label: 'Candidatos', to: '/candidates' },
         { label: 'Aplicações', to: '/applications' },
         { label: 'Inbox', to: '/inbox' },

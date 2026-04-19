@@ -31,6 +31,9 @@ import { ExecutiveDashboardModule } from './modules/executive-dashboard/executiv
 import { UserManagementModule } from './modules/user-management/user-management.module.js';
 import { ClientCommentsModule } from './modules/client-comments/client-comments.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
+import { HeadhunterDashboardModule } from './modules/headhunter-dashboard/headhunter-dashboard.module.js';
+import { SourcingModule } from './modules/sourcing/sourcing.module.js';
+
 
 @Module({
   imports: [
@@ -65,6 +68,8 @@ import { BillingModule } from './modules/billing/billing.module.js';
     ExecutiveDashboardModule,
     UserManagementModule,
     BillingModule,
+    HeadhunterDashboardModule,
+    SourcingModule,
   ],
   controllers: [HealthController],
 })

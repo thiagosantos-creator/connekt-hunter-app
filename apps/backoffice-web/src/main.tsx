@@ -20,11 +20,12 @@ import { OrganizationsView } from './views/OrganizationsView.js';
 import { AccessPoliciesView } from './views/AccessPoliciesView.js';
 import { NotificationPreferencesView } from './views/NotificationPreferencesView.js';
 import { InboxView } from './views/InboxView.js';
+import { SaasLanding } from './views/SaasLanding.js';
+import { WorkspaceSetupView } from './views/WorkspaceSetupView.js';
+import { CandidateSourcingView } from './views/CandidateSourcingView.js';
 import { EnterpriseGovernanceView } from './views/EnterpriseGovernanceView.js';
 import { CandidateDossierView } from './views/CandidateDossierView.js';
 import { PublicClientReviewView } from './views/PublicClientReviewView.js';
-import { SaasLanding } from './views/SaasLanding.js';
-import { WorkspaceSetupView } from './views/WorkspaceSetupView.js';
 
 function App() {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ function App() {
         <Route path="/login" element={<LoginView />} />
         <Route path="/dashboard" element={<ProtectedRoute><HomeView /></ProtectedRoute>} />
         <Route path="/vacancies" element={<ProtectedRoute><VacanciesView /></ProtectedRoute>} />
+        <Route path="/sourcing" element={<PermissionRoute permission="candidates:invite"><CandidateSourcingView /></PermissionRoute>} />
         <Route path="/candidates" element={<PermissionRoute permission="candidates:invite"><CandidatesView /></PermissionRoute>} />
         <Route path="/applications" element={<ProtectedRoute><ApplicationsView /></ProtectedRoute>} />
         <Route path="/applications/:applicationId/dossier" element={<ProtectedRoute><CandidateDossierView /></ProtectedRoute>} />

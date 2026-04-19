@@ -293,9 +293,6 @@ export function Tabs({ tabs, active, onChange }: { tabs: Tab[]; active: string; 
   );
 }
 
-  );
-}
-
 /** Step indicator with timeline visual */
 export function StepTimeline({ steps, current }: { steps: string[]; current: number }) {
   return (

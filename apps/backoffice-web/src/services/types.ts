@@ -330,6 +330,35 @@ export interface ApplicationDetail extends Application {
       email: string;
     };
   }>;
+
+export interface SourcingCandidate {
+  id: string;
+  email: string;
+  fullName: string;
+  photoUrl?: string;
+  applicationsCount: number;
+  skills: string[];
+}
+
+export interface SourcingConflict {
+  vacancyId: string;
+  vacancyTitle: string;
+  addedAt: string;
+}
+
+export interface SourcingFitInsight {
+  score: number;
+  breakdowns: Array<{
+    dimension: string;
+    score: number;
+    weight: number;
+    reasoning: string;
+  }>;
+  explanations: Array<{
+    context: string;
+    explanation: string;
+  }>;
+}
   shortlistItems?: Array<{
     id: string;
     createdAt: string;
@@ -560,5 +589,22 @@ export interface PublicReviewShortlistItem {
         publicName: string | null;
       } | null;
     };
+  };
+}
+
+export interface HeadhunterDashboardMetrics {
+  kpis: {
+    published: number;
+    closed: number;
+    filled: number;
+    hires: number;
+    avgShortlist: number;
+    tts: number;
+    tta: number;
+  };
+  funnel: {
+    shortlisted: number;
+    approved: number;
+    hired: number;
   };
 }
